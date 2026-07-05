@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react'
-import { Wallet } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { Field, PrimaryButton, Spinner, inputClass } from '../../components/ui'
 
@@ -43,11 +42,13 @@ export function LoginPage() {
     <div className="pt-safe pb-safe flex min-h-dvh flex-col justify-center bg-bg px-6">
       <div className="mx-auto w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-white shadow-lg">
-            <Wallet className="h-8 w-8" />
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}pwa-192.png`}
+            alt="Logo AJE"
+            className="h-20 w-20 rounded-2xl shadow-lg"
+          />
           <div>
-            <h1 className="text-2xl font-bold">Finanze &amp; Organizzazione</h1>
+            <h1 className="text-3xl font-bold tracking-tight">AJE</h1>
             <p className="text-sm text-muted">La tua app personale per soldi e documenti</p>
           </div>
         </div>

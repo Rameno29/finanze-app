@@ -26,3 +26,6 @@ dist-ssr
 # Ambiente e file locali
 .env
 .claude/
+
+# Immagini sorgente fuori repo
+ChatGPT Image*.png

@@ -1,6 +1,7 @@
-# Finanze & Organizzazione
+# AJE
 
 App personale (PWA) per gestire finanze, documenti e buste paga, ottimizzata per iPhone 16 Pro Max e Android.
+Le icone si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
 **App online:** https://rameno29.github.io/finanze-app/
 

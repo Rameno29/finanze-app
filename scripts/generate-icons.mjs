@@ -1,25 +1,47 @@
 import sharp from 'sharp'
-import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
-const svg = readFileSync(new URL('../public/icon.svg', import.meta.url))
+const SRC = fileURLToPath(new URL('./icon-source.png', import.meta.url))
+const GREEN = '#03372f'
+const SIZE = 1254
+const RADIUS = 280
 
-// Variante maskable: contenuto ridotto dentro la safe zone, sfondo pieno
-const maskableSvg = Buffer.from(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6366f1"/>
-      <stop offset="1" stop-color="#8b5cf6"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" fill="url(#g)"/>
-  <text x="256" y="315" font-family="-apple-system, 'Segoe UI', Roboto, sans-serif" font-size="190" font-weight="700" fill="#ffffff" text-anchor="middle">€</text>
-  <rect x="161" y="350" width="190" height="16" rx="8" fill="#ffffff" opacity="0.85"/>
-</svg>`)
+// Maschera con angoli arrotondati (gli angoli del PNG sorgente sono neri opachi)
+const roundedMask = Buffer.from(
+  `<svg width="${SIZE}" height="${SIZE}"><rect width="${SIZE}" height="${SIZE}" rx="${RADIUS}" fill="#fff"/></svg>`,
+)
 
-await sharp(svg, { density: 300 }).resize(192, 192).png().toFile('public/pwa-192.png')
-await sharp(svg, { density: 300 }).resize(512, 512).png().toFile('public/pwa-512.png')
-await sharp(svg, { density: 300 }).resize(180, 180).flatten({ background: '#6366f1' }).png().toFile('public/apple-touch-icon.png')
-await sharp(maskableSvg, { density: 300 }).resize(512, 512).png().toFile('public/pwa-maskable-512.png')
+async function main() {
+  // Versione con angoli trasparenti
+  const rounded = await sharp(SRC)
+    .composite([{ input: roundedMask, blend: 'dest-in' }])
+    .png()
+    .toBuffer()
 
-console.log('Icone generate.')
+  // Versione quadrata a tutto campo: contenuto arrotondato su fondo verde
+  const fullBleed = await sharp({
+    create: { width: SIZE, height: SIZE, channels: 4, background: GREEN },
+  })
+    .composite([{ input: rounded }])
+    .png()
+    .toBuffer()
+
+  // Icone PWA "any": mantengono gli angoli arrotondati trasparenti
+  await sharp(rounded).resize(192, 192).png().toFile('public/pwa-192.png')
+  await sharp(rounded).resize(512, 512).png().toFile('public/pwa-512.png')
+  await sharp(rounded).resize(64, 64).png().toFile('public/favicon.png')
+
+  // Apple touch: quadrata (iOS applica da sé gli angoli)
+  await sharp(fullBleed).resize(180, 180).flatten({ background: GREEN }).png().toFile('public/apple-touch-icon.png')
+
+  // Maskable per Android: contenuto ridotto all'80% su fondo verde
+  const inner = await sharp(fullBleed).resize(410, 410).png().toBuffer()
+  await sharp({ create: { width: 512, height: 512, channels: 4, background: GREEN } })
+    .composite([{ input: inner, gravity: 'center' }])
+    .png()
+    .toFile('public/pwa-maskable-512.png')
+
+  console.log('Icone AJE generate.')
+}
+
+await main()

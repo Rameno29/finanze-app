@@ -73,7 +73,7 @@ export function SettingsPage() {
         </Card>
 
         <p className="pb-4 text-center text-xs text-muted">
-          Finanze &amp; Organizzazione · v1.0
+          AJE · v1.0
           <br />
           Prossimi moduli: Agenda, Google, Musica e YouTube
         </p>
