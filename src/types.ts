@@ -1,0 +1,66 @@
+export type Kind = 'income' | 'expense'
+
+export interface Category {
+  id: string
+  user_id: string
+  name: string
+  kind: Kind
+  color: string
+  icon: string
+}
+
+export interface Transaction {
+  id: string
+  user_id: string
+  amount_cents: number
+  kind: Kind
+  category_id: string | null
+  date: string
+  description: string
+  recurrence: 'mensile' | 'settimanale' | 'annuale' | null
+  document_id: string | null
+}
+
+export interface Budget {
+  id: string
+  user_id: string
+  category_id: string
+  monthly_cents: number
+}
+
+export interface DocumentRow {
+  id: string
+  user_id: string
+  doc_type: 'busta_paga' | 'altro'
+  storage_path: string
+  file_name: string
+  status: 'caricato' | 'analizzato' | 'errore'
+  created_at: string
+}
+
+export interface Payslip {
+  id: string
+  user_id: string
+  document_id: string
+  period_year: number
+  period_month: number
+  net_cents: number | null
+  gross_cents: number | null
+  deductions: Record<string, number>
+  vacation_days: number | null
+  leave_hours: number | null
+  raw_data: Record<string, unknown>
+}
+
+/** Risultato dell'analisi AI di una busta paga (dalla Edge Function) */
+export interface PayslipAnalysis {
+  period_year: number | null
+  period_month: number | null
+  net_cents: number | null
+  gross_cents: number | null
+  deductions: Record<string, number>
+  vacation_days: number | null
+  leave_hours: number | null
+  employer: string | null
+  notes: string | null
+}

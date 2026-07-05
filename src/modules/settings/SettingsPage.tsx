@@ -1,0 +1,83 @@
+import { LogOut, Moon, Smartphone, Sparkles, Sun } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
+import { useTheme, type ThemeSetting } from '../../context/ThemeContext'
+import { Card, PageHeader } from '../../components/ui'
+
+const THEME_OPTIONS: Array<{ value: ThemeSetting; label: string; icon: typeof Sun }> = [
+  { value: 'system', label: 'Sistema', icon: Smartphone },
+  { value: 'light', label: 'Chiaro', icon: Sun },
+  { value: 'dark', label: 'Scuro', icon: Moon },
+]
+
+export function SettingsPage() {
+  const { session } = useAuth()
+  const { setting, setSetting } = useTheme()
+
+  return (
+    <div className="pb-28">
+      <PageHeader title="Altro" subtitle="Impostazioni e informazioni" />
+
+      <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
+        <Card>
+          <h2 className="mb-3 font-semibold">Tema</h2>
+          <div className="grid grid-cols-3 gap-2">
+            {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                onClick={() => setSetting(value)}
+                className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border text-sm font-medium ${
+                  setting === value
+                    ? 'border-accent bg-accent-soft text-accent'
+                    : 'border-line bg-card-2 text-muted'
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="mb-2 flex items-center gap-2 font-semibold">
+            <Sparkles className="h-4 w-4 text-accent" /> Analisi AI delle buste paga
+          </h2>
+          <p className="text-sm text-muted">
+            L’analisi automatica usa l’AI di Anthropic (Claude) tramite una funzione sicura sul
+            server: la chiave API non passa mai dal telefono. Costo tipico: pochi centesimi per
+            busta paga.
+          </p>
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-muted">
+            <li>
+              Crea una chiave su <span className="font-medium text-ink">console.anthropic.com</span>
+            </li>
+            <li>
+              Nel progetto Supabase: <span className="font-medium text-ink">Edge Functions → Secrets</span>
+            </li>
+            <li>
+              Aggiungi il secret <code className="rounded bg-card-2 px-1.5 py-0.5 text-xs">ANTHROPIC_API_KEY</code>
+            </li>
+          </ol>
+        </Card>
+
+        <Card>
+          <h2 className="mb-1 font-semibold">Account</h2>
+          <p className="mb-4 text-sm text-muted">{session?.user.email}</p>
+          <button
+            onClick={() => void supabase.auth.signOut()}
+            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-line font-semibold text-expense"
+          >
+            <LogOut className="h-5 w-5" /> Esci
+          </button>
+        </Card>
+
+        <p className="pb-4 text-center text-xs text-muted">
+          Finanze &amp; Organizzazione · v1.0
+          <br />
+          Prossimi moduli: Agenda, Google, Musica e YouTube
+        </p>
+      </div>
+    </div>
+  )
+}
