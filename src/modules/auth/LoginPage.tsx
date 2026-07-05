@@ -19,7 +19,11 @@ export function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) setMessage({ kind: 'error', text: 'Accesso non riuscito: controlla email e password.' })
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password })
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: 'https://rameno29.github.io/finanze-app/' },
+        })
         if (error) {
           setMessage({ kind: 'error', text: error.message })
         } else if (!data.session) {

@@ -1,32 +1,43 @@
-# React + TypeScript + Vite
+# Finanze & Organizzazione
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+App personale (PWA) per gestire finanze, documenti e buste paga, ottimizzata per iPhone 16 Pro Max e Android.
 
-Currently, two official plugins are available:
+**App online:** https://rameno29.github.io/finanze-app/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Funzioni (MVP)
 
-## React Compiler
+- **Finanze**: entrate/uscite con categorie, budget mensili con barre di avanzamento, dashboard con grafici (saldo mese, torta per categorie, andamento 6 mesi)
+- **Documenti**: carica la busta paga (PDF o foto) → analisi AI (Claude) estrae netto, lordo, trattenute → conferma → l'entrata "Stipendio" appare nelle finanze; storico stipendi con grafico
+- **Tema** chiaro/scuro automatico da sistema, forzabile dalle impostazioni
+- Installabile sulla home: Safari → Condividi → "Aggiungi a schermata Home"
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Stack
 
-## Expanding the Oxlint configuration
+- Frontend: Vite + React + TypeScript + Tailwind CSS 4 + Recharts + lucide-react (PWA via vite-plugin-pwa)
+- Backend: Supabase (progetto `finanze-organizzazione`, regione eu-central-1) — Auth, Postgres con RLS, Storage, Edge Function `analyze-payslip`
+- Deploy: GitHub Pages via Actions (push su `main` → deploy automatico)
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Attivare l'analisi AI delle buste paga
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+1. Crea una chiave API su [console.anthropic.com](https://console.anthropic.com)
+2. Dashboard Supabase → progetto `finanze-organizzazione` → **Edge Functions → Secrets**
+3. Aggiungi il secret `ANTHROPIC_API_KEY` con la tua chiave
+
+Costo tipico: pochi centesimi per busta paga (modello Claude Haiku).
+
+## Sviluppo locale
+
+```bash
+npm install
+npm run dev       # http://localhost:5173/finanze-app/
+npm run build     # produzione in dist/
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+La Edge Function è in `supabase/functions/analyze-payslip/` e si ridistribuisce dal connettore Supabase o con la CLI Supabase.
+
+## Roadmap (moduli futuri)
+
+- Agenda/organizzazione del tempo + Google Calendar
+- Integrazioni Google (Gmail, Drive, Maps)
+- Musica (Spotify Premium) e mini-player YouTube con riassunti AI
+- Generazione PDF e ricerca web con AI
