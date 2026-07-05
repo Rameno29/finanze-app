@@ -152,7 +152,17 @@ export function DocumentsPage() {
                     tick={{ fill: 'var(--muted)', fontSize: 11 }}
                   />
                   <YAxis hide domain={['auto', 'auto']} />
-                  <Tooltip formatter={(v) => formatCents(Math.round(Number(v) * 100))} />
+                  <Tooltip
+                    formatter={(v) => formatCents(Math.round(Number(v) * 100))}
+                    contentStyle={{
+                      backgroundColor: 'var(--card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 12,
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+                    }}
+                    labelStyle={{ color: 'var(--text)', fontWeight: 600 }}
+                    itemStyle={{ color: 'var(--muted)' }}
+                  />
                   <Line type="monotone" dataKey="Netto" stroke="var(--income)" strokeWidth={2.5} dot />
                   <Line type="monotone" dataKey="Lordo" stroke="var(--accent)" strokeWidth={2} dot />
                 </LineChart>

@@ -8,7 +8,6 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
 } from 'recharts'
 import { Card, PageHeader, Spinner } from '../../components/ui'
@@ -54,8 +53,15 @@ export function HomePage() {
       label: monthLabel(y, m),
       Entrate: h.income / 100,
       Uscite: h.expense / 100,
+      incomeCents: h.income,
+      expenseCents: h.expense,
     }
   })
+
+  // Mese selezionato nel grafico "Ultimi 6 mesi" (default: mese corrente, l'ultimo)
+  const [selectedBar, setSelectedBar] = useState<number | null>(null)
+  const activeIndex = selectedBar ?? barData.length - 1
+  const activeMonth = barData[activeIndex]
 
   return (
     <div className="pb-28">
@@ -108,7 +114,6 @@ export function HomePage() {
                         <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v) => formatCents(Number(v))} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -126,8 +131,11 @@ export function HomePage() {
         </Card>
 
         <Card>
-          <h2 className="mb-3 font-semibold">Ultimi 6 mesi</h2>
-          <div className="h-44">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="font-semibold">Ultimi 6 mesi</h2>
+            <span className="text-xs text-muted">Tocca un mese</span>
+          </div>
+          <div className="relative h-40">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} barGap={2}>
                 <XAxis
@@ -136,15 +144,65 @@ export function HomePage() {
                   axisLine={false}
                   tick={{ fill: 'var(--muted)', fontSize: 12 }}
                 />
-                <Tooltip
-                  formatter={(v) => formatCents(Math.round(Number(v) * 100))}
-                  labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ''}
-                />
-                <Bar dataKey="Entrate" fill="var(--income)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Uscite" fill="var(--expense)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Entrate" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                  {barData.map((d, i) => (
+                    <Cell
+                      key={d.label}
+                      fill="var(--income)"
+                      opacity={i === activeIndex ? 1 : 0.35}
+                    />
+                  ))}
+                </Bar>
+                <Bar dataKey="Uscite" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                  {barData.map((d, i) => (
+                    <Cell
+                      key={d.label}
+                      fill="var(--expense)"
+                      opacity={i === activeIndex ? 1 : 0.35}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
+            {/* Zone touch invisibili: una colonna per mese */}
+            <div className="absolute inset-0 grid grid-cols-6">
+              {barData.map((d, i) => (
+                <button
+                  key={d.label}
+                  aria-label={`Dettagli ${d.label}`}
+                  onClick={() => setSelectedBar(i)}
+                  className="h-full w-full"
+                />
+              ))}
+            </div>
           </div>
+          {activeMonth && (
+            <div className="mt-3 rounded-xl bg-card-2 px-4 py-3">
+              <p className="mb-2 text-sm font-semibold">{activeMonth.label}</p>
+              <div className="grid grid-cols-3 text-center">
+                <div>
+                  <p className="text-xs text-muted">Entrate</p>
+                  <p className="font-bold text-income">{formatCents(activeMonth.incomeCents)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted">Uscite</p>
+                  <p className="font-bold text-expense">{formatCents(activeMonth.expenseCents)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted">Saldo</p>
+                  <p
+                    className={`font-bold ${
+                      activeMonth.incomeCents - activeMonth.expenseCents >= 0
+                        ? 'text-income'
+                        : 'text-expense'
+                    }`}
+                  >
+                    {formatCents(activeMonth.incomeCents - activeMonth.expenseCents)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </Card>
 
         <Link
