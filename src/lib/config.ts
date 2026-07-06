@@ -3,8 +3,9 @@
  * identificano solo l'app presso Google/Spotify).
  * Quando Bogdan crea le app sviluppatore, incollare qui i rispettivi ID.
  */
-export const GOOGLE_CLIENT_ID = ''
-export const SPOTIFY_CLIENT_ID = ''
+export const GOOGLE_CLIENT_ID: string =
+  '969336966029-dtfmirhn1j8862o7u73jsv6fkdfcntu9.apps.googleusercontent.com'
+export const SPOTIFY_CLIENT_ID: string = '498660831dd54572a6c056c852c47bea'
 
 export const APP_URL = 'https://rameno29.github.io/finanze-app/'
 
