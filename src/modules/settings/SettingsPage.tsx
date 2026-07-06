@@ -1,4 +1,5 @@
-import { LogOut, Moon, Smartphone, Sparkles, Sun } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChevronRight, Globe, LogOut, Moon, Music, Smartphone, Sparkles, Sun } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme, type ThemeSetting } from '../../context/ThemeContext'
@@ -19,6 +20,25 @@ export function SettingsPage() {
       <PageHeader title="Altro" subtitle="Impostazioni e informazioni" />
 
       <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
+        <Card className="divide-y divide-line p-0">
+          <Link to="/google" className="flex min-h-[52px] items-center gap-3 px-4">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent">
+              <Globe className="h-4 w-4" />
+            </span>
+            <span className="flex-1 font-medium">Google</span>
+            <span className="text-xs text-muted">Calendar · Gmail · Drive · Maps</span>
+            <ChevronRight className="h-4 w-4 text-muted" />
+          </Link>
+          <Link to="/media" className="flex min-h-[52px] items-center gap-3 px-4">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-income/15 text-income">
+              <Music className="h-4 w-4" />
+            </span>
+            <span className="flex-1 font-medium">Media</span>
+            <span className="text-xs text-muted">Spotify · YouTube</span>
+            <ChevronRight className="h-4 w-4 text-muted" />
+          </Link>
+        </Card>
+
         <Card>
           <h2 className="mb-3 font-semibold">Tema</h2>
           <div className="grid grid-cols-3 gap-2">
