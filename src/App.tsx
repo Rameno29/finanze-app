@@ -6,6 +6,7 @@ import { FullPageSpinner } from './components/ui'
 import { LoginPage } from './modules/auth/LoginPage'
 import { HomePage } from './modules/home/HomePage'
 import { FinancePage } from './modules/finance/FinancePage'
+import { AgendaPage } from './modules/agenda/AgendaPage'
 import { DocumentsPage } from './modules/documents/DocumentsPage'
 import { SettingsPage } from './modules/settings/SettingsPage'
 
@@ -20,6 +21,7 @@ function Shell() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/finanze" element={<FinancePage />} />
+        <Route path="/agenda" element={<AgendaPage />} />
         <Route path="/documenti" element={<DocumentsPage />} />
         <Route path="/impostazioni" element={<SettingsPage />} />
         <Route path="*" element={<HomePage />} />

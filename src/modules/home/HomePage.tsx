@@ -11,8 +11,10 @@ import {
   XAxis,
 } from 'recharts'
 import { Card, PageHeader, Spinner } from '../../components/ui'
-import { fetchMonthlyTotals, sumByKind, useCategories, useTransactions } from '../../lib/data'
-import { MONTH_NAMES, formatCents, monthLabel } from '../../lib/format'
+import { fetchMonthlyTotals, sumByKind, useCategories, useTasks, useTransactions } from '../../lib/data'
+import { MONTH_NAMES, formatCents, monthLabel, todayISO } from '../../lib/format'
+import { supabase } from '../../lib/supabase'
+import { Check } from 'lucide-react'
 
 export function HomePage() {
   const now = new Date()
@@ -21,6 +23,18 @@ export function HomePage() {
 
   const { transactions, loading } = useTransactions(year, month)
   const { categories } = useCategories()
+  const { tasks, reload: reloadTasks } = useTasks()
+
+  const today = todayISO()
+  const todayTasks = useMemo(
+    () => tasks.filter((t) => !t.done && t.due_date !== null && t.due_date <= today).slice(0, 4),
+    [tasks, today],
+  )
+
+  async function completeTask(id: string) {
+    await supabase.from('tasks').update({ done: true }).eq('id', id)
+    void reloadTasks()
+  }
   const [history, setHistory] = useState<Array<{ month: string; income: number; expense: number }>>([])
 
   useEffect(() => {
@@ -85,6 +99,37 @@ export function HomePage() {
             </span>
           </div>
         </Card>
+
+        {todayTasks.length > 0 && (
+          <Card>
+            <div className="mb-2 flex items-baseline justify-between">
+              <h2 className="font-semibold">Da fare oggi</h2>
+              <Link to="/agenda" className="text-sm font-medium text-accent">
+                Agenda
+              </Link>
+            </div>
+            <ul className="divide-y divide-line">
+              {todayTasks.map((t) => {
+                const overdue = t.due_date !== null && t.due_date < today
+                return (
+                  <li key={t.id} className="flex items-center gap-3 py-2.5">
+                    <button
+                      onClick={() => completeTask(t.id)}
+                      aria-label={`Completa ${t.title}`}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-line text-transparent transition active:border-income active:bg-income active:text-white"
+                    >
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    </button>
+                    <span className="min-w-0 flex-1 truncate font-medium">{t.title}</span>
+                    <span className={`text-xs ${overdue ? 'font-semibold text-expense' : 'text-muted'}`}>
+                      {overdue ? 'in ritardo' : t.due_time ? t.due_time.slice(0, 5) : ''}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </Card>
+        )}
 
         <Card>
           <h2 className="mb-1 font-semibold">Uscite per categoria</h2>

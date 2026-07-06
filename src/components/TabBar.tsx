@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { FileText, Home, Settings, Wallet } from 'lucide-react'
+import { CalendarDays, FileText, Home, Settings, Wallet } from 'lucide-react'
 
 const TABS = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/finanze', label: 'Finanze', icon: Wallet },
+  { to: '/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/documenti', label: 'Documenti', icon: FileText },
   { to: '/impostazioni', label: 'Altro', icon: Settings },
 ]

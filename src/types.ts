@@ -52,6 +52,17 @@ export interface Payslip {
   raw_data: Record<string, unknown>
 }
 
+export interface Task {
+  id: string
+  user_id: string
+  title: string
+  notes: string
+  due_date: string | null
+  due_time: string | null
+  done: boolean
+  created_at: string
+}
+
 /** Risultato dell'analisi AI di una busta paga (dalla Edge Function) */
 export interface PayslipAnalysis {
   period_year: number | null
