@@ -31,10 +31,38 @@ export interface Budget {
 export interface DocumentRow {
   id: string
   user_id: string
-  doc_type: 'busta_paga' | 'altro'
+  doc_type: 'busta_paga' | 'scontrino' | 'altro'
   storage_path: string
   file_name: string
   status: 'caricato' | 'analizzato' | 'errore'
+  analysis: DocAnalysis | null
+  created_at: string
+}
+
+/** Risultato dell'analisi AI di uno scontrino/ricevuta */
+export interface ReceiptAnalysis {
+  total_cents: number | null
+  date: string | null
+  merchant: string | null
+  category_hint: string | null
+  notes: string | null
+}
+
+/** Risultato dell'analisi AI di un documento generico */
+export interface DocAnalysis {
+  title: string
+  summary: string
+  key_points?: string[]
+  explanation: string
+}
+
+export interface Goal {
+  id: string
+  user_id: string
+  name: string
+  target_cents: number
+  saved_cents: number
+  deadline: string | null
   created_at: string
 }
 

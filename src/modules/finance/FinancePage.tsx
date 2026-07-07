@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, ListX, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, ListX, Plus } from 'lucide-react'
 import { PageHeader, Card, EmptyState, Spinner } from '../../components/ui'
 import { TransactionSheet } from './TransactionSheet'
 import { BudgetsView } from './BudgetsView'
 import { CategoriesView } from './CategoriesView'
-import { useBudgets, useCategories, useTransactions, sumByKind } from '../../lib/data'
+import { GoalsView } from './GoalsView'
+import { useBudgets, useCategories, useGoals, useTransactions, sumByKind } from '../../lib/data'
+import { exportTransactionsCsv } from '../../lib/exportCsv'
 import { formatCents, formatDay, monthLabel } from '../../lib/format'
 import { CategoryIcon } from '../../lib/icons'
 import type { Transaction } from '../../types'
 
-type View = 'movimenti' | 'budget' | 'categorie'
+type View = 'movimenti' | 'budget' | 'categorie' | 'obiettivi'
 
 export function FinancePage() {
   const now = new Date()
@@ -22,6 +24,17 @@ export function FinancePage() {
   const { categories, reload: reloadCategories } = useCategories()
   const { transactions, loading, reload } = useTransactions(year, month)
   const { budgets, reload: reloadBudgets } = useBudgets()
+  const { goals, loading: goalsLoading, reload: reloadGoals } = useGoals()
+  const [exporting, setExporting] = useState(false)
+  const [exportMsg, setExportMsg] = useState('')
+
+  async function handleExport() {
+    setExporting(true)
+    const ok = await exportTransactionsCsv()
+    setExporting(false)
+    setExportMsg(ok ? '' : 'Nessun movimento da esportare.')
+    if (!ok) setTimeout(() => setExportMsg(''), 4000)
+  }
 
   const categoryById = useMemo(
     () => new Map(categories.map((c) => [c.id, c])),
@@ -47,22 +60,39 @@ export function FinancePage() {
 
   return (
     <div className="pb-28">
-      <PageHeader title="Finanze" />
+      <PageHeader
+        title="Finanze"
+        right={
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            aria-label="Esporta movimenti in CSV"
+            title="Esporta CSV/Excel"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-card-2 text-muted disabled:opacity-50"
+          >
+            {exporting ? <Spinner className="h-5 w-5" /> : <Download className="h-5 w-5" />}
+          </button>
+        }
+      />
 
       <div className="mx-auto max-w-lg px-5">
+        {exportMsg && (
+          <p className="mt-3 rounded-xl bg-accent-soft px-4 py-3 text-sm text-accent">{exportMsg}</p>
+        )}
         {/* Selettore vista */}
-        <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl bg-card-2 p-1">
+        <div className="mt-4 grid grid-cols-4 gap-1 rounded-xl bg-card-2 p-1">
           {(
             [
               ['movimenti', 'Movimenti'],
               ['budget', 'Budget'],
               ['categorie', 'Categorie'],
+              ['obiettivi', 'Obiettivi'],
             ] as const
           ).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setView(key)}
-              className={`min-h-[40px] rounded-lg text-sm font-semibold transition ${
+              className={`min-h-[40px] rounded-lg text-[13px] font-semibold transition ${
                 view === key ? 'bg-card shadow text-ink' : 'text-muted'
               }`}
             >
@@ -71,7 +101,7 @@ export function FinancePage() {
           ))}
         </div>
 
-        {view !== 'categorie' && (
+        {(view === 'movimenti' || view === 'budget') && (
           <div className="mt-4 flex items-center justify-between">
             <button
               onClick={() => shiftMonth(-1)}
@@ -179,6 +209,10 @@ export function FinancePage() {
 
         {view === 'categorie' && (
           <CategoriesView categories={categories} onChanged={reloadCategories} />
+        )}
+
+        {view === 'obiettivi' && (
+          <GoalsView goals={goals} loading={goalsLoading} onChanged={reloadGoals} />
         )}
       </div>
 

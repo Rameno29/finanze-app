@@ -61,24 +61,13 @@ export function SettingsPage() {
 
         <Card>
           <h2 className="mb-2 flex items-center gap-2 font-semibold">
-            <Sparkles className="h-4 w-4 text-accent" /> Analisi AI delle buste paga
+            <Sparkles className="h-4 w-4 text-accent" /> Funzioni AI
           </h2>
           <p className="text-sm text-muted">
-            L’analisi automatica usa l’AI di Anthropic (Claude) tramite una funzione sicura sul
-            server: la chiave API non passa mai dal telefono. Costo tipico: pochi centesimi per
-            busta paga.
+            Attive con Google Gemini (piano gratuito): analisi di buste paga, scontrini e
+            documenti, e riassunti dei video YouTube. L’elaborazione avviene su una funzione
+            sicura del server: la chiave non passa mai dal telefono.
           </p>
-          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-muted">
-            <li>
-              Crea una chiave su <span className="font-medium text-ink">console.anthropic.com</span>
-            </li>
-            <li>
-              Nel progetto Supabase: <span className="font-medium text-ink">Edge Functions → Secrets</span>
-            </li>
-            <li>
-              Aggiungi il secret <code className="rounded bg-card-2 px-1.5 py-0.5 text-xs">ANTHROPIC_API_KEY</code>
-            </li>
-          </ol>
         </Card>
 
         <Card>

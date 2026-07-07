@@ -12,6 +12,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 import { SPOTIFY_CLIENT_ID, YOUTUBE_API_KEY } from '../../lib/config'
 import {
   beginSpotifyAuth,
@@ -20,7 +21,7 @@ import {
   spotifyFetch,
 } from '../../lib/spotifyAuth'
 import { extractYouTubeId, usePlayer } from '../../context/PlayerContext'
-import { Card, PageHeader, PrimaryButton, Spinner, inputClass } from '../../components/ui'
+import { Card, PageHeader, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 
 interface SpotifyTrack {
   id: string
@@ -64,7 +65,27 @@ export function MediaPage() {
   const [ytResults, setYtResults] = useState<YtVideo[] | null>(null)
   const [ytSearching, setYtSearching] = useState(false)
   const [ytError, setYtError] = useState('')
-  const { play } = usePlayer()
+  const { play, videoId } = usePlayer()
+
+  const [summary, setSummary] = useState<string | null>(null)
+  const [summarizing, setSummarizing] = useState(false)
+
+  async function summarizeVideo() {
+    if (!videoId) return
+    setSummarizing(true)
+    setYtError('')
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke('ai-analyze', {
+        body: { mode: 'youtube', video_url: `https://www.youtube.com/watch?v=${videoId}` },
+      })
+      if (fnErr) throw fnErr
+      setSummary((data as { summary: string }).summary)
+    } catch {
+      setYtError('Riassunto non riuscito: riprova tra poco (alcuni video molto lunghi non sono supportati).')
+    } finally {
+      setSummarizing(false)
+    }
+  }
 
   const refreshNow = useCallback(async () => {
     if (!isSpotifyConnected()) return
@@ -233,10 +254,43 @@ export function MediaPage() {
             prosegue in una finestrella sopra le altre app (limite Apple: con lo schermo bloccato
             l’audio si ferma).
           </p>
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
-            <Sparkles className="h-3.5 w-3.5" /> Riassunto scritto del video: arriverà con l’attivazione dell’AI.
-          </p>
+          {videoId && (
+            <button
+              onClick={summarizeVideo}
+              disabled={summarizing}
+              className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-accent-soft font-semibold text-accent transition active:scale-[0.98] disabled:opacity-60"
+            >
+              {summarizing ? (
+                <>
+                  <Spinner className="h-5 w-5" /> L'AI sta guardando il video…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-5 w-5" /> Riassumi il video in riproduzione
+                </>
+              )}
+            </button>
+          )}
         </Card>
+
+        {/* Riassunto AI del video */}
+        <Sheet open={summary !== null} onClose={() => setSummary(null)} title="Riassunto del video">
+          <div className="space-y-2 pb-4 text-sm leading-relaxed">
+            {(summary ?? '').split('\n').map((line, i) => {
+              const t = line.trim()
+              if (!t) return null
+              if (t.startsWith('- ') || t.startsWith('* ')) {
+                return (
+                  <p key={i} className="flex gap-2">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                    <span>{t.slice(2)}</span>
+                  </p>
+                )
+              }
+              return <p key={i}>{t.replace(/\*\*/g, '')}</p>
+            })}
+          </div>
+        </Sheet>
 
         {/* Spotify */}
         {!spotifyConfigured ? (

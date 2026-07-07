@@ -1,7 +1,24 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import { monthRange } from './format'
-import type { Budget, Category, Task, Transaction } from '../types'
+import type { Budget, Category, Goal, Task, Transaction } from '../types'
+
+export function useGoals() {
+  const [goals, setGoals] = useState<Goal[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const reload = useCallback(async () => {
+    const { data } = await supabase.from('goals').select('*').order('created_at')
+    setGoals((data as Goal[]) ?? [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  return { goals, loading, reload }
+}
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([])
