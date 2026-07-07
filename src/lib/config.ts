@@ -8,7 +8,7 @@ export const GOOGLE_CLIENT_ID: string =
 export const SPOTIFY_CLIENT_ID: string = '498660831dd54572a6c056c852c47bea'
 
 /** Chiave API per la ricerca YouTube (YouTube Data API v3, stesso progetto Google Cloud). */
-export const YOUTUBE_API_KEY: string = ''
+export const YOUTUBE_API_KEY: string = 'AIzaSyAs6h9i8OWxIQrr6eME_arMp-lMNdf0MPY'
 
 export const APP_URL = 'https://rameno29.github.io/finanze-app/'
 
