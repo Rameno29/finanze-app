@@ -64,6 +64,26 @@ const RECEIPT_SCHEMA = {
   required: ['total_eur'],
 }
 
+const GENERATE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    title: { type: 'STRING', description: 'Titolo del documento' },
+    sections: {
+      type: 'ARRAY',
+      description: 'Le sezioni del documento, in ordine',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          heading: { type: 'STRING', description: 'Titolo della sezione' },
+          body: { type: 'STRING', description: 'Testo della sezione (paragrafi separati da riga vuota; per gli elenchi usa "- " a inizio riga)' },
+        },
+        required: ['heading', 'body'],
+      },
+    },
+  },
+  required: ['title', 'sections'],
+}
+
 const DOCUMENT_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -83,14 +103,23 @@ const DOCUMENT_SCHEMA = {
   required: ['title', 'summary', 'explanation'],
 }
 
-async function callGemini(
+interface GeminiResult {
+  text: string
+  sources: Array<{ title: string; url: string }>
+}
+
+async function callGeminiFull(
   apiKey: string,
   parts: unknown[],
   schema: unknown | null,
-): Promise<string> {
+  useSearch = false,
+): Promise<GeminiResult> {
   const body: Record<string, unknown> = { contents: [{ parts }] }
   if (schema) {
     body.generationConfig = { responseMimeType: 'application/json', responseSchema: schema }
+  }
+  if (useSearch) {
+    body.tools = [{ google_search: {} }]
   }
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
@@ -106,11 +135,25 @@ async function callGemini(
     throw new Error(`gemini_${res.status}`)
   }
   const data = await res.json()
-  const text = (data.candidates?.[0]?.content?.parts ?? [])
+  const candidate = data.candidates?.[0]
+  const text = (candidate?.content?.parts ?? [])
     .map((p: { text?: string }) => p.text ?? '')
     .join('')
   if (!text) throw new Error('gemini_empty')
-  return text
+  const sources = ((candidate?.groundingMetadata?.groundingChunks ?? []) as Array<{
+    web?: { uri?: string; title?: string }
+  }>)
+    .filter((c) => c.web?.uri)
+    .map((c) => ({ title: c.web!.title ?? c.web!.uri!, url: c.web!.uri! }))
+  return { text, sources }
+}
+
+async function callGemini(
+  apiKey: string,
+  parts: unknown[],
+  schema: unknown | null,
+): Promise<string> {
+  return (await callGeminiFull(apiKey, parts, schema)).text
 }
 
 Deno.serve(async (req: Request) => {
@@ -142,9 +185,45 @@ Deno.serve(async (req: Request) => {
   }
   if (!apiKey) return json({ error: 'missing_api_key' }, 400)
 
-  const { mode, document_id, video_url } = await req.json().catch(() => ({}))
+  const { mode, document_id, video_url, prompt, query } = await req.json().catch(() => ({}))
 
   try {
+    // ---- Ricerca web con AI ----
+    if (mode === 'websearch') {
+      if (typeof query !== 'string' || !query.trim()) return json({ error: 'query mancante' }, 400)
+      const result = await callGeminiFull(
+        apiKey,
+        [
+          {
+            text:
+              `Cerca sul web e rispondi in ITALIANO a questa domanda in modo chiaro e completo ma conciso. ` +
+              `Se utile usa elenchi puntati (righe che iniziano con "- "). Domanda: ${query.trim()}`,
+          },
+        ],
+        null,
+        true,
+      )
+      return json({ answer: result.text, sources: result.sources.slice(0, 6) })
+    }
+
+    // ---- Generazione documento (da testo e/o video YouTube) ----
+    if (mode === 'generate') {
+      if (typeof prompt !== 'string' || !prompt.trim()) return json({ error: 'prompt mancante' }, 400)
+      const parts: unknown[] = []
+      if (typeof video_url === 'string' && /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(video_url)) {
+        parts.push({ file_data: { file_uri: video_url } })
+      }
+      parts.push({
+        text:
+          'Crea un documento in ITALIANO, professionale e ben organizzato, in base a questa richiesta' +
+          (parts.length > 0 ? ' e al contenuto del video allegato' : '') +
+          `: ${prompt.trim()}\n\n` +
+          'Suddividi il contenuto in sezioni con titoli chiari. Sii completo ma senza riempitivi.',
+      })
+      const text = await callGemini(apiKey, parts, GENERATE_SCHEMA)
+      return json(JSON.parse(text))
+    }
+
     // ---- Riassunto video YouTube (nessun file) ----
     if (mode === 'youtube') {
       if (typeof video_url !== 'string' || !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(video_url)) {

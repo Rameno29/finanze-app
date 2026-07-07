@@ -3,11 +3,15 @@ import {
   CalendarDays,
   ExternalLink,
   FileText,
+  Globe,
   LogOut,
   Mail,
   MapPin,
   Navigation,
+  Search,
+  Sparkles,
 } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 import { GOOGLE_CLIENT_ID } from '../../lib/config'
 import {
   disconnectGoogle,
@@ -63,6 +67,31 @@ export function GooglePage() {
   const [emails, setEmails] = useState<GmailMessage[] | null>(null)
   const [files, setFiles] = useState<DriveFile[] | null>(null)
   const [mapsQuery, setMapsQuery] = useState('')
+
+  // Ricerca web con AI
+  const [webQuery, setWebQuery] = useState('')
+  const [webAnswer, setWebAnswer] = useState<{ answer: string; sources: Array<{ title: string; url: string }> } | null>(null)
+  const [webSearching, setWebSearching] = useState(false)
+  const [webError, setWebError] = useState('')
+
+  async function searchWeb(e: FormEvent) {
+    e.preventDefault()
+    if (!webQuery.trim()) return
+    setWebSearching(true)
+    setWebError('')
+    setWebAnswer(null)
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke('ai-analyze', {
+        body: { mode: 'websearch', query: webQuery.trim() },
+      })
+      if (fnErr) throw fnErr
+      setWebAnswer(data as { answer: string; sources: Array<{ title: string; url: string }> })
+    } catch {
+      setWebError('Ricerca non riuscita, riprova tra poco.')
+    } finally {
+      setWebSearching(false)
+    }
+  }
 
   async function connect() {
     setBusy(true)
@@ -145,6 +174,69 @@ export function GooglePage() {
       <PageHeader title="Google" subtitle="Calendar, Gmail, Drive e Maps" />
 
       <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
+        {/* Ricerca web con AI */}
+        <Card>
+          <h2 className="mb-2 flex items-center gap-2 font-semibold">
+            <Globe className="h-4 w-4 text-accent" /> Ricerca web con AI
+          </h2>
+          <form onSubmit={searchWeb} className="flex gap-2">
+            <input
+              value={webQuery}
+              onChange={(e) => setWebQuery(e.target.value)}
+              className={inputClass}
+              placeholder="Fai una domanda, cerco sul web…"
+            />
+            <button
+              type="submit"
+              aria-label="Cerca sul web"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white"
+            >
+              {webSearching ? <Spinner className="h-5 w-5 text-white" /> : <Search className="h-5 w-5" />}
+            </button>
+          </form>
+          {webSearching && (
+            <p className="mt-3 flex items-center gap-2 rounded-xl bg-accent-soft px-4 py-3 text-sm text-accent">
+              <Sparkles className="h-4 w-4 animate-pulse" /> Sto cercando e leggendo i risultati…
+            </p>
+          )}
+          {webError && <p className="mt-3 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{webError}</p>}
+          {webAnswer && (
+            <div className="mt-3 rounded-xl bg-card-2 p-4">
+              <div className="space-y-2 text-sm leading-relaxed">
+                {webAnswer.answer.split('\n').map((line, i) => {
+                  const t = line.trim()
+                  if (!t) return null
+                  if (t.startsWith('- ') || t.startsWith('* ')) {
+                    return (
+                      <p key={i} className="flex gap-2">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                        <span>{t.slice(2)}</span>
+                      </p>
+                    )
+                  }
+                  return <p key={i}>{t.replace(/\*\*/g, '')}</p>
+                })}
+              </div>
+              {webAnswer.sources.length > 0 && (
+                <div className="mt-3 border-t border-line pt-2">
+                  <p className="mb-1 text-xs font-semibold text-muted">Fonti</p>
+                  {webAnswer.sources.map((s, i) => (
+                    <a
+                      key={i}
+                      href={s.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block truncate py-0.5 text-xs text-accent"
+                    >
+                      {s.title}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+
         {/* Maps funziona sempre, senza collegamento */}
         <Card>
           <h2 className="mb-2 flex items-center gap-2 font-semibold">
