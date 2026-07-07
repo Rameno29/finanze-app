@@ -7,8 +7,12 @@ export const GOOGLE_CLIENT_ID: string =
   '969336966029-dtfmirhn1j8862o7u73jsv6fkdfcntu9.apps.googleusercontent.com'
 export const SPOTIFY_CLIENT_ID: string = '498660831dd54572a6c056c852c47bea'
 
-/** Chiave API per la ricerca YouTube (YouTube Data API v3, stesso progetto Google Cloud). */
-export const YOUTUBE_API_KEY: string = 'AIzaSyAs6h9i8OWxIQrr6eME_arMp-lMNdf0MPY'
+/**
+ * Chiave API per la ricerca YouTube (YouTube Data API v3).
+ * Non è nel codice: arriva dal secret GitHub VITE_YOUTUBE_API_KEY al momento della build
+ * (in locale: file .env). La chiave è comunque vincolata al dominio dell'app su Google Cloud.
+ */
+export const YOUTUBE_API_KEY: string = import.meta.env.VITE_YOUTUBE_API_KEY ?? ''
 
 export const APP_URL = 'https://rameno29.github.io/finanze-app/'
 
