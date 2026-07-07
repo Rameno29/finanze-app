@@ -2,7 +2,11 @@ import { supabase } from './supabase'
 import type { Category, Transaction } from '../types'
 
 function csvEscape(value: string): string {
-  return /[";\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
+  // Protezione da CSV injection: Excel interpreta =, +, -, @ a inizio cella come formule.
+  // Gli importi numerici (es. "-15,85") sono legittimi e non vanno neutralizzati.
+  const isNumber = /^-?\d+(,\d+)?$/.test(value)
+  const neutralized = !isNumber && /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
+  return /[";\n]/.test(neutralized) ? `"${neutralized.replace(/"/g, '""')}"` : neutralized
 }
 
 /** Esporta tutti i movimenti in CSV (separatore ; e virgola decimale, per Excel italiano). */

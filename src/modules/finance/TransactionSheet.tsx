@@ -82,6 +82,7 @@ export function TransactionSheet({
 
   async function handleDelete() {
     if (!editing) return
+    if (!window.confirm('Eliminare questo movimento?')) return
     setBusy(true)
     await supabase.from('transactions').delete().eq('id', editing.id)
     setBusy(false)

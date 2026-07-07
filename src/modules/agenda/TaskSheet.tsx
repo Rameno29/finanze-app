@@ -66,6 +66,7 @@ export function TaskSheet({
 
   async function handleDelete() {
     if (!editing) return
+    if (!window.confirm('Eliminare questa attività?')) return
     setBusy(true)
     await supabase.from('tasks').delete().eq('id', editing.id)
     setBusy(false)

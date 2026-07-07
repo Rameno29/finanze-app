@@ -15,8 +15,13 @@ const DEFAULT_CATEGORIES: Array<{ name: string; kind: 'income' | 'expense'; colo
   { name: 'Altro', kind: 'expense', color: '#71717a', icon: 'tag' },
 ]
 
+// Evita che due render concorrenti (es. StrictMode) creino le categorie due volte
+let seedingFor: string | null = null
+
 /** Al primo accesso crea il set di categorie standard italiane. */
 export async function ensureDefaultCategories(userId: string): Promise<void> {
+  if (seedingFor === userId) return
+  seedingFor = userId
   const { count, error } = await supabase
     .from('categories')
     .select('id', { count: 'exact', head: true })

@@ -12,11 +12,10 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { downloadPdf, type GeneratedDoc } from '../../lib/pdf'
-import { PrimaryButton, Sheet, inputClass } from '../../components/ui'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { MONTH_NAMES, formatCents } from '../../lib/format'
-import { Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
+import { Card, EmptyState, PageHeader, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import { PayslipConfirmSheet } from './PayslipConfirmSheet'
 import { ReceiptConfirmSheet } from './ReceiptConfirmSheet'
 import { ExplainSheet } from './ExplainSheet'
@@ -98,7 +97,7 @@ export function DocumentsPage() {
     try {
       const { data: userData } = await supabase.auth.getUser()
       const userId = userData.user!.id
-      const path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.\-]/g, '_')}`
+      const path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, '_')}`
       const { error: upErr } = await supabase.storage.from('documents').upload(path, file)
       if (upErr) throw upErr
       const { data: doc, error: insErr } = await supabase
@@ -207,6 +206,7 @@ export function DocumentsPage() {
           <textarea
             value={pdfPrompt}
             onChange={(e) => setPdfPrompt(e.target.value)}
+            maxLength={2000}
             className={`${inputClass} mb-2 min-h-[80px] resize-none`}
             placeholder="Es. una guida passo-passo per cambiare residenza a Milano"
           />

@@ -191,6 +191,7 @@ Deno.serve(async (req: Request) => {
     // ---- Ricerca web con AI ----
     if (mode === 'websearch') {
       if (typeof query !== 'string' || !query.trim()) return json({ error: 'query mancante' }, 400)
+      if (query.length > 500) return json({ error: 'Domanda troppo lunga (max 500 caratteri)' }, 400)
       const result = await callGeminiFull(
         apiKey,
         [
@@ -209,8 +210,13 @@ Deno.serve(async (req: Request) => {
     // ---- Generazione documento (da testo e/o video YouTube) ----
     if (mode === 'generate') {
       if (typeof prompt !== 'string' || !prompt.trim()) return json({ error: 'prompt mancante' }, 400)
+      if (prompt.length > 2000) return json({ error: 'Richiesta troppo lunga (max 2000 caratteri)' }, 400)
       const parts: unknown[] = []
-      if (typeof video_url === 'string' && /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(video_url)) {
+      if (
+        typeof video_url === 'string' &&
+        video_url.length <= 200 &&
+        /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(video_url)
+      ) {
         parts.push({ file_data: { file_uri: video_url } })
       }
       parts.push({
@@ -226,7 +232,11 @@ Deno.serve(async (req: Request) => {
 
     // ---- Riassunto video YouTube (nessun file) ----
     if (mode === 'youtube') {
-      if (typeof video_url !== 'string' || !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(video_url)) {
+      if (
+        typeof video_url !== 'string' ||
+        video_url.length > 200 ||
+        !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(video_url)
+      ) {
         return json({ error: 'video_url non valido' }, 400)
       }
       const text = await callGemini(
