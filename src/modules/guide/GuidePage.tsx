@@ -85,9 +85,10 @@ export function GuidePage() {
         </Section>
 
         <Section icon={Bot} title="Assistente">
-          <P>Una chat che risponde guardando i <B>tuoi</B> movimenti, budget e obiettivi degli ultimi 12 mesi.</P>
-          <P>Esempi: <B>"Quanto ho speso in ristoranti quest'anno?"</B>, <B>"Come vanno i miei budget?"</B>, <B>"Posso permettermi una spesa di 200 €?"</B>, <B>"Dammi consigli per risparmiare"</B>.</P>
-          <P>Le risposte si basano solo sui dati che hai registrato in AJE: più l'app è aggiornata, più l'assistente è preciso. La conversazione non viene salvata: chiusa la pagina, riparte da zero.</P>
+          <P>Una chat (anche <B>vocale</B>, col microfono) che fa due cose:</P>
+          <P>• <B>Risponde</B> guardando i tuoi movimenti, budget e obiettivi: <B>"Quanto ho speso in ristoranti quest'anno?"</B>, <B>"Posso permettermi una spesa di 200 €?"</B>.</P>
+          <P>• <B>Agisce</B> per te: <B>"Ho speso 20 euro di pizza"</B> registra l'uscita, <B>"Ricordami di pagare il bollo venerdì alle 18"</B> crea il promemoria, <B>"Metti 50 euro nelle vacanze"</B> aggiorna l'obiettivo, <B>"Imposta 300 euro di budget per la spesa"</B> imposta il budget.</P>
+          <P>Prima di eseguire qualsiasi azione ti mostra <B>cosa ha capito e ti chiede conferma</B>: niente viene salvato senza il tuo ok. La conversazione non viene memorizzata: chiusa la pagina, riparte da zero.</P>
         </Section>
 
         <Section icon={Wallet} title="Finanze">
