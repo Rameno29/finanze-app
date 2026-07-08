@@ -81,6 +81,7 @@ export function GuidePage() {
           <P>• <B>Ultimi 6 mesi</B> — tocca la colonna di un mese per vedere entrate, uscite e saldo di quel mese nel riquadro sotto il grafico.</P>
           <P>• <B>Disponibile oggi</B> — se hai impostato dei budget, calcola quanto puoi spendere al giorno da qui a fine mese (budget rimanente ÷ giorni rimasti).</P>
           <P>• <B>Chiedi ad AJE</B> — apre l'assistente AI (vedi la sezione dedicata).</P>
+          <P>• <B>Report del mese scorso</B> — un resoconto scritto dall'AI: totali, categorie principali, budget e consigli per il mese in corso.</P>
         </Section>
 
         <Section icon={Bot} title="Assistente">
@@ -93,7 +94,7 @@ export function GuidePage() {
           <P><B>Movimenti</B> — il registro di entrate e uscite. Il bottone <B>+</B> aggiunge un movimento: scegli tipo, importo, categoria, data e (se vuoi) una <B>ricorrenza</B>. Tocca un movimento per modificarlo o eliminarlo. Con le frecce ‹ › cambi mese.</P>
           <P><B>Aggiunta rapida a voce o con una frase</B> — nella barra in alto scrivi (o detti col microfono) qualcosa come <B>"20 euro pizza ieri sera"</B>: l'AI capisce importo, categoria e data e ti mostra il movimento già compilato — controlli e salvi.</P>
           <P><B>Ricorrenze automatiche</B> — se imposti "mensile" su affitto o stipendio, alla scadenza la nuova occorrenza si crea da sola ogni notte: non devi fare nulla.</P>
-          <P><B>Budget</B> — tocca una categoria e imposta il tetto mensile: la barra mostra quanto hai già speso e diventa rossa se sfori.</P>
+          <P><B>Budget</B> — tocca una categoria e imposta il tetto mensile: la barra mostra quanto hai già speso e diventa rossa se sfori. In fondo trovi <B>Spese fisse e abbonamenti</B>: l'elenco dei movimenti ricorrenti con il costo al mese e all'anno.</P>
           <P><B>Categorie</B> — crea, personalizza (icona e colore) o elimina le categorie di entrata e uscita.</P>
           <P><B>Obiettivi</B> — il salvadanaio: crea un obiettivo (es. "Vacanze", 1.500 €), tocca la card per aggiungere o togliere risparmi e segui la barra fino al traguardo.</P>
           <P><B>Export Excel</B> — l'icona di download in alto scarica tutti i movimenti in un file CSV che si apre direttamente in Excel.</P>
@@ -103,6 +104,7 @@ export function GuidePage() {
           <P><B>Attività</B> — l'elenco delle cose da fare raggruppate per urgenza: In ritardo (rosso), Oggi, Prossime, Senza data e Completate. Il cerchietto completa, il testo apre la modifica.</P>
           <P><B>Calendario</B> — la griglia del mese: un puntino segnala i giorni con attività; tocca un giorno per vederle. Il bottone <B>+</B> crea l'attività già sul giorno selezionato.</P>
           <P>Ogni attività può avere data, ora e note — tutte facoltative.</P>
+          <P><B>Notifiche</B> — attivale in <B>Altro → Notifiche promemoria</B>: riceverai un avviso sul telefono quando un'attività è in scadenza (all'ora impostata, o alle 9:00 se senza ora). Su iPhone funzionano solo con l'app installata sulla schermata Home.</P>
         </Section>
 
         <Section icon={FileText} title="Documenti">

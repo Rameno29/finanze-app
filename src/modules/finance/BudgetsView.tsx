@@ -1,10 +1,18 @@
 import { useMemo, useState } from 'react'
-import { PiggyBank } from 'lucide-react'
+import { PiggyBank, RefreshCw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useRecurring } from '../../lib/data'
 import { formatCents, parseAmountToCents } from '../../lib/format'
 import { CategoryIcon } from '../../lib/icons'
 import { Card, EmptyState, Field, PrimaryButton, Sheet, inputClass } from '../../components/ui'
 import type { Budget, Category, Transaction } from '../../types'
+
+/** Equivalente mensile in centesimi di un movimento ricorrente. */
+function monthlyEquivalent(t: Transaction): number {
+  if (t.recurrence === 'settimanale') return Math.round((t.amount_cents * 52) / 12)
+  if (t.recurrence === 'annuale') return Math.round(t.amount_cents / 12)
+  return t.amount_cents
+}
 
 export function BudgetsView({
   categories,
@@ -20,6 +28,13 @@ export function BudgetsView({
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [amount, setAmount] = useState('')
   const [busy, setBusy] = useState(false)
+  const { recurring } = useRecurring()
+
+  const recurringExpenses = useMemo(() => recurring.filter((t) => t.kind === 'expense'), [recurring])
+  const recurringMonthlyTotal = useMemo(
+    () => recurringExpenses.reduce((sum, t) => sum + monthlyEquivalent(t), 0),
+    [recurringExpenses],
+  )
 
   const expenseCategories = categories.filter((c) => c.kind === 'expense')
   const budgetByCategory = useMemo(
@@ -114,6 +129,34 @@ export function BudgetsView({
           </Card>
         )
       })}
+
+      {/* Scadenzario: spese fisse e abbonamenti (movimenti con ricorrenza) */}
+      {recurringExpenses.length > 0 && (
+        <Card className="mt-2 p-4">
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <h3 className="flex items-center gap-2 font-semibold">
+              <RefreshCw className="h-4 w-4 text-accent" /> Spese fisse e abbonamenti
+            </h3>
+            <span className="text-sm font-bold text-expense">
+              {formatCents(recurringMonthlyTotal)}/mese
+            </span>
+          </div>
+          <p className="mb-2 text-xs text-muted">
+            Pari a {formatCents(recurringMonthlyTotal * 12)} all'anno · si rinnovano da soli
+          </p>
+          <ul className="divide-y divide-line">
+            {recurringExpenses.map((t) => (
+              <li key={t.id} className="flex items-baseline gap-2 py-2 text-sm">
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {t.description || 'Spesa ricorrente'}
+                </span>
+                <span className="text-xs text-muted">{t.recurrence}</span>
+                <span className="font-semibold">{formatCents(t.amount_cents)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Sheet
         open={editingCategory !== null}

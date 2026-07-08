@@ -51,6 +51,8 @@ export function TaskSheet({
       notes: notes.trim(),
       due_date: date || null,
       due_time: date && time ? time : null,
+      // se cambia la scadenza, la notifica va rimandata
+      notified: false,
     }
     const result = editing
       ? await supabase.from('tasks').update(payload).eq('id', editing.id)

@@ -1,9 +1,23 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Bot, ChevronRight, Globe, LogOut, Moon, Music, Smartphone, Sparkles, Sun } from 'lucide-react'
+import {
+  Bell,
+  BookOpen,
+  Bot,
+  ChevronRight,
+  Globe,
+  LogOut,
+  Moon,
+  Music,
+  Smartphone,
+  Sparkles,
+  Sun,
+} from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme, type ThemeSetting } from '../../context/ThemeContext'
-import { Card, PageHeader } from '../../components/ui'
+import { disablePush, enablePush, getPushSubscription, needsInstallForPush, pushSupported } from '../../lib/push'
+import { Card, PageHeader, Spinner } from '../../components/ui'
 
 const THEME_OPTIONS: Array<{ value: ThemeSetting; label: string; icon: typeof Sun }> = [
   { value: 'system', label: 'Sistema', icon: Smartphone },
@@ -14,6 +28,37 @@ const THEME_OPTIONS: Array<{ value: ThemeSetting; label: string; icon: typeof Su
 export function SettingsPage() {
   const { session } = useAuth()
   const { setting, setSetting } = useTheme()
+
+  const [pushOn, setPushOn] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushMsg, setPushMsg] = useState('')
+
+  useEffect(() => {
+    void getPushSubscription().then((s) => setPushOn(s !== null))
+  }, [])
+
+  async function togglePush() {
+    setPushBusy(true)
+    setPushMsg('')
+    try {
+      if (pushOn) {
+        await disablePush()
+        setPushOn(false)
+      } else {
+        const res = await enablePush()
+        if (res.ok) {
+          setPushOn(true)
+          setPushMsg('Notifiche attive! Riceverai un avviso per le attività in scadenza.')
+        } else if (res.reason === 'permesso_negato') {
+          setPushMsg('Permesso negato: abilitalo dalle impostazioni del telefono per questa app.')
+        } else {
+          setPushMsg('Attivazione non riuscita, riprova.')
+        }
+      }
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   return (
     <div className="pb-28">
@@ -73,6 +118,52 @@ export function SettingsPage() {
               </button>
             ))}
           </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+              <Bell className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Notifiche promemoria</span>
+              <span className="block text-xs text-muted">
+                Un avviso quando un'attività dell'agenda è in scadenza
+              </span>
+            </span>
+            {pushSupported() && !needsInstallForPush() ? (
+              <button
+                onClick={() => void togglePush()}
+                disabled={pushBusy}
+                role="switch"
+                aria-checked={pushOn}
+                aria-label="Attiva o disattiva le notifiche"
+                className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${
+                  pushOn ? 'bg-income' : 'bg-card-2 border border-line'
+                }`}
+              >
+                {pushBusy ? (
+                  <Spinner className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2" />
+                ) : (
+                  <span
+                    className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${
+                      pushOn ? 'left-7' : 'left-1'
+                    }`}
+                  />
+                )}
+              </button>
+            ) : null}
+          </div>
+          {!pushSupported() && (
+            <p className="mt-3 text-xs text-muted">Questo browser non supporta le notifiche push.</p>
+          )}
+          {pushSupported() && needsInstallForPush() && (
+            <p className="mt-3 rounded-xl bg-accent-soft px-3 py-2.5 text-xs text-accent">
+              Su iPhone le notifiche funzionano solo con l'app installata: Safari → Condividi →
+              "Aggiungi a schermata Home", poi attivale da qui.
+            </p>
+          )}
+          {pushMsg && <p className="mt-3 rounded-xl bg-card-2 px-3 py-2.5 text-xs">{pushMsg}</p>}
         </Card>
 
         <Card>

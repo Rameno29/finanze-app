@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Bot, Send } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { AiText } from '../../components/AiText'
 import { PageHeader, Spinner, inputClass } from '../../components/ui'
 
 interface Message {
@@ -14,26 +15,6 @@ const SUGGESTIONS = [
   'In cosa spendo di più?',
   'Dammi 3 consigli per risparmiare',
 ]
-
-function AiText({ text }: { text: string }) {
-  return (
-    <div className="space-y-1.5">
-      {text.split('\n').map((line, i) => {
-        const t = line.trim()
-        if (!t) return null
-        if (t.startsWith('- ') || t.startsWith('* ')) {
-          return (
-            <p key={i} className="flex gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-              <span>{t.slice(2).replace(/\*\*/g, '')}</span>
-            </p>
-          )
-        }
-        return <p key={i}>{t.replace(/\*\*/g, '')}</p>
-      })}
-    </div>
-  )
-}
 
 export function AssistantPage() {
   const [messages, setMessages] = useState<Message[]>([])

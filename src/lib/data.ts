@@ -3,6 +3,26 @@ import { supabase } from './supabase'
 import { monthRange } from './format'
 import type { Budget, Category, Goal, Task, Transaction } from '../types'
 
+/** Le spese/entrate ricorrenti attive (il "testimone" della catena di ricorrenza). */
+export function useRecurring() {
+  const [recurring, setRecurring] = useState<Transaction[]>([])
+
+  const reload = useCallback(async () => {
+    const { data } = await supabase
+      .from('transactions')
+      .select('*')
+      .not('recurrence', 'is', null)
+      .order('amount_cents', { ascending: false })
+    setRecurring((data as Transaction[]) ?? [])
+  }, [])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  return { recurring, reload }
+}
+
 export function useGoals() {
   const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)

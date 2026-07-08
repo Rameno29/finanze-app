@@ -21,7 +21,9 @@ import {
 } from '../../lib/data'
 import { MONTH_NAMES, formatCents, monthLabel, todayISO } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
-import { Bot, Check, Euro } from 'lucide-react'
+import { AiText } from '../../components/AiText'
+import { Sheet } from '../../components/ui'
+import { Bot, Check, Euro, FileBarChart } from 'lucide-react'
 
 export function HomePage() {
   const now = new Date()
@@ -55,6 +57,32 @@ export function HomePage() {
   async function completeTask(id: string) {
     await supabase.from('tasks').update({ done: true }).eq('id', id)
     void reloadTasks()
+  }
+
+  // Report AI del mese scorso
+  const [report, setReport] = useState<string | null>(null)
+  const [reportLoading, setReportLoading] = useState(false)
+  const prev = new Date(year, month - 2, 1)
+  const prevLabel = monthLabel(prev.getFullYear(), prev.getMonth() + 1)
+
+  async function loadReport() {
+    setReportLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-analyze', {
+        body: {
+          mode: 'assistant',
+          question:
+            `Scrivi il report finanziario di ${prevLabel}: totale entrate e uscite, le 3 categorie di spesa principali, ` +
+            `confronto con il mese precedente, budget rispettati o sforati, stato degli obiettivi e 2 consigli pratici per il mese in corso.`,
+        },
+      })
+      if (error) throw error
+      setReport((data as { answer: string }).answer)
+    } catch {
+      setReport('Report non disponibile al momento, riprova tra poco.')
+    } finally {
+      setReportLoading(false)
+    }
   }
   const [history, setHistory] = useState<Array<{ month: string; income: number; expense: number }>>([])
 
@@ -328,6 +356,23 @@ export function HomePage() {
           )}
         </Card>
 
+        <button
+          onClick={() => void loadReport()}
+          disabled={reportLoading}
+          className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4 text-left shadow-sm disabled:opacity-70"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-income/15 text-income">
+            {reportLoading ? <Spinner className="h-5 w-5" /> : <FileBarChart className="h-5 w-5" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">Report di {prevLabel}</span>
+            <span className="block text-sm text-muted">
+              {reportLoading ? "L'AI sta analizzando il mese…" : 'Il resoconto del mese scorso, scritto dall’AI'}
+            </span>
+          </span>
+          <ArrowRight className="h-5 w-5 shrink-0 text-accent" />
+        </button>
+
         <Link
           to="/documenti"
           className="flex items-center justify-between rounded-2xl border border-line bg-card p-4 shadow-sm"
@@ -339,6 +384,12 @@ export function HomePage() {
           <ArrowRight className="h-5 w-5 text-accent" />
         </Link>
       </div>
+
+      <Sheet open={report !== null} onClose={() => setReport(null)} title={`Report · ${prevLabel}`}>
+        <div className="pb-4 text-sm leading-relaxed">
+          <AiText text={report ?? ''} />
+        </div>
+      </Sheet>
     </div>
   )
 }
