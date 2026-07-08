@@ -84,6 +84,18 @@ const GENERATE_SCHEMA = {
   required: ['title', 'sections'],
 }
 
+const PARSE_TX_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    amount_eur: { type: 'NUMBER', description: "Importo in euro (sempre positivo)" },
+    kind: { type: 'STRING', description: "'expense' per una spesa, 'income' per un'entrata" },
+    category: { type: 'STRING', description: 'Il nome ESATTO di una delle categorie fornite, oppure vuoto' },
+    date: { type: 'STRING', description: 'Data in formato YYYY-MM-DD (risolvi "ieri", "lunedì scorso" ecc. rispetto alla data odierna fornita)' },
+    description: { type: 'STRING', description: 'Breve descrizione del movimento (es. "Pizza con amici")' },
+  },
+  required: ['amount_eur', 'kind'],
+}
+
 const DOCUMENT_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -185,9 +197,121 @@ Deno.serve(async (req: Request) => {
   }
   if (!apiKey) return json({ error: 'missing_api_key' }, 400)
 
-  const { mode, document_id, video_url, prompt, query } = await req.json().catch(() => ({}))
+  const { mode, document_id, video_url, prompt, query, question, text } = await req.json().catch(() => ({}))
 
   try {
+    // ---- Assistente finanziario: risponde guardando i dati dell'utente ----
+    if (mode === 'assistant') {
+      if (typeof question !== 'string' || !question.trim()) return json({ error: 'domanda mancante' }, 400)
+      if (question.length > 500) return json({ error: 'Domanda troppo lunga (max 500 caratteri)' }, 400)
+
+      const yearAgo = new Date()
+      yearAgo.setFullYear(yearAgo.getFullYear() - 1)
+      const fromISO = yearAgo.toISOString().slice(0, 10)
+
+      const [txRes, catRes, budgetRes, goalRes] = await Promise.all([
+        admin
+          .from('transactions')
+          .select('date, amount_cents, kind, category_id, description')
+          .eq('user_id', userId)
+          .gte('date', fromISO)
+          .order('date', { ascending: false })
+          .limit(1500),
+        admin.from('categories').select('id, name, kind').eq('user_id', userId),
+        admin.from('budgets').select('category_id, monthly_cents').eq('user_id', userId),
+        admin.from('goals').select('name, target_cents, saved_cents, deadline').eq('user_id', userId),
+      ])
+
+      const catName = new Map(
+        ((catRes.data ?? []) as Array<{ id: string; name: string }>).map((c) => [c.id, c.name]),
+      )
+      const txLines = ((txRes.data ?? []) as Array<{
+        date: string
+        amount_cents: number
+        kind: string
+        category_id: string | null
+        description: string
+      }>)
+        .map(
+          (t) =>
+            `${t.date};${t.kind === 'income' ? '+' : '-'}${(t.amount_cents / 100).toFixed(2)};${
+              t.category_id ? (catName.get(t.category_id) ?? '') : ''
+            };${(t.description ?? '').slice(0, 40)}`,
+        )
+        .join('\n')
+      const budgetLines = ((budgetRes.data ?? []) as Array<{ category_id: string; monthly_cents: number }>)
+        .map((b) => `${catName.get(b.category_id) ?? '?'}: ${(b.monthly_cents / 100).toFixed(2)} EUR/mese`)
+        .join('\n')
+      const goalLines = ((goalRes.data ?? []) as Array<{
+        name: string
+        target_cents: number
+        saved_cents: number
+        deadline: string | null
+      }>)
+        .map(
+          (g) =>
+            `${g.name}: ${(g.saved_cents / 100).toFixed(2)} su ${(g.target_cents / 100).toFixed(2)} EUR${
+              g.deadline ? ` entro ${g.deadline}` : ''
+            }`,
+        )
+        .join('\n')
+
+      const result = await callGeminiFull(
+        apiKey,
+        [
+          {
+            text:
+              `Sei l'assistente finanziario personale dell'app AJE. Oggi è ${new Date().toISOString().slice(0, 10)}.\n` +
+              `Movimenti degli ultimi 12 mesi dell'utente (formato: data;importo;categoria;descrizione — importi con segno, in EUR):\n${txLines || '(nessun movimento)'}\n\n` +
+              `Budget mensili:\n${budgetLines || '(nessuno)'}\n\n` +
+              `Obiettivi di risparmio:\n${goalLines || '(nessuno)'}\n\n` +
+              `Rispondi in ITALIANO alla domanda dell'utente basandoti SOLO su questi dati (fai i calcoli con precisione). ` +
+              `Sii conciso e concreto; usa elenchi puntati ("- " a inizio riga) se utile; importi in euro con la virgola. ` +
+              `Se la domanda non riguarda le sue finanze, rispondi comunque brevemente ma riportala ai suoi dati quando possibile.\n\n` +
+              `Domanda: ${question.trim()}`,
+          },
+        ],
+        null,
+      )
+      return json({ answer: result.text })
+    }
+
+    // ---- Interpreta una frase in linguaggio naturale come movimento ----
+    if (mode === 'parse_transaction') {
+      if (typeof text !== 'string' || !text.trim()) return json({ error: 'testo mancante' }, 400)
+      if (text.length > 300) return json({ error: 'Frase troppo lunga (max 300 caratteri)' }, 400)
+
+      const { data: cats } = await admin
+        .from('categories')
+        .select('name, kind')
+        .eq('user_id', userId)
+      const catList = ((cats ?? []) as Array<{ name: string; kind: string }>)
+        .map((c) => `${c.name} (${c.kind === 'income' ? 'entrata' : 'uscita'})`)
+        .join(', ')
+
+      const parsed = await callGemini(
+        apiKey,
+        [
+          {
+            text:
+              `Oggi è ${new Date().toISOString().slice(0, 10)}. Interpreta questa frase in italiano come un movimento finanziario ` +
+              `(spesa o entrata): "${text.trim()}".\n` +
+              `Categorie disponibili dell'utente: ${catList || '(nessuna)'}. Scegli la più adatta usando il nome ESATTO, oppure lascia vuoto.`,
+          },
+        ],
+        PARSE_TX_SCHEMA,
+      )
+      const input = JSON.parse(parsed)
+      return json({
+        amount_cents: eurToCents(input.amount_eur),
+        kind: input.kind === 'income' ? 'income' : 'expense',
+        category_name: typeof input.category === 'string' ? input.category : null,
+        date:
+          typeof input.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : null,
+        description: typeof input.description === 'string' ? input.description : '',
+      })
+    }
+
     // ---- Ricerca web con AI ----
     if (mode === 'websearch') {
       if (typeof query !== 'string' || !query.trim()) return json({ error: 'query mancante' }, 400)
@@ -226,8 +350,8 @@ Deno.serve(async (req: Request) => {
           `: ${prompt.trim()}\n\n` +
           'Suddividi il contenuto in sezioni con titoli chiari. Sii completo ma senza riempitivi.',
       })
-      const text = await callGemini(apiKey, parts, GENERATE_SCHEMA)
-      return json(JSON.parse(text))
+      const text2 = await callGemini(apiKey, parts, GENERATE_SCHEMA)
+      return json(JSON.parse(text2))
     }
 
     // ---- Riassunto video YouTube (nessun file) ----
@@ -239,7 +363,7 @@ Deno.serve(async (req: Request) => {
       ) {
         return json({ error: 'video_url non valido' }, 400)
       }
-      const text = await callGemini(
+      const summary = await callGemini(
         apiKey,
         [
           { file_data: { file_uri: video_url } },
@@ -252,7 +376,7 @@ Deno.serve(async (req: Request) => {
         ],
         null,
       )
-      return json({ summary: text })
+      return json({ summary })
     }
 
     // ---- Modalità con documento ----
@@ -284,7 +408,7 @@ Deno.serve(async (req: Request) => {
     const fileBlock = { inline_data: { mime_type: mimeType, data: toBase64(bytes) } }
 
     if (mode === 'payslip') {
-      const text = await callGemini(
+      const out = await callGemini(
         apiKey,
         [
           fileBlock,
@@ -296,7 +420,7 @@ Deno.serve(async (req: Request) => {
         ],
         PAYSLIP_SCHEMA,
       )
-      const input = JSON.parse(text)
+      const input = JSON.parse(out)
       const deductions: Record<string, number> = {}
       const irpef = eurToCents(input.irpef_eur)
       const inps = eurToCents(input.inps_eur)
@@ -320,7 +444,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (mode === 'receipt') {
-      const text = await callGemini(
+      const out = await callGemini(
         apiKey,
         [
           fileBlock,
@@ -332,7 +456,7 @@ Deno.serve(async (req: Request) => {
         ],
         RECEIPT_SCHEMA,
       )
-      const input = JSON.parse(text)
+      const input = JSON.parse(out)
       return json({
         total_cents: eurToCents(input.total_eur),
         date: typeof input.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : null,
@@ -343,7 +467,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (mode === 'document') {
-      const text = await callGemini(
+      const out = await callGemini(
         apiKey,
         [
           fileBlock,
@@ -355,7 +479,7 @@ Deno.serve(async (req: Request) => {
         ],
         DOCUMENT_SCHEMA,
       )
-      const analysis = JSON.parse(text)
+      const analysis = JSON.parse(out)
       await admin
         .from('documents')
         .update({ analysis, status: 'analizzato' })

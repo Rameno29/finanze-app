@@ -11,10 +11,17 @@ import {
   XAxis,
 } from 'recharts'
 import { Card, Spinner } from '../../components/ui'
-import { fetchMonthlyTotals, sumByKind, useCategories, useTasks, useTransactions } from '../../lib/data'
+import {
+  fetchMonthlyTotals,
+  sumByKind,
+  useBudgets,
+  useCategories,
+  useTasks,
+  useTransactions,
+} from '../../lib/data'
 import { MONTH_NAMES, formatCents, monthLabel, todayISO } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
-import { Check } from 'lucide-react'
+import { Bot, Check, Euro } from 'lucide-react'
 
 export function HomePage() {
   const now = new Date()
@@ -24,6 +31,20 @@ export function HomePage() {
   const { transactions, loading } = useTransactions(year, month)
   const { categories } = useCategories()
   const { tasks, reload: reloadTasks } = useTasks()
+  const { budgets } = useBudgets()
+
+  // "Disponibile oggi": (budget totale del mese − speso nelle categorie con budget) ÷ giorni rimasti
+  const safeToSpend = useMemo(() => {
+    if (budgets.length === 0) return null
+    const budgeted = new Set(budgets.map((b) => b.category_id))
+    const totalBudget = budgets.reduce((sum, b) => sum + b.monthly_cents, 0)
+    const spent = transactions
+      .filter((t) => t.kind === 'expense' && t.category_id !== null && budgeted.has(t.category_id))
+      .reduce((sum, t) => sum + t.amount_cents, 0)
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const daysLeft = Math.max(1, daysInMonth - now.getDate() + 1)
+    return { perDay: Math.round((totalBudget - spent) / daysLeft), remaining: totalBudget - spent, daysLeft }
+  }, [budgets, transactions, year, month, now])
 
   const today = todayISO()
   const todayTasks = useMemo(
@@ -115,6 +136,47 @@ export function HomePage() {
             </span>
           </div>
         </Card>
+
+        {safeToSpend && (
+          <Card className="flex items-center gap-3">
+            <span
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white ${
+                safeToSpend.perDay >= 0 ? 'bg-income' : 'bg-expense'
+              }`}
+            >
+              <Euro className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs text-muted">Disponibile oggi (dai tuoi budget)</span>
+              <span
+                className={`block text-xl font-bold ${safeToSpend.perDay >= 0 ? 'text-income' : 'text-expense'}`}
+              >
+                {formatCents(safeToSpend.perDay)}
+              </span>
+            </span>
+            <span className="text-right text-xs text-muted">
+              {formatCents(safeToSpend.remaining)}
+              <br />
+              in {safeToSpend.daysLeft} giorni
+            </span>
+          </Card>
+        )}
+
+        <Link
+          to="/assistente"
+          className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4 shadow-sm"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+            <Bot className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">Chiedi ad AJE</span>
+            <span className="block truncate text-sm text-muted">
+              "Quanto ho speso in ristoranti quest'anno?"
+            </span>
+          </span>
+          <ArrowRight className="h-5 w-5 shrink-0 text-accent" />
+        </Link>
 
         {todayTasks.length > 0 && (
           <Card>

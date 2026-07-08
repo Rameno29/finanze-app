@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Download, ListX, Plus } from 'lucide-react'
-import { PageHeader, Card, EmptyState, Spinner } from '../../components/ui'
-import { TransactionSheet } from './TransactionSheet'
+import { useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Download, ListX, Mic, Plus, Sparkles } from 'lucide-react'
+import { PageHeader, Card, EmptyState, Spinner, inputClass } from '../../components/ui'
+import { supabase } from '../../lib/supabase'
+import { TransactionSheet, type TransactionDraft } from './TransactionSheet'
 import { BudgetsView } from './BudgetsView'
 import { CategoriesView } from './CategoriesView'
 import { GoalsView } from './GoalsView'
@@ -20,6 +21,87 @@ export function FinancePage() {
   const [view, setView] = useState<View>('movimenti')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<Transaction | null>(null)
+  const [draft, setDraft] = useState<TransactionDraft | null>(null)
+
+  // Aggiunta rapida a voce o con una frase in linguaggio naturale
+  const [quickText, setQuickText] = useState('')
+  const [parsing, setParsing] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [quickError, setQuickError] = useState('')
+  const recognitionRef = useRef<{ stop: () => void } | null>(null)
+
+  const SpeechRec =
+    (window as unknown as Record<string, unknown>).SpeechRecognition ??
+    (window as unknown as Record<string, unknown>).webkitSpeechRecognition
+
+  async function parseQuick(text: string) {
+    const phrase = text.trim()
+    if (!phrase || parsing) return
+    setParsing(true)
+    setQuickError('')
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-analyze', {
+        body: { mode: 'parse_transaction', text: phrase },
+      })
+      if (error) throw error
+      const parsed = data as {
+        amount_cents: number | null
+        kind: 'income' | 'expense'
+        category_name: string | null
+        date: string | null
+        description: string
+      }
+      if (!parsed.amount_cents) {
+        setQuickError('Non ho capito l’importo: prova con "20 euro pizza ieri".')
+        return
+      }
+      const cat = parsed.category_name
+        ? categories.find(
+            (c) => c.kind === parsed.kind && c.name.toLowerCase() === parsed.category_name!.toLowerCase(),
+          )
+        : undefined
+      setDraft({
+        kind: parsed.kind,
+        amount_cents: parsed.amount_cents,
+        category_id: cat?.id ?? null,
+        date: parsed.date,
+        description: parsed.description,
+      })
+      setEditing(null)
+      setSheetOpen(true)
+      setQuickText('')
+    } catch {
+      setQuickError('Non sono riuscito a interpretare la frase, riprova.')
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  function startListening() {
+    if (!SpeechRec) return
+    if (listening) {
+      recognitionRef.current?.stop()
+      return
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rec = new (SpeechRec as any)()
+    rec.lang = 'it-IT'
+    rec.interimResults = false
+    rec.maxAlternatives = 1
+    rec.onresult = (e: { results: Array<Array<{ transcript: string }>> }) => {
+      const transcript = e.results[0][0].transcript
+      setQuickText(transcript)
+      void parseQuick(transcript)
+    }
+    rec.onend = () => setListening(false)
+    rec.onerror = () => {
+      setListening(false)
+      setQuickError('Microfono non disponibile: scrivi la frase (o usa il microfono della tastiera).')
+    }
+    recognitionRef.current = rec
+    setListening(true)
+    rec.start()
+  }
 
   const { categories, reload: reloadCategories } = useCategories()
   const { transactions, loading, reload } = useTransactions(year, month)
@@ -123,6 +205,46 @@ export function FinancePage() {
 
         {view === 'movimenti' && (
           <>
+            {/* Aggiunta rapida: frase in linguaggio naturale o dettatura vocale */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                void parseQuick(quickText)
+              }}
+              className="mt-4 flex gap-2"
+            >
+              <input
+                value={quickText}
+                onChange={(e) => setQuickText(e.target.value)}
+                maxLength={300}
+                className={inputClass}
+                placeholder={listening ? 'Ti ascolto…' : 'Es: 20 euro pizza ieri sera'}
+              />
+              {SpeechRec != null && (
+                <button
+                  type="button"
+                  onClick={startListening}
+                  aria-label={listening ? 'Ferma ascolto' : 'Detta a voce'}
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition ${
+                    listening ? 'animate-pulse bg-expense text-white' : 'bg-card-2 text-muted'
+                  }`}
+                >
+                  <Mic className="h-5 w-5" />
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={parsing || !quickText.trim()}
+                aria-label="Interpreta la frase"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white disabled:opacity-50"
+              >
+                {parsing ? <Spinner className="h-5 w-5 text-white" /> : <Sparkles className="h-5 w-5" />}
+              </button>
+            </form>
+            {quickError && (
+              <p className="mt-2 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{quickError}</p>
+            )}
+
             <Card className="mt-4">
               <div className="grid grid-cols-3 text-center">
                 <div>
@@ -221,6 +343,7 @@ export function FinancePage() {
         <button
           onClick={() => {
             setEditing(null)
+            setDraft(null)
             setSheetOpen(true)
           }}
           aria-label="Nuovo movimento"
@@ -232,10 +355,14 @@ export function FinancePage() {
 
       <TransactionSheet
         open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
+        onClose={() => {
+          setSheetOpen(false)
+          setDraft(null)
+        }}
         onSaved={reload}
         categories={categories}
         editing={editing}
+        draft={draft}
       />
     </div>
   )

@@ -6,18 +6,28 @@ import { CategoryIcon } from '../../lib/icons'
 import { Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import type { Category, Kind, Transaction } from '../../types'
 
+export interface TransactionDraft {
+  kind?: Kind
+  amount_cents?: number | null
+  category_id?: string | null
+  date?: string | null
+  description?: string
+}
+
 export function TransactionSheet({
   open,
   onClose,
   onSaved,
   categories,
   editing,
+  draft,
 }: {
   open: boolean
   onClose: () => void
   onSaved: () => void
   categories: Category[]
   editing: Transaction | null
+  draft?: TransactionDraft | null
 }) {
   const [kind, setKind] = useState<Kind>('expense')
   const [amount, setAmount] = useState('')
@@ -37,6 +47,14 @@ export function TransactionSheet({
       setDate(editing.date)
       setDescription(editing.description)
       setRecurrence(editing.recurrence ?? '')
+    } else if (draft) {
+      // Precompilato dall'AI (spesa a voce/frase): l'utente controlla e salva
+      setKind(draft.kind ?? 'expense')
+      setAmount(draft.amount_cents ? (draft.amount_cents / 100).toFixed(2).replace('.', ',') : '')
+      setCategoryId(draft.category_id ?? '')
+      setDate(draft.date ?? todayISO())
+      setDescription(draft.description ?? '')
+      setRecurrence('')
     } else {
       setKind('expense')
       setAmount('')
@@ -46,7 +64,7 @@ export function TransactionSheet({
       setRecurrence('')
     }
     setError('')
-  }, [open, editing])
+  }, [open, editing, draft])
 
   const visibleCategories = categories.filter((c) => c.kind === kind)
 

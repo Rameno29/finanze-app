@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import {
+  Bot,
   CalendarDays,
   ChevronDown,
   FileText,
@@ -78,10 +79,19 @@ export function GuidePage() {
           <P>• <B>Da fare oggi</B> — le attività dell'agenda in scadenza oggi o in ritardo: tocca il cerchietto per completarle al volo.</P>
           <P>• <B>Uscite per categoria</B> — la torta di dove stanno andando i soldi questo mese.</P>
           <P>• <B>Ultimi 6 mesi</B> — tocca la colonna di un mese per vedere entrate, uscite e saldo di quel mese nel riquadro sotto il grafico.</P>
+          <P>• <B>Disponibile oggi</B> — se hai impostato dei budget, calcola quanto puoi spendere al giorno da qui a fine mese (budget rimanente ÷ giorni rimasti).</P>
+          <P>• <B>Chiedi ad AJE</B> — apre l'assistente AI (vedi la sezione dedicata).</P>
+        </Section>
+
+        <Section icon={Bot} title="Assistente">
+          <P>Una chat che risponde guardando i <B>tuoi</B> movimenti, budget e obiettivi degli ultimi 12 mesi.</P>
+          <P>Esempi: <B>"Quanto ho speso in ristoranti quest'anno?"</B>, <B>"Come vanno i miei budget?"</B>, <B>"Posso permettermi una spesa di 200 €?"</B>, <B>"Dammi consigli per risparmiare"</B>.</P>
+          <P>Le risposte si basano solo sui dati che hai registrato in AJE: più l'app è aggiornata, più l'assistente è preciso. La conversazione non viene salvata: chiusa la pagina, riparte da zero.</P>
         </Section>
 
         <Section icon={Wallet} title="Finanze">
           <P><B>Movimenti</B> — il registro di entrate e uscite. Il bottone <B>+</B> aggiunge un movimento: scegli tipo, importo, categoria, data e (se vuoi) una <B>ricorrenza</B>. Tocca un movimento per modificarlo o eliminarlo. Con le frecce ‹ › cambi mese.</P>
+          <P><B>Aggiunta rapida a voce o con una frase</B> — nella barra in alto scrivi (o detti col microfono) qualcosa come <B>"20 euro pizza ieri sera"</B>: l'AI capisce importo, categoria e data e ti mostra il movimento già compilato — controlli e salvi.</P>
           <P><B>Ricorrenze automatiche</B> — se imposti "mensile" su affitto o stipendio, alla scadenza la nuova occorrenza si crea da sola ogni notte: non devi fare nulla.</P>
           <P><B>Budget</B> — tocca una categoria e imposta il tetto mensile: la barra mostra quanto hai già speso e diventa rossa se sfori.</P>
           <P><B>Categorie</B> — crea, personalizza (icona e colore) o elimina le categorie di entrata e uscita.</P>
