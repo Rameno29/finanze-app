@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   XAxis,
 } from 'recharts'
-import { Card, PageHeader, Spinner } from '../../components/ui'
+import { Card, Spinner } from '../../components/ui'
 import { fetchMonthlyTotals, sumByKind, useCategories, useTasks, useTransactions } from '../../lib/data'
 import { MONTH_NAMES, formatCents, monthLabel, todayISO } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
@@ -79,7 +79,23 @@ export function HomePage() {
 
   return (
     <div className="pb-28">
-      <PageHeader title="Ciao 👋" subtitle={monthLabel(year, month)} />
+      <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-lg items-center gap-3 px-5 py-3">
+          <img
+            src={`${import.meta.env.BASE_URL}pwa-192.png`}
+            alt=""
+            className="h-10 w-10 rounded-xl shadow-sm"
+          />
+          <div>
+            <h1 className="bg-gradient-to-r from-accent to-income bg-clip-text text-[26px] font-black tracking-[0.18em] leading-none text-transparent">
+              AJE
+            </h1>
+            <p className="mt-0.5 text-xs capitalize text-muted">
+              {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          </div>
+        </div>
+      </header>
 
       <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
         <Card className="bg-accent text-white border-transparent">

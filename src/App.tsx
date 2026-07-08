@@ -15,6 +15,7 @@ import { DocumentsPage } from './modules/documents/DocumentsPage'
 import { SettingsPage } from './modules/settings/SettingsPage'
 import { GooglePage } from './modules/google/GooglePage'
 import { MediaPage } from './modules/media/MediaPage'
+import { GuidePage } from './modules/guide/GuidePage'
 
 function Shell() {
   const { session, loading } = useAuth()
@@ -42,6 +43,7 @@ function Shell() {
         <Route path="/impostazioni" element={<SettingsPage />} />
         <Route path="/google" element={<GooglePage />} />
         <Route path="/media" element={<MediaPage />} />
+        <Route path="/guida" element={<GuidePage />} />
         <Route path="*" element={<HomePage />} />
       </Routes>
       <MiniPlayer />

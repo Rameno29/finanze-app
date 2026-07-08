@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Field, PrimaryButton, Spinner, inputClass } from '../../components/ui'
+import { Spinner } from '../../components/ui'
+
+const CREAM = '#F2EDE4'
+
+const fieldClass =
+  'w-full rounded-xl border border-white/10 bg-black/25 px-4 py-3.5 text-[16px] text-[#F2EDE4] placeholder-white/30 outline-none transition focus:border-[#F2EDE4]/40 focus:bg-black/35'
 
 export function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
@@ -39,33 +44,65 @@ export function LoginPage() {
   }
 
   return (
-    <div className="pt-safe pb-safe flex min-h-dvh flex-col justify-center bg-bg px-6">
-      <div className="mx-auto w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+    <div
+      className="pt-safe pb-safe relative flex min-h-dvh flex-col justify-center overflow-hidden px-6"
+      style={{
+        background:
+          'radial-gradient(140% 90% at 50% -20%, #0d6b56 0%, #064c3e 35%, #03372f 65%, #021f1b 100%)',
+      }}
+    >
+      {/* bagliori decorativi */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full opacity-20 blur-3xl"
+        style={{ background: '#2dd4a7' }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-28 bottom-10 h-80 w-80 rounded-full opacity-10 blur-3xl"
+        style={{ background: '#F2EDE4' }}
+      />
+
+      <div className="relative mx-auto w-full max-w-sm">
+        <div className="mb-9 flex flex-col items-center text-center">
           <img
             src={`${import.meta.env.BASE_URL}pwa-192.png`}
             alt="Logo AJE"
-            className="h-20 w-20 rounded-2xl shadow-lg"
+            className="h-24 w-24 rounded-[26px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/15"
           />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">AJE</h1>
-            <p className="text-sm text-muted">La tua app personale per soldi e documenti</p>
-          </div>
+          <h1
+            className="mt-5 text-5xl font-black tracking-[0.35em] [text-indent:0.35em]"
+            style={{ color: CREAM }}
+          >
+            AJE
+          </h1>
+          <p className="mt-1.5 text-sm" style={{ color: `${CREAM}99` }}>
+            Finanze, tempo e documenti. Tutto tuo.
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <Field label="Email">
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl backdrop-blur-xl"
+        >
+          <label className="mb-4 block">
+            <span className="mb-1.5 block text-sm font-medium" style={{ color: `${CREAM}B3` }}>
+              Email
+            </span>
             <input
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={inputClass}
+              className={fieldClass}
               placeholder="nome@esempio.it"
             />
-          </Field>
-          <Field label="Password">
+          </label>
+          <label className="mb-5 block">
+            <span className="mb-1.5 block text-sm font-medium" style={{ color: `${CREAM}B3` }}>
+              Password
+            </span>
             <input
               type="password"
               required
@@ -73,30 +110,42 @@ export function LoginPage() {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
+              className={fieldClass}
               placeholder="Minimo 6 caratteri"
             />
-          </Field>
+          </label>
 
           {message && (
             <p
               className={`mb-4 rounded-xl px-4 py-3 text-sm ${
                 message.kind === 'error'
-                  ? 'bg-expense/10 text-expense'
-                  : 'bg-income/10 text-income'
+                  ? 'bg-red-400/15 text-red-200'
+                  : 'bg-emerald-400/15 text-emerald-200'
               }`}
             >
               {message.text}
             </p>
           )}
 
-          <PrimaryButton type="submit" disabled={busy}>
-            {busy ? <Spinner className="h-5 w-5 text-white" /> : mode === 'login' ? 'Accedi' : 'Crea account'}
-          </PrimaryButton>
+          <button
+            type="submit"
+            disabled={busy}
+            className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-xl font-bold transition active:scale-[0.98] disabled:opacity-60"
+            style={{ backgroundColor: CREAM, color: '#03372f' }}
+          >
+            {busy ? (
+              <Spinner className="h-5 w-5 text-[#03372f]" />
+            ) : mode === 'login' ? (
+              'Accedi'
+            ) : (
+              'Crea account'
+            )}
+          </button>
         </form>
 
         <button
-          className="mt-5 w-full py-2 text-center text-sm font-medium text-accent"
+          className="mt-6 w-full py-2 text-center text-sm font-medium"
+          style={{ color: `${CREAM}CC` }}
           onClick={() => {
             setMode(mode === 'login' ? 'signup' : 'login')
             setMessage(null)

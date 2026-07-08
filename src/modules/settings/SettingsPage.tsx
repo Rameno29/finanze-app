@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ChevronRight, Globe, LogOut, Moon, Music, Smartphone, Sparkles, Sun } from 'lucide-react'
+import { BookOpen, ChevronRight, Globe, LogOut, Moon, Music, Smartphone, Sparkles, Sun } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme, type ThemeSetting } from '../../context/ThemeContext'
@@ -35,6 +35,14 @@ export function SettingsPage() {
             </span>
             <span className="flex-1 font-medium">Media</span>
             <span className="text-xs text-muted">Spotify · YouTube</span>
+            <ChevronRight className="h-4 w-4 text-muted" />
+          </Link>
+          <Link to="/guida" className="flex min-h-[52px] items-center gap-3 px-4">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-expense/15 text-expense">
+              <BookOpen className="h-4 w-4" />
+            </span>
+            <span className="flex-1 font-medium">Guida all'uso</span>
+            <span className="text-xs text-muted">Come funziona AJE</span>
             <ChevronRight className="h-4 w-4 text-muted" />
           </Link>
         </Card>
