@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 import {
   CalendarDays,
   ChevronDown,
@@ -13,30 +13,44 @@ import {
 } from 'lucide-react'
 import { PageHeader } from '../../components/ui'
 
+// Accordion esclusivo: aprire una sezione chiude le altre
+const AccordionContext = createContext<{
+  openId: string | null
+  toggle: (id: string) => void
+}>({ openId: null, toggle: () => {} })
+
 function Section({
   icon: Icon,
   title,
   children,
-  defaultOpen,
 }: {
   icon: LucideIcon
   title: string
   children: ReactNode
-  defaultOpen?: boolean
 }) {
+  const { openId, toggle } = useContext(AccordionContext)
+  const open = openId === title
   return (
-    <details open={defaultOpen} className="group overflow-hidden rounded-2xl border border-line bg-card shadow-sm">
-      <summary className="flex min-h-[56px] cursor-pointer list-none items-center gap-3 px-4 py-3 font-semibold [&::-webkit-details-marker]:hidden">
+    <div className="overflow-hidden rounded-2xl border border-line bg-card shadow-sm">
+      <button
+        onClick={() => toggle(title)}
+        aria-expanded={open}
+        className="flex min-h-[56px] w-full items-center gap-3 px-4 py-3 text-left font-semibold"
+      >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
           <Icon className="h-4 w-4" />
         </span>
         <span className="flex-1">{title}</span>
-        <ChevronDown className="h-5 w-5 text-muted transition-transform group-open:rotate-180" />
-      </summary>
-      <div className="space-y-2.5 border-t border-line px-4 py-4 text-sm leading-relaxed text-muted">
-        {children}
-      </div>
-    </details>
+        <ChevronDown
+          className={`h-5 w-5 text-muted transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && (
+        <div className="space-y-2.5 border-t border-line px-4 py-4 text-sm leading-relaxed text-muted">
+          {children}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -49,12 +63,16 @@ function B({ children }: { children: ReactNode }) {
 }
 
 export function GuidePage() {
+  const [openId, setOpenId] = useState<string | null>('Home')
+  const toggle = (id: string) => setOpenId((current) => (current === id ? null : id))
+
   return (
     <div className="pb-28">
       <PageHeader title="Guida" subtitle="Come funziona ogni sezione di AJE" />
 
+      <AccordionContext.Provider value={{ openId, toggle }}>
       <div className="mx-auto flex max-w-lg flex-col gap-3 px-5 pt-4">
-        <Section icon={Home} title="Home" defaultOpen>
+        <Section icon={Home} title="Home">
           <P>La Home è il tuo colpo d'occhio quotidiano:</P>
           <P>• <B>Saldo del mese</B> — entrate, uscite e differenza del mese corrente.</P>
           <P>• <B>Da fare oggi</B> — le attività dell'agenda in scadenza oggi o in ritardo: tocca il cerchietto per completarle al volo.</P>
@@ -112,6 +130,7 @@ export function GuidePage() {
           <P>• <B>Foto migliori per l'AI</B> — scontrini e buste paga ben illuminati e dritti si leggono meglio.</P>
         </Section>
       </div>
+      </AccordionContext.Provider>
     </div>
   )
 }
