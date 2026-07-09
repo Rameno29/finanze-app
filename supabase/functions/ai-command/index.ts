@@ -23,6 +23,22 @@ function isoDate(value: unknown): string | null {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
 }
 
+/** Chiama Gemini con un ritentativo se il servizio è momentaneamente sovraccarico (429/503). */
+async function geminiGenerate(apiKey: string, body: unknown): Promise<Response> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (res.ok || (res.status !== 429 && res.status !== 503) || attempt === 1) return res
+    await new Promise((r) => setTimeout(r, 1500))
+  }
+  // irraggiungibile
+  return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+}
+
 const COMMAND_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -87,13 +103,42 @@ Deno.serve(async (req: Request) => {
   }
   if (!apiKey) return json({ error: 'missing_api_key' }, 400)
 
-  const { text, audio_base64, audio_mime } = await req.json().catch(() => ({}))
+  const { text, audio_base64, audio_mime, transcribe_only } = await req.json().catch(() => ({}))
   const hasAudio = typeof audio_base64 === 'string' && audio_base64.length > 0
   if (!hasAudio) {
     if (typeof text !== 'string' || !text.trim()) return json({ error: 'testo mancante' }, 400)
     if (text.length > 300) return json({ error: 'Frase troppo lunga (max 300 caratteri)' }, 400)
   } else if (audio_base64.length > 8_000_000) {
     return json({ error: 'Audio troppo lungo, registra una frase più breve.' }, 400)
+  }
+
+  // --- Sola trascrizione (per il flusso a due passi: l'utente rivede il testo) ---
+  if (hasAudio && transcribe_only === true) {
+    const tr = await geminiGenerate(apiKey, {
+      contents: [
+        {
+          parts: [
+            { inline_data: { mime_type: audio_mime || 'audio/wav', data: audio_base64 } },
+            {
+              text:
+                "Trascrivi fedelmente in italiano ciò che viene detto in questo audio. " +
+                'Rispondi SOLO con la trascrizione, senza virgolette né commenti. ' +
+                'Se non si sente nulla di comprensibile, rispondi con una stringa vuota.',
+            },
+          ],
+        },
+      ],
+    })
+    if (!tr.ok) {
+      console.error('Gemini transcribe error', tr.status, (await tr.text()).slice(0, 300))
+      return json({ error: 'Trascrizione non riuscita, riprova.' }, 502)
+    }
+    const trData = await tr.json()
+    const transcript = (trData.candidates?.[0]?.content?.parts ?? [])
+      .map((p: { text?: string }) => p.text ?? '')
+      .join('')
+      .trim()
+    return json({ transcript })
   }
 
   // Contesto leggero: categorie e obiettivi dell'utente per il matching dei nomi
@@ -123,19 +168,14 @@ Deno.serve(async (req: Request) => {
     ? [{ inline_data: { mime_type: audio_mime || 'audio/wav', data: audio_base64 } }, { text: prompt }]
     : [{ text: prompt }]
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: { responseMimeType: 'application/json', responseSchema: COMMAND_SCHEMA },
-      }),
-    },
-  )
+  const res = await geminiGenerate(apiKey, {
+    contents: [{ parts }],
+    generationConfig: { responseMimeType: 'application/json', responseSchema: COMMAND_SCHEMA },
+  })
   if (!res.ok) {
     console.error('Gemini error', res.status, (await res.text()).slice(0, 300))
+    if (res.status === 429 || res.status === 503)
+      return json({ error: 'Assistente occupato, riprova tra qualche secondo.' }, 503)
     return json({ error: "Interpretazione non riuscita, riprova." }, 502)
   }
   const data = await res.json()

@@ -105,7 +105,9 @@ export function AssistantPage() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [recording, setRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const recorderRef = useRef<VoiceRecorder | null>(null)
   const autoStopRef = useRef<number | null>(null)
 
@@ -117,23 +119,19 @@ export function AssistantPage() {
     setMessages((m) => [...m, { role: 'ai', text }])
   }
 
-  /** Invia un comando (testo o audio) all'interprete e gestisce la risposta. */
-  async function submit(payload: { text?: string; audio?: { base64: string; mime: string } }) {
-    if (busy) return
-    if (payload.text) setMessages((m) => [...m, { role: 'user', text: payload.text! }])
+  /** Invia il testo (scritto o dettato e poi confermato) all'interprete. */
+  async function submitText(question: string) {
+    const q = question.trim()
+    if (!q || busy) return
+    setMessages((m) => [...m, { role: 'user', text: q }])
+    setInput('')
     setBusy(true)
     try {
-      const body = payload.audio
-        ? { audio_base64: payload.audio.base64, audio_mime: payload.audio.mime }
-        : { text: payload.text }
-      const { data: cmd, error: cmdErr } = await supabase.functions.invoke('ai-command', { body })
+      const { data: cmd, error: cmdErr } = await supabase.functions.invoke('ai-command', {
+        body: { text: q },
+      })
       if (cmdErr) throw cmdErr
-      const intent = cmd as { action: string; say?: string; data?: unknown; transcript?: string }
-
-      // Per l'audio mostro la trascrizione come messaggio dell'utente
-      if (payload.audio && intent.transcript) {
-        setMessages((m) => [...m, { role: 'user', text: intent.transcript! }])
-      }
+      const intent = cmd as { action: string; say?: string; data?: unknown }
 
       if (intent.action !== 'answer' && intent.data) {
         setMessages((m) => [
@@ -149,13 +147,8 @@ export function AssistantPage() {
       }
 
       // Non è un comando: rispondi come assistente sui dati
-      const question = payload.text ?? intent.transcript ?? ''
-      if (!question.trim()) {
-        pushAi('Non ho capito bene, puoi ripetere?')
-        return
-      }
       const { data, error } = await supabase.functions.invoke('ai-analyze', {
-        body: { mode: 'assistant', question },
+        body: { mode: 'assistant', question: q },
       })
       if (error) throw error
       pushAi((data as { answer: string }).answer)
@@ -166,14 +159,10 @@ export function AssistantPage() {
     }
   }
 
-  function ask(question: string) {
-    const q = question.trim()
-    if (!q) return
-    setInput('')
-    void submit({ text: q })
-  }
+  const ask = (question: string) => void submitText(question)
 
-  function stopRecording() {
+  /** Ferma la registrazione, trascrive e mette il testo nel campo (modificabile). */
+  async function stopRecording() {
     if (autoStopRef.current) {
       clearTimeout(autoStopRef.current)
       autoStopRef.current = null
@@ -181,23 +170,38 @@ export function AssistantPage() {
     const rec = recorderRef.current
     recorderRef.current = null
     setRecording(false)
-    if (rec) {
-      const audio = rec.stop()
-      void submit({ audio })
+    if (!rec) return
+    setTranscribing(true)
+    try {
+      const audio = await rec.stop()
+      const { data, error } = await supabase.functions.invoke('ai-command', {
+        body: { audio_base64: audio.base64, audio_mime: audio.mime, transcribe_only: true },
+      })
+      if (error) throw error
+      const transcript = ((data as { transcript?: string }).transcript ?? '').trim()
+      if (transcript) {
+        setInput(transcript)
+        setTimeout(() => inputRef.current?.focus(), 50)
+      } else {
+        pushAi('Non ho sentito bene. Riprova avvicinando il microfono e parlando con calma.')
+      }
+    } catch {
+      pushAi('Trascrizione non riuscita, riprova tra poco.')
+    } finally {
+      setTranscribing(false)
     }
   }
 
   async function toggleMic() {
     if (recording) {
-      stopRecording()
+      void stopRecording()
       return
     }
-    if (!voiceSupported() || busy) return
+    if (!voiceSupported() || busy || transcribing) return
     try {
       recorderRef.current = await startVoiceRecording()
       setRecording(true)
-      // stop di sicurezza dopo 20 secondi
-      autoStopRef.current = window.setTimeout(stopRecording, 20000)
+      autoStopRef.current = window.setTimeout(() => void stopRecording(), 30000)
     } catch {
       setRecording(false)
       pushAi('Non riesco ad accedere al microfono: controlla di aver dato il permesso ad AJE.')
@@ -320,7 +324,7 @@ export function AssistantPage() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    void ask(input)
+    void submitText(input)
   }
 
   return (
@@ -414,28 +418,42 @@ export function AssistantPage() {
       <div className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom))] z-30 border-t border-line bg-bg/95 backdrop-blur-lg">
         <form onSubmit={handleSubmit} className="mx-auto flex max-w-lg gap-2 px-5 py-3">
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             maxLength={300}
             className={inputClass}
-            placeholder={recording ? '🔴 Sto registrando… tocca per fermare' : 'Scrivi o tocca il microfono'}
-            disabled={recording}
+            placeholder={
+              recording
+                ? '🔴 Registrando… tocca ✓ per fermare'
+                : transcribing
+                  ? 'Trascrivo…'
+                  : 'Scrivi o tocca il microfono'
+            }
+            disabled={recording || transcribing}
           />
           {voiceSupported() && (
             <button
               type="button"
               onClick={() => void toggleMic()}
-              aria-label={recording ? 'Ferma registrazione' : 'Parla'}
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition ${
+              disabled={transcribing}
+              aria-label={recording ? 'Ferma e trascrivi' : 'Parla'}
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-50 ${
                 recording ? 'animate-pulse bg-expense text-white' : 'bg-card-2 text-muted'
               }`}
             >
-              <Mic className="h-5 w-5" />
+              {transcribing ? (
+                <Spinner className="h-5 w-5" />
+              ) : recording ? (
+                <Check className="h-5 w-5" />
+              ) : (
+                <Mic className="h-5 w-5" />
+              )}
             </button>
           )}
           <button
             type="submit"
-            disabled={busy || recording || !input.trim()}
+            disabled={busy || recording || transcribing || !input.trim()}
             aria-label="Invia"
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white disabled:opacity-50"
           >

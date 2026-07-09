@@ -89,6 +89,7 @@ export function GuidePage() {
           <P>• <B>Risponde</B> guardando i tuoi movimenti, budget e obiettivi: <B>"Quanto ho speso in ristoranti quest'anno?"</B>, <B>"Posso permettermi una spesa di 200 €?"</B>.</P>
           <P>• <B>Agisce</B> per te: <B>"Ho speso 20 euro di pizza"</B> registra l'uscita, <B>"Ricordami di pagare il bollo venerdì alle 18"</B> crea il promemoria, <B>"Metti 50 euro nelle vacanze"</B> aggiorna l'obiettivo, <B>"Imposta 300 euro di budget per la spesa"</B> imposta il budget.</P>
           <P>Prima di eseguire qualsiasi azione ti mostra <B>cosa ha capito e ti chiede conferma</B>: niente viene salvato senza il tuo ok. La conversazione non viene memorizzata: chiusa la pagina, riparte da zero.</P>
+          <P><B>Microfono</B>: tocca il microfono e parla, poi tocca ✓ per fermare. Il testo di quello che hai detto compare nel campo e <B>puoi correggerlo</B> prima di premere Invia. Funziona su iPhone, Android e PC.</P>
         </Section>
 
         <Section icon={Wallet} title="Finanze">

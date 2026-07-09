@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Download, ListX, Mic, Plus, Sparkles } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Plus, Sparkles } from 'lucide-react'
 import { PageHeader, Card, EmptyState, Spinner, inputClass } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
@@ -28,9 +28,11 @@ export function FinancePage() {
   const [quickText, setQuickText] = useState('')
   const [parsing, setParsing] = useState(false)
   const [listening, setListening] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
   const [quickError, setQuickError] = useState('')
   const recorderRef = useRef<VoiceRecorder | null>(null)
   const autoStopRef = useRef<number | null>(null)
+  const quickInputRef = useRef<HTMLInputElement>(null)
 
   interface ParsedTx {
     amount_cents: number | null
@@ -80,28 +82,8 @@ export function FinancePage() {
     }
   }
 
-  async function parseAudio(audio: { base64: string; mime: string }) {
-    setParsing(true)
-    setQuickError('')
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-command', {
-        body: { audio_base64: audio.base64, audio_mime: audio.mime },
-      })
-      if (error) throw error
-      const intent = data as { action: string; data?: ParsedTx }
-      if (intent.action === 'add_transaction' && intent.data) {
-        openDraftFromParsed(intent.data)
-      } else {
-        setQuickError('Ho capito una richiesta diversa da una spesa. Per promemoria, obiettivi o domande usa l’Assistente 🎤.')
-      }
-    } catch {
-      setQuickError('Non sono riuscito a interpretare, riprova.')
-    } finally {
-      setParsing(false)
-    }
-  }
-
-  function stopRec() {
+  /** Ferma la registrazione, trascrive e mette il testo nel campo (modificabile). */
+  async function stopRec() {
     if (autoStopRef.current) {
       clearTimeout(autoStopRef.current)
       autoStopRef.current = null
@@ -109,19 +91,39 @@ export function FinancePage() {
     const rec = recorderRef.current
     recorderRef.current = null
     setListening(false)
-    if (rec) void parseAudio(rec.stop())
+    if (!rec) return
+    setTranscribing(true)
+    setQuickError('')
+    try {
+      const audio = await rec.stop()
+      const { data, error } = await supabase.functions.invoke('ai-command', {
+        body: { audio_base64: audio.base64, audio_mime: audio.mime, transcribe_only: true },
+      })
+      if (error) throw error
+      const transcript = ((data as { transcript?: string }).transcript ?? '').trim()
+      if (transcript) {
+        setQuickText(transcript)
+        setTimeout(() => quickInputRef.current?.focus(), 50)
+      } else {
+        setQuickError('Non ho sentito bene. Riprova avvicinando il microfono e parlando con calma.')
+      }
+    } catch {
+      setQuickError('Trascrizione non riuscita, riprova tra poco.')
+    } finally {
+      setTranscribing(false)
+    }
   }
 
   async function toggleMic() {
     if (listening) {
-      stopRec()
+      void stopRec()
       return
     }
-    if (!voiceSupported() || parsing) return
+    if (!voiceSupported() || parsing || transcribing) return
     try {
       recorderRef.current = await startVoiceRecording()
       setListening(true)
-      autoStopRef.current = window.setTimeout(stopRec, 20000)
+      autoStopRef.current = window.setTimeout(() => void stopRec(), 30000)
     } catch {
       setListening(false)
       setQuickError('Non riesco ad accedere al microfono: controlla di aver dato il permesso ad AJE.')
@@ -239,28 +241,42 @@ export function FinancePage() {
               className="mt-4 flex gap-2"
             >
               <input
+                ref={quickInputRef}
                 value={quickText}
                 onChange={(e) => setQuickText(e.target.value)}
                 maxLength={300}
                 className={inputClass}
-                placeholder={listening ? '🔴 Sto registrando… tocca per fermare' : 'Es: 20 euro pizza ieri sera'}
-                disabled={listening}
+                placeholder={
+                  listening
+                    ? '🔴 Registrando… tocca ✓ per fermare'
+                    : transcribing
+                      ? 'Trascrivo…'
+                      : 'Es: 20 euro pizza ieri sera'
+                }
+                disabled={listening || transcribing}
               />
               {voiceSupported() && (
                 <button
                   type="button"
                   onClick={() => void toggleMic()}
-                  aria-label={listening ? 'Ferma registrazione' : 'Detta a voce'}
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition ${
+                  disabled={transcribing}
+                  aria-label={listening ? 'Ferma e trascrivi' : 'Detta a voce'}
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-50 ${
                     listening ? 'animate-pulse bg-expense text-white' : 'bg-card-2 text-muted'
                   }`}
                 >
-                  <Mic className="h-5 w-5" />
+                  {transcribing ? (
+                    <Spinner className="h-5 w-5" />
+                  ) : listening ? (
+                    <Check className="h-5 w-5" />
+                  ) : (
+                    <Mic className="h-5 w-5" />
+                  )}
                 </button>
               )}
               <button
                 type="submit"
-                disabled={parsing || !quickText.trim()}
+                disabled={parsing || listening || transcribing || !quickText.trim()}
                 aria-label="Interpreta la frase"
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white disabled:opacity-50"
               >

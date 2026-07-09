@@ -13,11 +13,14 @@ export function voiceSupported(): boolean {
 }
 
 export interface VoiceRecorder {
-  /** Ferma, restituisce l'audio pronto per l'invio (base64 WAV). */
-  stop: () => { base64: string; mime: 'audio/wav' }
+  /** Ferma (catturando la coda della frase) e restituisce l'audio WAV in base64. */
+  stop: () => Promise<{ base64: string; mime: 'audio/wav'; durationMs: number }>
   /** Annulla senza produrre nulla. */
   cancel: () => void
 }
+
+/** Millisecondi di audio raccolti ancora dopo il tap "stop", per non tagliare la fine. */
+const TAIL_MS = 350
 
 const OUT_RATE = 16000
 
@@ -102,21 +105,28 @@ export async function startVoiceRecording(): Promise<VoiceRecorder> {
     void ctx.close()
   }
 
+  const finalize = () => {
+    stopped = true
+    const total = chunks.reduce((n, c) => n + c.length, 0)
+    const merged = new Float32Array(total)
+    let pos = 0
+    for (const c of chunks) {
+      merged.set(c, pos)
+      pos += c.length
+    }
+    const durationMs = Math.round((total / sampleRate) * 1000)
+    const down = downsample(merged, sampleRate)
+    const base64 = encodeWav(down, OUT_RATE)
+    cleanup()
+    return { base64, mime: 'audio/wav' as const, durationMs }
+  }
+
   return {
-    stop: () => {
-      stopped = true
-      const total = chunks.reduce((n, c) => n + c.length, 0)
-      const merged = new Float32Array(total)
-      let pos = 0
-      for (const c of chunks) {
-        merged.set(c, pos)
-        pos += c.length
-      }
-      const down = downsample(merged, sampleRate)
-      const base64 = encodeWav(down, OUT_RATE)
-      cleanup()
-      return { base64, mime: 'audio/wav' }
-    },
+    // Aspetta un attimo prima di chiudere: cattura la fine della frase anche se parli veloce
+    stop: () =>
+      new Promise((resolve) => {
+        window.setTimeout(() => resolve(finalize()), TAIL_MS)
+      }),
     cancel: cleanup,
   }
 }
