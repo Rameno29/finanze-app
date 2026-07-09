@@ -16,7 +16,14 @@ import {
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme, type ThemeSetting } from '../../context/ThemeContext'
-import { disablePush, enablePush, getPushSubscription, needsInstallForPush, pushSupported } from '../../lib/push'
+import {
+  disablePush,
+  enablePush,
+  getPushSubscription,
+  needsInstallForPush,
+  pushSupported,
+  sendTestNotification,
+} from '../../lib/push'
 import { Card, PageHeader, Spinner } from '../../components/ui'
 
 const THEME_OPTIONS: Array<{ value: ThemeSetting; label: string; icon: typeof Sun }> = [
@@ -32,10 +39,28 @@ export function SettingsPage() {
   const [pushOn, setPushOn] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushMsg, setPushMsg] = useState('')
+  const [testBusy, setTestBusy] = useState(false)
 
   useEffect(() => {
     void getPushSubscription().then((s) => setPushOn(s !== null))
   }, [])
+
+  async function testPush() {
+    setTestBusy(true)
+    setPushMsg('')
+    try {
+      const res = await sendTestNotification()
+      setPushMsg(
+        res.ok
+          ? 'Notifica di prova inviata: dovrebbe arrivarti tra pochi secondi. Se non la vedi, controlla che le notifiche di AJE siano attive in Impostazioni iPhone.'
+          : res.reason === 'nessuna_sottoscrizione'
+            ? 'Prima attiva le notifiche qui sopra.'
+            : 'Invio non riuscito: prova a disattivare e riattivare le notifiche.',
+      )
+    } finally {
+      setTestBusy(false)
+    }
+  }
 
   async function togglePush() {
     setPushBusy(true)
@@ -162,6 +187,16 @@ export function SettingsPage() {
               Su iPhone le notifiche funzionano solo con l'app installata: Safari → Condividi →
               "Aggiungi a schermata Home", poi attivale da qui.
             </p>
+          )}
+          {pushOn && (
+            <button
+              onClick={() => void testPush()}
+              disabled={testBusy}
+              className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-line text-sm font-semibold text-accent disabled:opacity-60"
+            >
+              {testBusy ? <Spinner className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+              Invia notifica di prova
+            </button>
           )}
           {pushMsg && <p className="mt-3 rounded-xl bg-card-2 px-3 py-2.5 text-xs">{pushMsg}</p>}
         </Card>

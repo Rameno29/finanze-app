@@ -61,3 +61,22 @@ export async function disablePush(): Promise<void> {
   await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
   await sub.unsubscribe()
 }
+
+/** Invia subito una notifica di prova alle sottoscrizioni dell'utente. */
+export async function sendTestNotification(): Promise<{ ok: boolean; reason?: string }> {
+  const { data, error } = await supabase.functions.invoke('send-reminders', {
+    body: { test: true },
+  })
+  if (error) {
+    let reason = ''
+    try {
+      const ctx = (error as { context?: Response }).context
+      if (ctx) reason = (await ctx.json())?.error ?? ''
+    } catch {
+      /* corpo non JSON */
+    }
+    return { ok: false, reason: reason || 'invio_fallito' }
+  }
+  const sent = (data as { sent?: number }).sent ?? 0
+  return sent > 0 ? { ok: true } : { ok: false, reason: 'nessun_invio' }
+}
