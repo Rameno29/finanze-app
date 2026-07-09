@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Bot, Check, Mic, Send, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { formatCents, todayISO } from '../../lib/format'
+import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
 import { AiText } from '../../components/AiText'
 import { PageHeader, Spinner, inputClass } from '../../components/ui'
 
@@ -103,13 +104,10 @@ export function AssistantPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  const [listening, setListening] = useState(false)
+  const [recording, setRecording] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
-  const recognitionRef = useRef<{ stop: () => void } | null>(null)
-
-  const SpeechRec =
-    (window as unknown as Record<string, unknown>).SpeechRecognition ??
-    (window as unknown as Record<string, unknown>).webkitSpeechRecognition
+  const recorderRef = useRef<VoiceRecorder | null>(null)
+  const autoStopRef = useRef<number | null>(null)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -119,19 +117,23 @@ export function AssistantPage() {
     setMessages((m) => [...m, { role: 'ai', text }])
   }
 
-  async function ask(question: string) {
-    const q = question.trim()
-    if (!q || busy) return
-    setMessages((m) => [...m, { role: 'user', text: q }])
-    setInput('')
+  /** Invia un comando (testo o audio) all'interprete e gestisce la risposta. */
+  async function submit(payload: { text?: string; audio?: { base64: string; mime: string } }) {
+    if (busy) return
+    if (payload.text) setMessages((m) => [...m, { role: 'user', text: payload.text! }])
     setBusy(true)
     try {
-      // 1) prova a interpretarla come comando
-      const { data: cmd, error: cmdErr } = await supabase.functions.invoke('ai-command', {
-        body: { text: q },
-      })
+      const body = payload.audio
+        ? { audio_base64: payload.audio.base64, audio_mime: payload.audio.mime }
+        : { text: payload.text }
+      const { data: cmd, error: cmdErr } = await supabase.functions.invoke('ai-command', { body })
       if (cmdErr) throw cmdErr
-      const intent = cmd as { action: string; say?: string; data?: unknown }
+      const intent = cmd as { action: string; say?: string; data?: unknown; transcript?: string }
+
+      // Per l'audio mostro la trascrizione come messaggio dell'utente
+      if (payload.audio && intent.transcript) {
+        setMessages((m) => [...m, { role: 'user', text: intent.transcript! }])
+      }
 
       if (intent.action !== 'answer' && intent.data) {
         setMessages((m) => [
@@ -146,9 +148,14 @@ export function AssistantPage() {
         return
       }
 
-      // 2) non è un comando: rispondi come assistente sui dati
+      // Non è un comando: rispondi come assistente sui dati
+      const question = payload.text ?? intent.transcript ?? ''
+      if (!question.trim()) {
+        pushAi('Non ho capito bene, puoi ripetere?')
+        return
+      }
       const { data, error } = await supabase.functions.invoke('ai-analyze', {
-        body: { mode: 'assistant', question: q },
+        body: { mode: 'assistant', question },
       })
       if (error) throw error
       pushAi((data as { answer: string }).answer)
@@ -156,6 +163,44 @@ export function AssistantPage() {
       pushAi('Ops, non sono riuscito a elaborare la richiesta. Riprova tra qualche secondo.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  function ask(question: string) {
+    const q = question.trim()
+    if (!q) return
+    setInput('')
+    void submit({ text: q })
+  }
+
+  function stopRecording() {
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current)
+      autoStopRef.current = null
+    }
+    const rec = recorderRef.current
+    recorderRef.current = null
+    setRecording(false)
+    if (rec) {
+      const audio = rec.stop()
+      void submit({ audio })
+    }
+  }
+
+  async function toggleMic() {
+    if (recording) {
+      stopRecording()
+      return
+    }
+    if (!voiceSupported() || busy) return
+    try {
+      recorderRef.current = await startVoiceRecording()
+      setRecording(true)
+      // stop di sicurezza dopo 20 secondi
+      autoStopRef.current = window.setTimeout(stopRecording, 20000)
+    } catch {
+      setRecording(false)
+      pushAi('Non riesco ad accedere al microfono: controlla di aver dato il permesso ad AJE.')
     }
   }
 
@@ -272,30 +317,6 @@ export function AssistantPage() {
     }
   }
 
-  function startListening() {
-    if (!SpeechRec) return
-    if (listening) {
-      recognitionRef.current?.stop()
-      return
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rec = new (SpeechRec as any)()
-    rec.lang = 'it-IT'
-    rec.interimResults = false
-    rec.maxAlternatives = 1
-    rec.onresult = (e: { results: Array<Array<{ transcript: string }>> }) => {
-      const transcript = e.results[0][0].transcript
-      void ask(transcript)
-    }
-    rec.onend = () => setListening(false)
-    rec.onerror = () => {
-      setListening(false)
-      pushAi('Microfono non disponibile: scrivi pure, oppure usa il microfono della tastiera.')
-    }
-    recognitionRef.current = rec
-    setListening(true)
-    rec.start()
-  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -397,15 +418,16 @@ export function AssistantPage() {
             onChange={(e) => setInput(e.target.value)}
             maxLength={300}
             className={inputClass}
-            placeholder={listening ? 'Ti ascolto…' : 'Es. ho speso 20 euro di benzina'}
+            placeholder={recording ? '🔴 Sto registrando… tocca per fermare' : 'Scrivi o tocca il microfono'}
+            disabled={recording}
           />
-          {SpeechRec != null && (
+          {voiceSupported() && (
             <button
               type="button"
-              onClick={startListening}
-              aria-label={listening ? 'Ferma ascolto' : 'Parla'}
+              onClick={() => void toggleMic()}
+              aria-label={recording ? 'Ferma registrazione' : 'Parla'}
               className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition ${
-                listening ? 'animate-pulse bg-expense text-white' : 'bg-card-2 text-muted'
+                recording ? 'animate-pulse bg-expense text-white' : 'bg-card-2 text-muted'
               }`}
             >
               <Mic className="h-5 w-5" />
@@ -413,7 +435,7 @@ export function AssistantPage() {
           )}
           <button
             type="submit"
-            disabled={busy || !input.trim()}
+            disabled={busy || recording || !input.trim()}
             aria-label="Invia"
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white disabled:opacity-50"
           >

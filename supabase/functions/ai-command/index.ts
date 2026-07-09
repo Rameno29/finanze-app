@@ -41,6 +41,10 @@ const COMMAND_SCHEMA = {
         "Breve frase in italiano che riassume l'azione che si sta per eseguire, es. " +
         "\"Registro un'uscita di 20,00 € in Ristoranti per oggi\". Vuota se action è 'answer'.",
     },
+    transcript: {
+      type: 'STRING',
+      description: "Trascrizione fedele in italiano di ciò che l'utente ha detto o scritto",
+    },
     amount_eur: { type: 'NUMBER', description: 'Importo in euro (sempre positivo)' },
     kind: { type: 'STRING', description: "Per add_transaction: 'expense' (spesa) o 'income' (entrata)" },
     category: { type: 'STRING', description: 'Nome ESATTO di una delle categorie fornite, oppure vuoto' },
@@ -83,9 +87,14 @@ Deno.serve(async (req: Request) => {
   }
   if (!apiKey) return json({ error: 'missing_api_key' }, 400)
 
-  const { text } = await req.json().catch(() => ({}))
-  if (typeof text !== 'string' || !text.trim()) return json({ error: 'testo mancante' }, 400)
-  if (text.length > 300) return json({ error: 'Frase troppo lunga (max 300 caratteri)' }, 400)
+  const { text, audio_base64, audio_mime } = await req.json().catch(() => ({}))
+  const hasAudio = typeof audio_base64 === 'string' && audio_base64.length > 0
+  if (!hasAudio) {
+    if (typeof text !== 'string' || !text.trim()) return json({ error: 'testo mancante' }, 400)
+    if (text.length > 300) return json({ error: 'Frase troppo lunga (max 300 caratteri)' }, 400)
+  } else if (audio_base64.length > 8_000_000) {
+    return json({ error: 'Audio troppo lungo, registra una frase più breve.' }, 400)
+  }
 
   // Contesto leggero: categorie e obiettivi dell'utente per il matching dei nomi
   const [catRes, goalRes] = await Promise.all([
@@ -101,11 +110,18 @@ Deno.serve(async (req: Request) => {
     `Sei l'interprete dei comandi vocali dell'app di finanze personali AJE. Oggi è ${new Date().toISOString().slice(0, 10)}.\n` +
     `Categorie dell'utente: ${catList || '(nessuna)'}.\n` +
     `Obiettivi di risparmio esistenti: ${goalList || '(nessuno)'}.\n\n` +
-    `Interpreta questa frase dell'utente e determina l'azione: "${text.trim()}"\n\n` +
+    (hasAudio
+      ? `Ascolta l'audio dell'utente (in italiano), trascrivilo mentalmente e determina l'azione richiesta.\n\n`
+      : `Interpreta questa frase dell'utente e determina l'azione: "${text.trim()}"\n\n`) +
     `Esempi: "ho speso 20 euro di pizza" → add_transaction uscita; "mi sono arrivati 500 euro" → add_transaction entrata; ` +
     `"ricordami di pagare il bollo venerdì alle 18" → add_task; "voglio mettere da parte 1000 euro per Natale" → add_goal; ` +
     `"metti 50 euro nelle vacanze" → contribute_goal; "imposta 300 euro di budget per la spesa" → set_budget; ` +
-    `"quanto ho speso a giugno?" → answer.`
+    `"quanto ho speso a giugno?" → answer.\n` +
+    `Riempi SEMPRE il campo "transcript" con la trascrizione fedele di ciò che l'utente ha detto o scritto.`
+
+  const parts: unknown[] = hasAudio
+    ? [{ inline_data: { mime_type: audio_mime || 'audio/wav', data: audio_base64 } }, { text: prompt }]
+    : [{ text: prompt }]
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -113,7 +129,7 @@ Deno.serve(async (req: Request) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts }],
         generationConfig: { responseMimeType: 'application/json', responseSchema: COMMAND_SCHEMA },
       }),
     },
@@ -135,14 +151,16 @@ Deno.serve(async (req: Request) => {
 
   const action = String(parsed.action ?? 'answer')
   const say = typeof parsed.say === 'string' ? parsed.say : ''
+  const transcript = typeof parsed.transcript === 'string' ? parsed.transcript : ''
 
   // Normalizzazione per azione: il client riceve dati già pronti (centesimi, date valide)
   if (action === 'add_transaction') {
     const amount = eurToCents(parsed.amount_eur)
-    if (!amount) return json({ action: 'answer' })
+    if (!amount) return json({ action: 'answer', transcript })
     return json({
       action,
       say,
+      transcript,
       data: {
         amount_cents: amount,
         kind: parsed.kind === 'income' ? 'income' : 'expense',
@@ -158,10 +176,11 @@ Deno.serve(async (req: Request) => {
 
   if (action === 'add_task') {
     const title = typeof parsed.title === 'string' && parsed.title.trim() ? parsed.title.trim() : null
-    if (!title) return json({ action: 'answer' })
+    if (!title) return json({ action: 'answer', transcript })
     return json({
       action,
       say,
+      transcript,
       data: {
         title,
         due_date: isoDate(parsed.date),
@@ -174,17 +193,18 @@ Deno.serve(async (req: Request) => {
   if (action === 'add_goal') {
     const target = eurToCents(parsed.target_eur)
     const name = typeof parsed.goal_name === 'string' && parsed.goal_name.trim() ? parsed.goal_name.trim() : null
-    if (!target || !name) return json({ action: 'answer' })
-    return json({ action, say, data: { name, target_cents: target, deadline: isoDate(parsed.deadline) } })
+    if (!target || !name) return json({ action: 'answer', transcript })
+    return json({ action, say, transcript, data: { name, target_cents: target, deadline: isoDate(parsed.deadline) } })
   }
 
   if (action === 'contribute_goal') {
     const amount = eurToCents(parsed.amount_eur)
     const name = typeof parsed.goal_name === 'string' && parsed.goal_name.trim() ? parsed.goal_name.trim() : null
-    if (!amount || !name) return json({ action: 'answer' })
+    if (!amount || !name) return json({ action: 'answer', transcript })
     return json({
       action,
       say,
+      transcript,
       data: { goal_name: name, amount_cents: amount, direction: parsed.direction === 'remove' ? 'remove' : 'add' },
     })
   }
@@ -192,9 +212,9 @@ Deno.serve(async (req: Request) => {
   if (action === 'set_budget') {
     const amount = eurToCents(parsed.amount_eur)
     const category = typeof parsed.category === 'string' && parsed.category.trim() ? parsed.category.trim() : null
-    if (!amount || !category) return json({ action: 'answer' })
-    return json({ action, say, data: { category_name: category, monthly_cents: amount } })
+    if (!amount || !category) return json({ action: 'answer', transcript })
+    return json({ action, say, transcript, data: { category_name: category, monthly_cents: amount } })
   }
 
-  return json({ action: 'answer' })
+  return json({ action: 'answer', transcript })
 })

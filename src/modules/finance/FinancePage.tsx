@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download, ListX, Mic, Plus, Sparkles } from 'lucide-react'
 import { PageHeader, Card, EmptyState, Spinner, inputClass } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
+import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
 import { TransactionSheet, type TransactionDraft } from './TransactionSheet'
 import { BudgetsView } from './BudgetsView'
 import { CategoriesView } from './CategoriesView'
@@ -28,11 +29,38 @@ export function FinancePage() {
   const [parsing, setParsing] = useState(false)
   const [listening, setListening] = useState(false)
   const [quickError, setQuickError] = useState('')
-  const recognitionRef = useRef<{ stop: () => void } | null>(null)
+  const recorderRef = useRef<VoiceRecorder | null>(null)
+  const autoStopRef = useRef<number | null>(null)
 
-  const SpeechRec =
-    (window as unknown as Record<string, unknown>).SpeechRecognition ??
-    (window as unknown as Record<string, unknown>).webkitSpeechRecognition
+  interface ParsedTx {
+    amount_cents: number | null
+    kind: 'income' | 'expense'
+    category_name: string | null
+    date: string | null
+    description: string
+  }
+
+  function openDraftFromParsed(parsed: ParsedTx) {
+    if (!parsed.amount_cents) {
+      setQuickError('Non ho capito l’importo: prova con "20 euro pizza ieri".')
+      return
+    }
+    const cat = parsed.category_name
+      ? categories.find(
+          (c) => c.kind === parsed.kind && c.name.toLowerCase() === parsed.category_name!.toLowerCase(),
+        )
+      : undefined
+    setDraft({
+      kind: parsed.kind,
+      amount_cents: parsed.amount_cents,
+      category_id: cat?.id ?? null,
+      date: parsed.date,
+      description: parsed.description,
+    })
+    setEditing(null)
+    setSheetOpen(true)
+    setQuickText('')
+  }
 
   async function parseQuick(text: string) {
     const phrase = text.trim()
@@ -44,32 +72,7 @@ export function FinancePage() {
         body: { mode: 'parse_transaction', text: phrase },
       })
       if (error) throw error
-      const parsed = data as {
-        amount_cents: number | null
-        kind: 'income' | 'expense'
-        category_name: string | null
-        date: string | null
-        description: string
-      }
-      if (!parsed.amount_cents) {
-        setQuickError('Non ho capito l’importo: prova con "20 euro pizza ieri".')
-        return
-      }
-      const cat = parsed.category_name
-        ? categories.find(
-            (c) => c.kind === parsed.kind && c.name.toLowerCase() === parsed.category_name!.toLowerCase(),
-          )
-        : undefined
-      setDraft({
-        kind: parsed.kind,
-        amount_cents: parsed.amount_cents,
-        category_id: cat?.id ?? null,
-        date: parsed.date,
-        description: parsed.description,
-      })
-      setEditing(null)
-      setSheetOpen(true)
-      setQuickText('')
+      openDraftFromParsed(data as ParsedTx)
     } catch {
       setQuickError('Non sono riuscito a interpretare la frase, riprova.')
     } finally {
@@ -77,30 +80,52 @@ export function FinancePage() {
     }
   }
 
-  function startListening() {
-    if (!SpeechRec) return
+  async function parseAudio(audio: { base64: string; mime: string }) {
+    setParsing(true)
+    setQuickError('')
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-command', {
+        body: { audio_base64: audio.base64, audio_mime: audio.mime },
+      })
+      if (error) throw error
+      const intent = data as { action: string; data?: ParsedTx }
+      if (intent.action === 'add_transaction' && intent.data) {
+        openDraftFromParsed(intent.data)
+      } else {
+        setQuickError('Ho capito una richiesta diversa da una spesa. Per promemoria, obiettivi o domande usa l’Assistente 🎤.')
+      }
+    } catch {
+      setQuickError('Non sono riuscito a interpretare, riprova.')
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  function stopRec() {
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current)
+      autoStopRef.current = null
+    }
+    const rec = recorderRef.current
+    recorderRef.current = null
+    setListening(false)
+    if (rec) void parseAudio(rec.stop())
+  }
+
+  async function toggleMic() {
     if (listening) {
-      recognitionRef.current?.stop()
+      stopRec()
       return
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rec = new (SpeechRec as any)()
-    rec.lang = 'it-IT'
-    rec.interimResults = false
-    rec.maxAlternatives = 1
-    rec.onresult = (e: { results: Array<Array<{ transcript: string }>> }) => {
-      const transcript = e.results[0][0].transcript
-      setQuickText(transcript)
-      void parseQuick(transcript)
-    }
-    rec.onend = () => setListening(false)
-    rec.onerror = () => {
+    if (!voiceSupported() || parsing) return
+    try {
+      recorderRef.current = await startVoiceRecording()
+      setListening(true)
+      autoStopRef.current = window.setTimeout(stopRec, 20000)
+    } catch {
       setListening(false)
-      setQuickError('Microfono non disponibile: scrivi la frase (o usa il microfono della tastiera).')
+      setQuickError('Non riesco ad accedere al microfono: controlla di aver dato il permesso ad AJE.')
     }
-    recognitionRef.current = rec
-    setListening(true)
-    rec.start()
   }
 
   const { categories, reload: reloadCategories } = useCategories()
@@ -218,13 +243,14 @@ export function FinancePage() {
                 onChange={(e) => setQuickText(e.target.value)}
                 maxLength={300}
                 className={inputClass}
-                placeholder={listening ? 'Ti ascolto…' : 'Es: 20 euro pizza ieri sera'}
+                placeholder={listening ? '🔴 Sto registrando… tocca per fermare' : 'Es: 20 euro pizza ieri sera'}
+                disabled={listening}
               />
-              {SpeechRec != null && (
+              {voiceSupported() && (
                 <button
                   type="button"
-                  onClick={startListening}
-                  aria-label={listening ? 'Ferma ascolto' : 'Detta a voce'}
+                  onClick={() => void toggleMic()}
+                  aria-label={listening ? 'Ferma registrazione' : 'Detta a voce'}
                   className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition ${
                     listening ? 'animate-pulse bg-expense text-white' : 'bg-card-2 text-muted'
                   }`}
