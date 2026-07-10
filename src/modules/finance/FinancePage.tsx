@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Plus, Sparkles } from 'lucide-react'
 import { PageHeader, Card, EmptyState, Spinner, inputClass } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
@@ -33,6 +33,11 @@ export function FinancePage() {
   const recorderRef = useRef<VoiceRecorder | null>(null)
   const autoStopRef = useRef<number | null>(null)
   const quickInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => () => {
+    if (autoStopRef.current) clearTimeout(autoStopRef.current)
+    recorderRef.current?.cancel()
+  }, [])
 
   interface ParsedTx {
     amount_cents: number | null
@@ -139,10 +144,15 @@ export function FinancePage() {
 
   async function handleExport() {
     setExporting(true)
-    const ok = await exportTransactionsCsv()
-    setExporting(false)
-    setExportMsg(ok ? '' : 'Nessun movimento da esportare.')
-    if (!ok) setTimeout(() => setExportMsg(''), 4000)
+    try {
+      const ok = await exportTransactionsCsv()
+      setExportMsg(ok ? '' : 'Nessun movimento da esportare.')
+      if (!ok) setTimeout(() => setExportMsg(''), 4000)
+    } catch {
+      setExportMsg('Esportazione non riuscita, riprova.')
+    } finally {
+      setExporting(false)
+    }
   }
 
   const categoryById = useMemo(

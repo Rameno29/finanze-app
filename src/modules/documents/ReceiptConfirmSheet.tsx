@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { requireUserId, supabase } from '../../lib/supabase'
 import { parseAmountToCents, todayISO } from '../../lib/format'
 import { useCategories } from '../../lib/data'
 import { Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
@@ -46,6 +46,8 @@ export function ReceiptConfirmSheet({
   if (!data) return null
 
   async function save() {
+    if (!data) return
+    const current = data
     const cents = parseAmountToCents(amount)
     if (!cents) {
       setError('Inserisci un importo valido.')
@@ -53,17 +55,30 @@ export function ReceiptConfirmSheet({
     }
     setBusy(true)
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      await supabase.from('transactions').insert({
-        user_id: userData.user!.id,
-        amount_cents: cents,
-        kind: 'expense',
-        category_id: categoryId || null,
-        date,
-        description: merchant.trim() || 'Scontrino',
-        document_id: data!.doc.id,
-      })
-      await supabase.from('documents').update({ status: 'analizzato' }).eq('id', data!.doc.id)
+      const userId = await requireUserId()
+      const { data: existing, error: existingError } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('document_id', current.doc.id)
+        .maybeSingle()
+      if (existingError) throw existingError
+      if (!existing) {
+        const { error: transactionError } = await supabase.from('transactions').insert({
+          user_id: userId,
+          amount_cents: cents,
+          kind: 'expense',
+          category_id: categoryId || null,
+          date,
+          description: merchant.trim() || 'Scontrino',
+          document_id: current.doc.id,
+        })
+        if (transactionError) throw transactionError
+      }
+      const { error: documentError } = await supabase
+        .from('documents')
+        .update({ status: 'analizzato' })
+        .eq('id', current.doc.id)
+      if (documentError) throw documentError
       onSaved()
     } catch {
       setError('Errore durante il salvataggio, riprova.')

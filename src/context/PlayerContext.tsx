@@ -30,6 +30,16 @@ export function usePlayer() {
 export function extractYouTubeId(input: string): string | null {
   const trimmed = input.trim()
   if (/^[\w-]{11}$/.test(trimmed)) return trimmed
+  let url: URL
+  try {
+    url = new URL(trimmed)
+  } catch {
+    return null
+  }
+  const host = url.hostname.toLowerCase().replace(/^www\./, '')
+  if (!['youtube.com', 'm.youtube.com', 'youtu.be', 'youtube-nocookie.com'].includes(host)) {
+    return null
+  }
   const patterns = [
     /[?&]v=([\w-]{11})/,
     /youtu\.be\/([\w-]{11})/,

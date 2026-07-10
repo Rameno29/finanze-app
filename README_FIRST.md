@@ -2,7 +2,7 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **10 luglio 2026**.
+> Ultimo aggiornamento: **11 luglio 2026**.
 
 ---
 
@@ -219,6 +219,12 @@ Cronologia dei principali intoppi e delle soluzioni — utile per non ripetere g
     → Aggiunto **ritentativo automatico** quando il servizio è momentaneamente occupato. Per l'uso
     normale i limiti non si toccano.
 
+11. **Audit funzionale e di sicurezza del 10 luglio 2026**.
+    → Aggiunti test automatici di regressione; protezione OAuth `state` per Spotify; validazione più
+    rigorosa di importi, file, URL e payload; limiti alle richieste AI; isolamento `user_id` rinforzato
+    nelle funzioni server; gestione esplicita degli errori nei salvataggi; conferme di scontrini e
+    buste paga rese idempotenti; caricamento delle pagine separato per ridurre il bundle iniziale.
+
 ---
 
 ## 8. Stato attuale
@@ -248,10 +254,19 @@ Punti di attenzione noti:
 
 ## 10. Manutenzione e sviluppo (per riprendere in mano il progetto)
 
+### Regola di documentazione automatica
+Ogni modifica significativa al codice, alla configurazione, alla sicurezza, ai test, al database o
+all'infrastruttura deve essere riportata in questo file nello stesso intervento. Prima di concludere
+un'attività bisogna aggiornare almeno la data in alto e le sezioni interessate, mantenendo questo
+documento coerente con lo stato reale del progetto. Le semplici operazioni di lettura o diagnosi che
+non cambiano il progetto non richiedono un aggiornamento.
+
 ### Sviluppo locale
 ```bash
 npm install
 npm run dev       # sviluppo su http://localhost:5173/finanze-app/
+npm test          # suite automatica di regressione
+npm run lint      # controlli statici React/TypeScript
 npm run build     # build di produzione in dist/
 npm run preview   # anteprima della build di produzione
 ```

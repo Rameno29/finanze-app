@@ -29,11 +29,13 @@ export function HomePage() {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth() + 1
+  const dayOfMonth = now.getDate()
 
   const { transactions, loading } = useTransactions(year, month)
   const { categories } = useCategories()
   const { tasks, reload: reloadTasks } = useTasks()
   const { budgets } = useBudgets()
+  const [operationError, setOperationError] = useState('')
 
   // "Disponibile oggi": (budget totale del mese − speso nelle categorie con budget) ÷ giorni rimasti
   const safeToSpend = useMemo(() => {
@@ -44,9 +46,9 @@ export function HomePage() {
       .filter((t) => t.kind === 'expense' && t.category_id !== null && budgeted.has(t.category_id))
       .reduce((sum, t) => sum + t.amount_cents, 0)
     const daysInMonth = new Date(year, month, 0).getDate()
-    const daysLeft = Math.max(1, daysInMonth - now.getDate() + 1)
+    const daysLeft = Math.max(1, daysInMonth - dayOfMonth + 1)
     return { perDay: Math.round((totalBudget - spent) / daysLeft), remaining: totalBudget - spent, daysLeft }
-  }, [budgets, transactions, year, month, now])
+  }, [budgets, transactions, year, month, dayOfMonth])
 
   const today = todayISO()
   const todayTasks = useMemo(
@@ -55,8 +57,12 @@ export function HomePage() {
   )
 
   async function completeTask(id: string) {
-    await supabase.from('tasks').update({ done: true }).eq('id', id)
-    void reloadTasks()
+    const { error } = await supabase.from('tasks').update({ done: true }).eq('id', id)
+    if (error) setOperationError('Non riesco a completare l’attività. Riprova.')
+    else {
+      setOperationError('')
+      void reloadTasks()
+    }
   }
 
   // Report AI del mese scorso
@@ -87,7 +93,7 @@ export function HomePage() {
   const [history, setHistory] = useState<Array<{ month: string; income: number; expense: number }>>([])
 
   useEffect(() => {
-    void fetchMonthlyTotals(6).then(setHistory)
+    void fetchMonthlyTotals(6).then(setHistory).catch(() => setHistory([]))
   }, [])
 
   const totals = useMemo(() => sumByKind(transactions), [transactions])
@@ -147,6 +153,9 @@ export function HomePage() {
       </header>
 
       <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
+        {operationError && (
+          <p className="rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{operationError}</p>
+        )}
         <Card className="bg-accent text-white border-transparent">
           <div className="flex items-center gap-2 text-white/80">
             <Wallet className="h-4 w-4" />

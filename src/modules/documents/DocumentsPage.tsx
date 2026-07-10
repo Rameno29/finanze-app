@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { downloadPdf, type GeneratedDoc } from '../../lib/pdf'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { supabase } from '../../lib/supabase'
+import { requireUserId, supabase } from '../../lib/supabase'
 import { MONTH_NAMES, formatCents } from '../../lib/format'
 import { Card, EmptyState, PageHeader, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import { PayslipConfirmSheet } from './PayslipConfirmSheet'
@@ -76,6 +76,9 @@ export function DocumentsPage() {
       supabase.from('documents').select('*').order('created_at', { ascending: false }),
       supabase.from('payslips').select('*').order('period_year').order('period_month'),
     ])
+    if (docsRes.error || payslipsRes.error) {
+      setError('Non riesco ad aggiornare l’elenco dei documenti. Controlla la connessione.')
+    }
     setDocuments((docsRes.data as DocumentRow[]) ?? [])
     setPayslips((payslipsRes.data as Payslip[]) ?? [])
     setLoading(false)
@@ -93,22 +96,36 @@ export function DocumentsPage() {
   async function handleUpload(file: File) {
     const docType = pendingType.current
     setError('')
+    const allowedTypes = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
+    const allowedExtension = /\.(pdf|jpe?g|png|webp)$/i.test(file.name)
+    if (!allowedTypes.has(file.type) && !(file.type === '' && allowedExtension)) {
+      setError('Formato non supportato: usa PDF, JPEG, PNG o WebP.')
+      return
+    }
+    if (file.size === 0 || file.size > 20 * 1024 * 1024) {
+      setError('Il file deve avere una dimensione compresa tra 1 byte e 20 MB.')
+      return
+    }
     setUploadingType(docType)
+    let uploadedPath: string | null = null
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      const userId = userData.user!.id
+      const userId = await requireUserId()
       const path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, '_')}`
       const { error: upErr } = await supabase.storage.from('documents').upload(path, file)
       if (upErr) throw upErr
+      uploadedPath = path
       const { data: doc, error: insErr } = await supabase
         .from('documents')
         .insert({ user_id: userId, doc_type: docType, storage_path: path, file_name: file.name })
         .select()
         .single()
       if (insErr) throw insErr
+      // Da qui il file è referenziato dal DB: non va più rimosso come orfano.
+      uploadedPath = null
       await reload()
       await analyze(doc as DocumentRow)
     } catch {
+      if (uploadedPath) await supabase.storage.from('documents').remove([uploadedPath])
       setError('Caricamento non riuscito, riprova.')
     } finally {
       setUploadingType(null)
@@ -141,6 +158,9 @@ export function DocumentsPage() {
         setExplainData(data as DocAnalysis)
         await reload()
       }
+    } catch {
+      setError('Analisi non riuscita, riprova tra poco.')
+      await reload()
     } finally {
       setAnalyzingId(null)
     }

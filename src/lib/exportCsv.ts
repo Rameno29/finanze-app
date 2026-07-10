@@ -1,12 +1,12 @@
 import { supabase } from './supabase'
 import type { Category, Transaction } from '../types'
 
-function csvEscape(value: string): string {
+export function csvEscape(value: string): string {
   // Protezione da CSV injection: Excel interpreta =, +, -, @ a inizio cella come formule.
   // Gli importi numerici (es. "-15,85") sono legittimi e non vanno neutralizzati.
   const isNumber = /^-?\d+(,\d+)?$/.test(value)
   const neutralized = !isNumber && /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
-  return /[";\n]/.test(neutralized) ? `"${neutralized.replace(/"/g, '""')}"` : neutralized
+  return /[";\r\n]/.test(neutralized) ? `"${neutralized.replace(/"/g, '""')}"` : neutralized
 }
 
 /** Esporta tutti i movimenti in CSV (separatore ; e virgola decimale, per Excel italiano). */
@@ -37,7 +37,11 @@ export async function exportTransactionsCsv(): Promise<boolean> {
   const a = document.createElement('a')
   a.href = url
   a.download = `aje-movimenti-${new Date().toISOString().slice(0, 10)}.csv`
+  a.hidden = true
+  document.body.appendChild(a)
   a.click()
-  URL.revokeObjectURL(url)
+  a.remove()
+  // Safari può annullare il download se il Blob URL viene revocato nello stesso tick.
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   return true
 }

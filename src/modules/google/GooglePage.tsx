@@ -20,6 +20,7 @@ import {
   requestGoogleToken,
 } from '../../lib/googleAuth'
 import { Card, PageHeader, PrimaryButton, Spinner, inputClass } from '../../components/ui'
+import { isSafeHttpUrl } from '../../lib/url'
 
 interface CalEvent {
   id: string
@@ -85,7 +86,11 @@ export function GooglePage() {
         body: { mode: 'websearch', query: webQuery.trim() },
       })
       if (fnErr) throw fnErr
-      setWebAnswer(data as { answer: string; sources: Array<{ title: string; url: string }> })
+      const result = data as { answer: string; sources?: Array<{ title: string; url: string }> }
+      setWebAnswer({
+        answer: result.answer,
+        sources: (result.sources ?? []).filter((source) => isSafeHttpUrl(source.url)).slice(0, 6),
+      })
     } catch {
       setWebError('Ricerca non riuscita, riprova tra poco.')
     } finally {
@@ -166,6 +171,7 @@ export function GooglePage() {
     window.open(
       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery.trim())}`,
       '_blank',
+      'noopener,noreferrer',
     )
   }
 
@@ -188,8 +194,9 @@ export function GooglePage() {
             />
             <button
               type="submit"
+              disabled={webSearching || !webQuery.trim()}
               aria-label="Cerca sul web"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white disabled:opacity-50"
             >
               {webSearching ? <Spinner className="h-5 w-5 text-white" /> : <Search className="h-5 w-5" />}
             </button>

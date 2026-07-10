@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { requireUserId, supabase } from '../../lib/supabase'
 import { MONTH_NAMES, parseAmountToCents } from '../../lib/format'
 import { Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import type { DocumentRow, PayslipAnalysis } from '../../types'
@@ -50,8 +50,7 @@ export function PayslipConfirmSheet({
     }
     setBusy(true)
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      const userId = userData.user!.id
+      const userId = await requireUserId()
 
       const { error: psErr } = await supabase.from('payslips').upsert(
         {
@@ -81,18 +80,31 @@ export function PayslipConfirmSheet({
         categoryId = cat?.id ?? null
 
         const lastDay = new Date(year, month, 0).getDate()
-        await supabase.from('transactions').insert({
-          user_id: userId,
-          amount_cents: netCents,
-          kind: 'income',
-          category_id: categoryId,
-          date: `${year}-${String(month).padStart(2, '0')}-${String(Math.min(27, lastDay)).padStart(2, '0')}`,
-          description: `Stipendio ${MONTH_NAMES[month - 1]} ${year}`,
-          document_id: doc.id,
-        })
+        const { data: existing, error: existingError } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('document_id', doc.id)
+          .maybeSingle()
+        if (existingError) throw existingError
+        if (!existing) {
+          const { error: transactionError } = await supabase.from('transactions').insert({
+            user_id: userId,
+            amount_cents: netCents,
+            kind: 'income',
+            category_id: categoryId,
+            date: `${year}-${String(month).padStart(2, '0')}-${String(Math.min(27, lastDay)).padStart(2, '0')}`,
+            description: `Stipendio ${MONTH_NAMES[month - 1]} ${year}`,
+            document_id: doc.id,
+          })
+          if (transactionError) throw transactionError
+        }
       }
 
-      await supabase.from('documents').update({ status: 'analizzato' }).eq('id', doc.id)
+      const { error: documentError } = await supabase
+        .from('documents')
+        .update({ status: 'analizzato' })
+        .eq('id', doc.id)
+      if (documentError) throw documentError
       onSaved()
     } catch {
       setError('Errore durante il salvataggio, riprova.')

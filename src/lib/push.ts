@@ -41,10 +41,14 @@ export async function enablePush(): Promise<{ ok: boolean; reason?: string }> {
     }))
 
   const json = sub.toJSON()
-  const { data: userData } = await supabase.auth.getUser()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) {
+    await sub.unsubscribe()
+    return { ok: false, reason: 'non_autenticato' }
+  }
   const { error } = await supabase.from('push_subscriptions').upsert(
     {
-      user_id: userData.user!.id,
+      user_id: userData.user.id,
       endpoint: sub.endpoint,
       p256dh: json.keys?.p256dh ?? '',
       auth: json.keys?.auth ?? '',

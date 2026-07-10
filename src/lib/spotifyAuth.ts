@@ -2,6 +2,7 @@ import { APP_URL, SPOTIFY_CLIENT_ID, SPOTIFY_SCOPES } from './config'
 
 const TOKEN_KEY = 'spotify_token'
 const VERIFIER_KEY = 'spotify_verifier'
+const STATE_KEY = 'spotify_state'
 
 interface StoredToken {
   access_token: string
@@ -20,7 +21,9 @@ function base64Url(bytes: Uint8Array): string {
 export async function beginSpotifyAuth(): Promise<void> {
   const verifierBytes = crypto.getRandomValues(new Uint8Array(64))
   const verifier = base64Url(verifierBytes)
+  const state = base64Url(crypto.getRandomValues(new Uint8Array(32)))
   localStorage.setItem(VERIFIER_KEY, verifier)
+  localStorage.setItem(STATE_KEY, state)
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
   const challenge = base64Url(new Uint8Array(digest))
 
@@ -31,6 +34,7 @@ export async function beginSpotifyAuth(): Promise<void> {
     scope: SPOTIFY_SCOPES,
     code_challenge_method: 'S256',
     code_challenge: challenge,
+    state,
   })
   window.location.href = `https://accounts.spotify.com/authorize?${params}`
 }
@@ -57,9 +61,18 @@ async function tokenRequest(body: URLSearchParams): Promise<StoredToken | null> 
 export async function handleSpotifyCallback(): Promise<boolean> {
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
+  const returnedState = params.get('state')
   const verifier = localStorage.getItem(VERIFIER_KEY)
-  if (!code || !verifier) return false
+  const expectedState = localStorage.getItem(STATE_KEY)
+  if (!code) return false
+  if (!verifier || !expectedState || returnedState !== expectedState) {
+    localStorage.removeItem(VERIFIER_KEY)
+    localStorage.removeItem(STATE_KEY)
+    window.history.replaceState({}, '', window.location.pathname)
+    return false
+  }
   localStorage.removeItem(VERIFIER_KEY)
+  localStorage.removeItem(STATE_KEY)
   const stored = await tokenRequest(
     new URLSearchParams({
       grant_type: 'authorization_code',
@@ -77,7 +90,15 @@ export async function handleSpotifyCallback(): Promise<boolean> {
 function getStored(): StoredToken | null {
   try {
     const raw = localStorage.getItem(TOKEN_KEY)
-    return raw ? (JSON.parse(raw) as StoredToken) : null
+    if (!raw) return null
+    const value = JSON.parse(raw) as Partial<StoredToken>
+    if (
+      typeof value.access_token !== 'string' ||
+      typeof value.refresh_token !== 'string' ||
+      typeof value.expiry !== 'number' ||
+      !Number.isFinite(value.expiry)
+    ) return null
+    return value as StoredToken
   } catch {
     return null
   }
@@ -89,6 +110,8 @@ export function isSpotifyConnected(): boolean {
 
 export function disconnectSpotify() {
   localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(VERIFIER_KEY)
+  localStorage.removeItem(STATE_KEY)
 }
 
 /** Token valido, rinnovato automaticamente se scaduto. */
@@ -104,7 +127,11 @@ export async function getSpotifyToken(): Promise<string | null> {
       client_id: SPOTIFY_CLIENT_ID,
     }),
   )
-  return renewed?.access_token ?? null
+  if (!renewed) {
+    disconnectSpotify()
+    return null
+  }
+  return renewed.access_token
 }
 
 export async function spotifyFetch<T>(path: string, init?: RequestInit): Promise<T | null> {

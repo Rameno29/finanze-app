@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { PiggyBank, RefreshCw } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { requireUserId, supabase } from '../../lib/supabase'
 import { useRecurring } from '../../lib/data'
 import { formatCents, parseAmountToCents } from '../../lib/format'
 import { CategoryIcon } from '../../lib/icons'
@@ -28,6 +28,7 @@ export function BudgetsView({
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [amount, setAmount] = useState('')
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
   const { recurring } = useRecurring()
 
   const recurringExpenses = useMemo(() => recurring.filter((t) => t.kind === 'expense'), [recurring])
@@ -52,24 +53,36 @@ export function BudgetsView({
 
   async function saveBudget() {
     if (!editingCategory) return
+    setError('')
     const cents = parseAmountToCents(amount)
-    setBusy(true)
-    const existing = budgetByCategory.get(editingCategory.id)
-    if (!cents) {
-      if (existing) await supabase.from('budgets').delete().eq('id', existing.id)
-    } else if (existing) {
-      await supabase.from('budgets').update({ monthly_cents: cents }).eq('id', existing.id)
-    } else {
-      const { data: userData } = await supabase.auth.getUser()
-      await supabase.from('budgets').insert({
-        user_id: userData.user!.id,
-        category_id: editingCategory.id,
-        monthly_cents: cents,
-      })
+    if (amount.trim() && !cents) {
+      setError('Inserisci un importo valido oppure lascia vuoto per rimuovere il budget.')
+      return
     }
-    setBusy(false)
-    setEditingCategory(null)
-    onChanged()
+    setBusy(true)
+    try {
+      const existing = budgetByCategory.get(editingCategory.id)
+      let result
+      if (!cents) {
+        result = existing ? await supabase.from('budgets').delete().eq('id', existing.id) : null
+      } else if (existing) {
+        result = await supabase.from('budgets').update({ monthly_cents: cents }).eq('id', existing.id)
+      } else {
+        const userId = await requireUserId()
+        result = await supabase.from('budgets').insert({
+          user_id: userId,
+          category_id: editingCategory.id,
+          monthly_cents: cents,
+        })
+      }
+      if (result?.error) throw result.error
+      setEditingCategory(null)
+      onChanged()
+    } catch {
+      setError('Salvataggio del budget non riuscito, riprova.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (expenseCategories.length === 0) {
@@ -99,6 +112,7 @@ export function BudgetsView({
               onClick={() => {
                 setEditingCategory(c)
                 setAmount(budget ? (budget.monthly_cents / 100).toFixed(2).replace('.', ',') : '')
+                setError('')
               }}
             >
               <span
@@ -172,6 +186,7 @@ export function BudgetsView({
             placeholder="0,00"
           />
         </Field>
+        {error && <p className="mb-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>}
         <PrimaryButton onClick={saveBudget} disabled={busy}>
           Salva budget
         </PrimaryButton>

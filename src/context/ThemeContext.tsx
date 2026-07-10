@@ -9,6 +9,11 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue>({ setting: 'system', setSetting: () => {} })
 
+function storedTheme(): ThemeSetting {
+  const value = localStorage.getItem('theme')
+  return value === 'light' || value === 'dark' || value === 'system' ? value : 'system'
+}
+
 function applyTheme(setting: ThemeSetting) {
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
   const dark = setting === 'dark' || (setting === 'system' && systemDark)
@@ -16,9 +21,7 @@ function applyTheme(setting: ThemeSetting) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [setting, setSettingState] = useState<ThemeSetting>(
-    () => (localStorage.getItem('theme') as ThemeSetting) ?? 'system',
-  )
+  const [setting, setSettingState] = useState<ThemeSetting>(storedTheme)
 
   useEffect(() => {
     applyTheme(setting)

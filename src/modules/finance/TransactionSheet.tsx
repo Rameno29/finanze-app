@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Trash2 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { requireUserId, supabase } from '../../lib/supabase'
 import { parseAmountToCents, todayISO } from '../../lib/format'
 import { CategoryIcon } from '../../lib/icons'
 import { Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
@@ -76,36 +76,41 @@ export function TransactionSheet({
       return
     }
     setBusy(true)
-    const { data: userData } = await supabase.auth.getUser()
-    const payload = {
-      user_id: userData.user!.id,
-      amount_cents: cents,
-      kind,
-      category_id: categoryId || null,
-      date,
-      description: description.trim(),
-      recurrence: recurrence || null,
-    }
-    const result = editing
-      ? await supabase.from('transactions').update(payload).eq('id', editing.id)
-      : await supabase.from('transactions').insert(payload)
-    setBusy(false)
-    if (result.error) {
+    try {
+      const userId = await requireUserId()
+      const values = {
+        amount_cents: cents,
+        kind,
+        category_id: categoryId || null,
+        date,
+        description: description.trim(),
+        recurrence: recurrence || null,
+      }
+      const result = editing
+        ? await supabase.from('transactions').update(values).eq('id', editing.id)
+        : await supabase.from('transactions').insert({ ...values, user_id: userId })
+      if (result.error) throw result.error
+      onSaved()
+      onClose()
+    } catch {
       setError('Errore durante il salvataggio, riprova.')
-      return
+    } finally {
+      setBusy(false)
     }
-    onSaved()
-    onClose()
   }
 
   async function handleDelete() {
     if (!editing) return
     if (!window.confirm('Eliminare questo movimento?')) return
     setBusy(true)
-    await supabase.from('transactions').delete().eq('id', editing.id)
+    const { error: deleteError } = await supabase.from('transactions').delete().eq('id', editing.id)
     setBusy(false)
-    onSaved()
-    onClose()
+    if (deleteError) {
+      setError('Eliminazione non riuscita, riprova.')
+    } else {
+      onSaved()
+      onClose()
+    }
   }
 
   return (

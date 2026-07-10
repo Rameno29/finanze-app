@@ -61,12 +61,17 @@ export function AgendaPage() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<Task | null>(null)
   const [showDone, setShowDone] = useState(false)
+  const [operationError, setOperationError] = useState('')
 
   const { tasks, loading, reload } = useTasks()
 
   async function toggleTask(t: Task) {
-    await supabase.from('tasks').update({ done: !t.done }).eq('id', t.id)
-    void reload()
+    const { error } = await supabase.from('tasks').update({ done: !t.done }).eq('id', t.id)
+    if (error) setOperationError('Aggiornamento non riuscito, controlla la connessione.')
+    else {
+      setOperationError('')
+      void reload()
+    }
   }
 
   function openEdit(t: Task) {
@@ -118,6 +123,9 @@ export function AgendaPage() {
     const d = new Date(calYear, calMonth - 1 + delta, 1)
     setCalYear(d.getFullYear())
     setCalMonth(d.getMonth() + 1)
+    setSelectedDay(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`,
+    )
   }
 
   const sections: Array<[string, Task[], boolean]> = [
@@ -132,6 +140,9 @@ export function AgendaPage() {
       <PageHeader title="Agenda" />
 
       <div className="mx-auto max-w-lg px-5">
+        {operationError && (
+          <p className="mt-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{operationError}</p>
+        )}
         <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-card-2 p-1">
           {(
             [

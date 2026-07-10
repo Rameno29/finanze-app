@@ -22,11 +22,21 @@ let seedingFor: string | null = null
 export async function ensureDefaultCategories(userId: string): Promise<void> {
   if (seedingFor === userId) return
   seedingFor = userId
-  const { count, error } = await supabase
-    .from('categories')
-    .select('id', { count: 'exact', head: true })
-  if (error || (count ?? 0) > 0) return
-  await supabase
-    .from('categories')
-    .insert(DEFAULT_CATEGORIES.map((c) => ({ ...c, user_id: userId })))
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { count, error } = await supabase
+        .from('categories')
+        .select('id', { count: 'exact', head: true })
+      if (!error) {
+        if ((count ?? 0) > 0) return
+        await supabase
+          .from('categories')
+          .insert(DEFAULT_CATEGORIES.map((c) => ({ ...c, user_id: userId })))
+        return
+      }
+      if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  } finally {
+    if (seedingFor === userId) seedingFor = null
+  }
 }

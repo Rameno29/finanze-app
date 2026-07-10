@@ -7,6 +7,14 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+const APP_ORIGIN = 'https://rameno29.github.io'
+const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
+
+function originAllowed(req: Request): boolean {
+  const origin = req.headers.get('Origin')
+  return !origin || origin === APP_ORIGIN || LOCAL_ORIGIN.test(origin)
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -37,8 +45,11 @@ interface Sub {
 }
 
 Deno.serve(async (req: Request) => {
+  if (!originAllowed(req)) return json({ error: 'origin_not_allowed' }, 403)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
+  const contentLength = Number(req.headers.get('content-length') ?? 0)
+  if (contentLength > 4096) return json({ error: 'payload_too_large' }, 413)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const admin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
@@ -135,7 +146,13 @@ Deno.serve(async (req: Request) => {
     sent += results.filter((r) => r.ok).length
     for (const r of results) if (!r.ok) errors.push({ status: r.status, error: r.error })
     // Marca notificato solo se almeno un invio è riuscito (altrimenti riprova al prossimo giro)
-    if (anyOk) await admin.from('tasks').update({ notified: true }).eq('id', t.id)
+    if (anyOk) {
+      await admin
+        .from('tasks')
+        .update({ notified: true })
+        .eq('id', t.id)
+        .eq('user_id', t.user_id)
+    }
   }
 
   return json({ due: due.length, sent, errors })

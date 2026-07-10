@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import { monthRange } from './format'
 import type { Budget, Category, Goal, Task, Transaction } from '../types'
@@ -82,8 +82,10 @@ export function useCategories() {
 export function useTransactions(year: number, month: number) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const requestSequence = useRef(0)
 
   const reload = useCallback(async () => {
+    const request = ++requestSequence.current
     const { from, to } = monthRange(year, month)
     const { data } = await supabase
       .from('transactions')
@@ -92,6 +94,7 @@ export function useTransactions(year: number, month: number) {
       .lte('date', to)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
+    if (request !== requestSequence.current) return
     setTransactions((data as Transaction[]) ?? [])
     setLoading(false)
   }, [year, month])

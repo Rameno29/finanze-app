@@ -6,6 +6,14 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+const APP_ORIGIN = 'https://rameno29.github.io'
+const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
+
+function originAllowed(req: Request): boolean {
+  const origin = req.headers.get('Origin')
+  return !origin || origin === APP_ORIGIN || LOCAL_ORIGIN.test(origin)
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -51,8 +59,11 @@ const EXTRACTION_TOOL = {
 }
 
 Deno.serve(async (req: Request) => {
+  if (!originAllowed(req)) return json({ error: 'origin_not_allowed' }, 403)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
+  const contentLength = Number(req.headers.get('content-length') ?? 0)
+  if (contentLength > 32_768) return json({ error: 'payload_too_large' }, 413)
 
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) return json({ error: 'missing_api_key' }, 400)
@@ -131,7 +142,7 @@ Deno.serve(async (req: Request) => {
   if (!anthropicRes.ok) {
     const errBody = await anthropicRes.text()
     console.error('Anthropic API error:', anthropicRes.status, errBody)
-    await admin.from('documents').update({ status: 'errore' }).eq('id', document_id)
+    await admin.from('documents').update({ status: 'errore' }).eq('id', document_id).eq('user_id', userId)
     if (anthropicRes.status === 401) return json({ error: 'Chiave API Anthropic non valida' }, 400)
     return json({ error: "L'analisi AI non è riuscita, riprova." }, 502)
   }
@@ -139,7 +150,7 @@ Deno.serve(async (req: Request) => {
   const result = await anthropicRes.json()
   const toolUse = result.content?.find((b: { type: string }) => b.type === 'tool_use')
   if (!toolUse?.input) {
-    await admin.from('documents').update({ status: 'errore' }).eq('id', document_id)
+    await admin.from('documents').update({ status: 'errore' }).eq('id', document_id).eq('user_id', userId)
     return json({ error: 'Nessun dato estratto dal documento' }, 422)
   }
   const input = toolUse.input as Record<string, unknown>

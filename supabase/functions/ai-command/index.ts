@@ -6,6 +6,26 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+const APP_ORIGIN = 'https://rameno29.github.io'
+const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
+const rateBuckets = new Map<string, { start: number; count: number }>()
+
+function originAllowed(req: Request): boolean {
+  const origin = req.headers.get('Origin')
+  return !origin || origin === APP_ORIGIN || LOCAL_ORIGIN.test(origin)
+}
+
+function rateLimited(userId: string, max = 30): boolean {
+  const now = Date.now()
+  const bucket = rateBuckets.get(userId)
+  if (!bucket || now - bucket.start >= 60_000) {
+    rateBuckets.set(userId, { start: now, count: 1 })
+    return false
+  }
+  bucket.count += 1
+  return bucket.count > max
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -78,8 +98,11 @@ const COMMAND_SCHEMA = {
 }
 
 Deno.serve(async (req: Request) => {
+  if (!originAllowed(req)) return json({ error: 'origin_not_allowed' }, 403)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
+  const contentLength = Number(req.headers.get('content-length') ?? 0)
+  if (contentLength > 8_500_000) return json({ error: 'payload_too_large' }, 413)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const admin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
@@ -91,6 +114,7 @@ Deno.serve(async (req: Request) => {
   const { data: userData, error: userErr } = await userClient.auth.getUser()
   if (userErr || !userData.user) return json({ error: 'unauthorized' }, 401)
   const userId = userData.user.id
+  if (rateLimited(userId)) return json({ error: 'rate_limit' }, 429)
 
   let apiKey = Deno.env.get('GEMINI_API_KEY') ?? ''
   if (!apiKey) {
@@ -110,6 +134,8 @@ Deno.serve(async (req: Request) => {
     if (text.length > 300) return json({ error: 'Frase troppo lunga (max 300 caratteri)' }, 400)
   } else if (audio_base64.length > 8_000_000) {
     return json({ error: 'Audio troppo lungo, registra una frase più breve.' }, 400)
+  } else if (audio_mime !== undefined && audio_mime !== 'audio/wav') {
+    return json({ error: 'Formato audio non supportato.' }, 400)
   }
 
   // --- Sola trascrizione (per il flusso a due passi: l'utente rivede il testo) ---

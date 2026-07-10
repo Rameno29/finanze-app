@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Bot, Check, Mic, Send, X } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { requireUserId, supabase } from '../../lib/supabase'
 import { formatCents, todayISO } from '../../lib/format'
 import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
 import { AiText } from '../../components/AiText'
@@ -111,6 +111,11 @@ export function AssistantPage() {
   const recorderRef = useRef<VoiceRecorder | null>(null)
   const autoStopRef = useRef<number | null>(null)
 
+  useEffect(() => () => {
+    if (autoStopRef.current) clearTimeout(autoStopRef.current)
+    recorderRef.current?.cancel()
+  }, [])
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, busy])
@@ -210,8 +215,7 @@ export function AssistantPage() {
 
   /** Esegue l'azione confermata scrivendo sul database */
   async function executeIntent(intent: Intent): Promise<string> {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData.user!.id
+    const userId = await requireUserId()
 
     if (intent.action === 'add_transaction') {
       const d = intent.data
@@ -264,7 +268,8 @@ export function AssistantPage() {
 
     if (intent.action === 'contribute_goal') {
       const d = intent.data
-      const { data: goals } = await supabase.from('goals').select('id, name, saved_cents')
+      const { data: goals, error: goalsError } = await supabase.from('goals').select('id, name, saved_cents')
+      if (goalsError) throw goalsError
       const goal = (goals ?? []).find(
         (g) =>
           g.name.toLowerCase() === d.goal_name.toLowerCase() ||
@@ -276,8 +281,15 @@ export function AssistantPage() {
         0,
         goal.saved_cents + (d.direction === 'remove' ? -d.amount_cents : d.amount_cents),
       )
-      const { error } = await supabase.from('goals').update({ saved_cents: newSaved }).eq('id', goal.id)
+      const { data: updated, error } = await supabase
+        .from('goals')
+        .update({ saved_cents: newSaved })
+        .eq('id', goal.id)
+        .eq('saved_cents', goal.saved_cents)
+        .select('id')
+        .maybeSingle()
       if (error) throw error
+      if (!updated) throw new Error('l’obiettivo è stato modificato nel frattempo; riprova')
       return `✅ Obiettivo "${goal.name}" aggiornato: ora ha ${formatCents(newSaved)}.`
     }
 

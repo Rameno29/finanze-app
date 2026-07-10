@@ -6,6 +6,26 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+const APP_ORIGIN = 'https://rameno29.github.io'
+const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
+const rateBuckets = new Map<string, { start: number; count: number }>()
+
+function originAllowed(req: Request): boolean {
+  const origin = req.headers.get('Origin')
+  return !origin || origin === APP_ORIGIN || LOCAL_ORIGIN.test(origin)
+}
+
+function rateLimited(userId: string, max = 30): boolean {
+  const now = Date.now()
+  const bucket = rateBuckets.get(userId)
+  if (!bucket || now - bucket.start >= 60_000) {
+    rateBuckets.set(userId, { start: now, count: 1 })
+    return false
+  }
+  bucket.count += 1
+  return bucket.count > max
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -133,14 +153,18 @@ async function callGeminiFull(
   if (useSearch) {
     body.tools = [{ google_search: {} }]
   }
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-    {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`
+  let res: Response | null = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    },
-  )
+    })
+    if (res.ok || (res.status !== 429 && res.status !== 503) || attempt === 1) break
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+  }
+  if (!res) throw new Error('gemini_unreachable')
   if (!res.ok) {
     const errText = await res.text()
     console.error('Gemini API error:', res.status, errText.slice(0, 500))
@@ -155,7 +179,14 @@ async function callGeminiFull(
   const sources = ((candidate?.groundingMetadata?.groundingChunks ?? []) as Array<{
     web?: { uri?: string; title?: string }
   }>)
-    .filter((c) => c.web?.uri)
+    .filter((c) => {
+      if (!c.web?.uri) return false
+      try {
+        return new URL(c.web.uri).protocol === 'https:'
+      } catch {
+        return false
+      }
+    })
     .map((c) => ({ title: c.web!.title ?? c.web!.uri!, url: c.web!.uri! }))
   return { text, sources }
 }
@@ -169,8 +200,11 @@ async function callGemini(
 }
 
 Deno.serve(async (req: Request) => {
+  if (!originAllowed(req)) return json({ error: 'origin_not_allowed' }, 403)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
+  const contentLength = Number(req.headers.get('content-length') ?? 0)
+  if (contentLength > 32_768) return json({ error: 'payload_too_large' }, 413)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -184,6 +218,7 @@ Deno.serve(async (req: Request) => {
   const { data: userData, error: userErr } = await userClient.auth.getUser()
   if (userErr || !userData.user) return json({ error: 'unauthorized' }, 401)
   const userId = userData.user.id
+  if (rateLimited(userId)) return json({ error: 'rate_limit' }, 429)
 
   // Chiave Gemini: da env oppure dalla tabella protetta app_secrets
   let apiKey = Deno.env.get('GEMINI_API_KEY') ?? ''
@@ -398,13 +433,19 @@ Deno.serve(async (req: Request) => {
     if (bytes.length > 20 * 1024 * 1024) return json({ error: 'File troppo grande (max 20 MB)' }, 400)
 
     const name = doc.file_name.toLowerCase()
-    const mimeType = name.endsWith('.pdf')
-      ? 'application/pdf'
-      : name.endsWith('.png')
-        ? 'image/png'
-        : name.endsWith('.webp')
-          ? 'image/webp'
-          : 'image/jpeg'
+    const declaredType = file.type.toLowerCase()
+    const mimeType = ['application/pdf', 'image/png', 'image/webp', 'image/jpeg'].includes(declaredType)
+      ? declaredType
+      : name.endsWith('.pdf')
+        ? 'application/pdf'
+        : name.endsWith('.png')
+          ? 'image/png'
+          : name.endsWith('.webp')
+            ? 'image/webp'
+            : name.endsWith('.jpg') || name.endsWith('.jpeg')
+              ? 'image/jpeg'
+              : ''
+    if (!mimeType) return json({ error: 'Formato file non supportato' }, 400)
     const fileBlock = { inline_data: { mime_type: mimeType, data: toBase64(bytes) } }
 
     if (mode === 'payslip') {
@@ -484,6 +525,7 @@ Deno.serve(async (req: Request) => {
         .from('documents')
         .update({ analysis, status: 'analizzato' })
         .eq('id', document_id)
+        .eq('user_id', userId)
       return json(analysis)
     }
 
@@ -491,7 +533,11 @@ Deno.serve(async (req: Request) => {
   } catch (e) {
     console.error('ai-analyze error:', e)
     if (document_id) {
-      await admin.from('documents').update({ status: 'errore' }).eq('id', document_id)
+      await admin
+        .from('documents')
+        .update({ status: 'errore' })
+        .eq('id', document_id)
+        .eq('user_id', userId)
     }
     return json({ error: "L'analisi AI non è riuscita, riprova tra poco." }, 502)
   }

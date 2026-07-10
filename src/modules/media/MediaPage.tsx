@@ -70,6 +70,8 @@ export function MediaPage() {
   const [summary, setSummary] = useState<string | null>(null)
   const [summarizing, setSummarizing] = useState(false)
 
+  useEffect(() => setSummary(null), [videoId])
+
   async function summarizeVideo() {
     if (!videoId) return
     setSummarizing(true)
@@ -221,8 +223,9 @@ export function MediaPage() {
             />
             <button
               type="submit"
+              disabled={ytSearching || !ytQuery.trim()}
               aria-label="Cerca o riproduci"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white disabled:opacity-50"
             >
               {ytSearching ? <Spinner className="h-5 w-5 text-white" /> : <Search className="h-5 w-5" />}
             </button>
@@ -369,9 +372,10 @@ export function MediaPage() {
                 placeholder="Cerca brani o artisti…"
               />
               <button
-                type="submit"
+              type="submit"
+              disabled={searching || !query.trim()}
                 aria-label="Cerca su Spotify"
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white disabled:opacity-50"
               >
                 {searching ? <Spinner className="h-5 w-5 text-white" /> : <Search className="h-5 w-5" />}
               </button>

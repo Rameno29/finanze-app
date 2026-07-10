@@ -44,7 +44,10 @@ export function getStoredGoogleToken(): string | null {
     const raw = sessionStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const { token, expiry } = JSON.parse(raw)
-    if (Date.now() > expiry) return null
+    if (typeof token !== 'string' || typeof expiry !== 'number' || Date.now() > expiry) {
+      sessionStorage.removeItem(STORAGE_KEY)
+      return null
+    }
     return token
   } catch {
     return null

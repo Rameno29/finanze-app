@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
@@ -8,15 +8,16 @@ import { MiniPlayer } from './components/MiniPlayer'
 import { FullPageSpinner } from './components/ui'
 import { handleSpotifyCallback } from './lib/spotifyAuth'
 import { LoginPage } from './modules/auth/LoginPage'
-import { HomePage } from './modules/home/HomePage'
-import { FinancePage } from './modules/finance/FinancePage'
-import { AgendaPage } from './modules/agenda/AgendaPage'
-import { DocumentsPage } from './modules/documents/DocumentsPage'
-import { SettingsPage } from './modules/settings/SettingsPage'
-import { GooglePage } from './modules/google/GooglePage'
-import { MediaPage } from './modules/media/MediaPage'
-import { GuidePage } from './modules/guide/GuidePage'
-import { AssistantPage } from './modules/assistant/AssistantPage'
+
+const HomePage = lazy(() => import('./modules/home/HomePage').then((m) => ({ default: m.HomePage })))
+const FinancePage = lazy(() => import('./modules/finance/FinancePage').then((m) => ({ default: m.FinancePage })))
+const AgendaPage = lazy(() => import('./modules/agenda/AgendaPage').then((m) => ({ default: m.AgendaPage })))
+const DocumentsPage = lazy(() => import('./modules/documents/DocumentsPage').then((m) => ({ default: m.DocumentsPage })))
+const SettingsPage = lazy(() => import('./modules/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const GooglePage = lazy(() => import('./modules/google/GooglePage').then((m) => ({ default: m.GooglePage })))
+const MediaPage = lazy(() => import('./modules/media/MediaPage').then((m) => ({ default: m.MediaPage })))
+const GuidePage = lazy(() => import('./modules/guide/GuidePage').then((m) => ({ default: m.GuidePage })))
+const AssistantPage = lazy(() => import('./modules/assistant/AssistantPage').then((m) => ({ default: m.AssistantPage })))
 
 function Shell() {
   const { session, loading } = useAuth()
@@ -36,18 +37,20 @@ function Shell() {
 
   return (
     <div className="min-h-dvh bg-bg">
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/finanze" element={<FinancePage />} />
-        <Route path="/agenda" element={<AgendaPage />} />
-        <Route path="/documenti" element={<DocumentsPage />} />
-        <Route path="/impostazioni" element={<SettingsPage />} />
-        <Route path="/google" element={<GooglePage />} />
-        <Route path="/media" element={<MediaPage />} />
-        <Route path="/guida" element={<GuidePage />} />
-        <Route path="/assistente" element={<AssistantPage />} />
-        <Route path="*" element={<HomePage />} />
-      </Routes>
+      <Suspense fallback={<FullPageSpinner />}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/finanze" element={<FinancePage />} />
+          <Route path="/agenda" element={<AgendaPage />} />
+          <Route path="/documenti" element={<DocumentsPage />} />
+          <Route path="/impostazioni" element={<SettingsPage />} />
+          <Route path="/google" element={<GooglePage />} />
+          <Route path="/media" element={<MediaPage />} />
+          <Route path="/guida" element={<GuidePage />} />
+          <Route path="/assistente" element={<AssistantPage />} />
+          <Route path="*" element={<HomePage />} />
+        </Routes>
+      </Suspense>
       <MiniPlayer />
       <TabBar />
     </div>

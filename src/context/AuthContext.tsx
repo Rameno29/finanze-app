@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (session?.user) void ensureDefaultCategories(session.user.id)
-  }, [session?.user?.id])
+  }, [session?.user])
 
   return <AuthContext.Provider value={{ session, loading }}>{children}</AuthContext.Provider>
 }

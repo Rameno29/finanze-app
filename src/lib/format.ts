@@ -8,10 +8,20 @@ export function formatCents(cents: number): string {
 export function parseAmountToCents(input: string): number | null {
   const cleaned = input.trim().replace(/\s|€/g, '')
   if (!cleaned) return null
-  // formato italiano: punto migliaia, virgola decimali
-  const normalized = cleaned.includes(',')
-    ? cleaned.replace(/\./g, '').replace(',', '.')
-    : cleaned
+  // Accetta italiano (1.234,56) e internazionale (1,234.56), ma rifiuta
+  // separatori ambigui/malformati invece di salvare un importo diverso.
+  if (!/^\d[\d.,]*$/.test(cleaned)) return null
+  const italian = /^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(cleaned)
+  const international = /^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(cleaned)
+  const plainItalian = /^\d+(,\d{1,2})?$/.test(cleaned)
+  const plainInternational = /^\d+(\.\d{1,2})?$/.test(cleaned)
+  let normalized: string
+  if (italian) normalized = cleaned.replace(/\./g, '').replace(',', '.')
+  else if (international) normalized = cleaned.replace(/,/g, '')
+  else if (plainItalian) normalized = cleaned.replace(',', '.')
+  else if (plainInternational) normalized = cleaned
+  else return null
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null
   const value = Number(normalized)
   if (!Number.isFinite(value) || value <= 0) return null
   return Math.round(value * 100)

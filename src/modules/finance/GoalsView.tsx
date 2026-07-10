@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Minus, PiggyBank, Plus, Target, Trash2 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { requireUserId, supabase } from '../../lib/supabase'
 import { formatCents, parseAmountToCents } from '../../lib/format'
 import { Card, EmptyState, Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import type { Goal } from '../../types'
@@ -20,19 +20,26 @@ export function GoalsView({ goals, loading, onChanged }: { goals: Goal[]; loadin
     const cents = parseAmountToCents(target)
     if (!name.trim() || !cents) return
     setBusy(true)
-    const { data: userData } = await supabase.auth.getUser()
-    await supabase.from('goals').insert({
-      user_id: userData.user!.id,
-      name: name.trim(),
-      target_cents: cents,
-      deadline: deadline || null,
-    })
-    setBusy(false)
-    setCreateOpen(false)
-    setName('')
-    setTarget('')
-    setDeadline('')
-    onChanged()
+    setError('')
+    try {
+      const userId = await requireUserId()
+      const { error: insertError } = await supabase.from('goals').insert({
+        user_id: userId,
+        name: name.trim(),
+        target_cents: cents,
+        deadline: deadline || null,
+      })
+      if (insertError) throw insertError
+      setCreateOpen(false)
+      setName('')
+      setTarget('')
+      setDeadline('')
+      onChanged()
+    } catch {
+      setError('Creazione non riuscita, riprova.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function contribute(sign: 1 | -1) {
@@ -44,8 +51,19 @@ export function GoalsView({ goals, loading, onChanged }: { goals: Goal[]; loadin
     }
     setBusy(true)
     const newSaved = Math.max(0, active.saved_cents + sign * cents)
-    await supabase.from('goals').update({ saved_cents: newSaved }).eq('id', active.id)
+    const { data: updated, error: updateError } = await supabase
+      .from('goals')
+      .update({ saved_cents: newSaved })
+      .eq('id', active.id)
+      .eq('saved_cents', active.saved_cents)
+      .select('id')
+      .maybeSingle()
     setBusy(false)
+    if (updateError || !updated) {
+      setError('L’obiettivo è cambiato nel frattempo: aggiorno i dati, poi riprova.')
+      onChanged()
+      return
+    }
     setActive(null)
     setAmount('')
     onChanged()
@@ -54,9 +72,12 @@ export function GoalsView({ goals, loading, onChanged }: { goals: Goal[]; loadin
   async function deleteGoal() {
     if (!active) return
     if (!window.confirm(`Eliminare l'obiettivo "${active.name}"?`)) return
-    await supabase.from('goals').delete().eq('id', active.id)
-    setActive(null)
-    onChanged()
+    const { error: deleteError } = await supabase.from('goals').delete().eq('id', active.id)
+    if (deleteError) setError('Eliminazione non riuscita, riprova.')
+    else {
+      setActive(null)
+      onChanged()
+    }
   }
 
   if (loading) {
@@ -144,6 +165,7 @@ export function GoalsView({ goals, loading, onChanged }: { goals: Goal[]; loadin
         <PrimaryButton onClick={createGoal} disabled={busy || !name.trim() || !target.trim()}>
           Crea obiettivo
         </PrimaryButton>
+        {error && <p className="mt-3 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>}
       </Sheet>
 
       {/* Versamento / prelievo */}

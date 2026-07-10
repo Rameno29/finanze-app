@@ -42,7 +42,9 @@ export function SettingsPage() {
   const [testBusy, setTestBusy] = useState(false)
 
   useEffect(() => {
-    void getPushSubscription().then((s) => setPushOn(s !== null))
+    void getPushSubscription()
+      .then((s) => setPushOn(s !== null))
+      .catch(() => setPushMsg('Non riesco a leggere lo stato delle notifiche.'))
   }, [])
 
   async function testPush() {
@@ -57,6 +59,8 @@ export function SettingsPage() {
             ? 'Prima attiva le notifiche qui sopra.'
             : 'Invio non riuscito: prova a disattivare e riattivare le notifiche.',
       )
+    } catch {
+      setPushMsg('Invio non riuscito: controlla la connessione e riprova.')
     } finally {
       setTestBusy(false)
     }
@@ -80,6 +84,8 @@ export function SettingsPage() {
           setPushMsg('Attivazione non riuscita, riprova.')
         }
       }
+    } catch {
+      setPushMsg('Operazione non riuscita: controlla la connessione e riprova.')
     } finally {
       setPushBusy(false)
     }

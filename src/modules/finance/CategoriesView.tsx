@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { requireUserId, supabase } from '../../lib/supabase'
 import { CATEGORY_ICONS, CategoryIcon } from '../../lib/icons'
 import { Card, Field, PrimaryButton, Sheet, inputClass } from '../../components/ui'
 import type { Category, Kind } from '../../types'
@@ -23,28 +23,40 @@ export function CategoriesView({
   const [color, setColor] = useState(COLORS[4])
   const [icon, setIcon] = useState('tag')
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
   async function addCategory() {
     if (!name.trim()) return
     setBusy(true)
-    const { data: userData } = await supabase.auth.getUser()
-    await supabase.from('categories').insert({
-      user_id: userData.user!.id,
-      name: name.trim(),
-      kind,
-      color,
-      icon,
-    })
-    setBusy(false)
-    setOpen(false)
-    setName('')
-    onChanged()
+    setError('')
+    try {
+      const userId = await requireUserId()
+      const { error: insertError } = await supabase.from('categories').insert({
+        user_id: userId,
+        name: name.trim(),
+        kind,
+        color,
+        icon,
+      })
+      if (insertError) throw insertError
+      setOpen(false)
+      setName('')
+      onChanged()
+    } catch {
+      setError('Creazione non riuscita: verifica che il nome non sia già usato.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function deleteCategory(c: Category) {
     if (!window.confirm(`Eliminare la categoria "${c.name}"? I movimenti resteranno senza categoria.`)) return
-    await supabase.from('categories').delete().eq('id', c.id)
-    onChanged()
+    const { error: deleteError } = await supabase.from('categories').delete().eq('id', c.id)
+    if (deleteError) setError('Eliminazione non riuscita. Se la categoria ha un budget, rimuovilo e riprova.')
+    else {
+      setError('')
+      onChanged()
+    }
   }
 
   const groups: Array<[string, Category[]]> = [
@@ -54,6 +66,9 @@ export function CategoriesView({
 
   return (
     <div className="mt-4">
+      {error && !open && (
+        <p className="mb-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>
+      )}
       {groups.map(([label, list]) => (
         <section key={label} className="mb-5">
           <h3 className="mb-2 text-sm font-semibold text-muted">{label}</h3>
@@ -80,7 +95,7 @@ export function CategoriesView({
         </section>
       ))}
 
-      <PrimaryButton onClick={() => setOpen(true)}>
+      <PrimaryButton onClick={() => { setError(''); setOpen(true) }}>
         <Plus className="h-5 w-5" /> Nuova categoria
       </PrimaryButton>
 
@@ -141,9 +156,10 @@ export function CategoriesView({
           </div>
         </Field>
 
-        <PrimaryButton onClick={addCategory} disabled={busy || !name.trim()}>
+      <PrimaryButton onClick={addCategory} disabled={busy || !name.trim()}>
           Crea categoria
         </PrimaryButton>
+        {error && <p className="mt-3 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>}
       </Sheet>
     </div>
   )

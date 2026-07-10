@@ -32,7 +32,16 @@ self.addEventListener('push', (event) => {
 // Tocco sulla notifica: apre (o porta in primo piano) l'app sull'agenda
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = (event.notification.data as { url?: string })?.url ?? '/finanze-app/'
+  const requested = (event.notification.data as { url?: string })?.url ?? '/finanze-app/'
+  let url = '/finanze-app/'
+  try {
+    const parsed = new URL(requested, self.location.origin)
+    if (parsed.origin === self.location.origin && parsed.pathname.startsWith('/finanze-app/')) {
+      url = `${parsed.pathname}${parsed.search}${parsed.hash}`
+    }
+  } catch {
+    // Mantiene la destinazione sicura predefinita.
+  }
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
