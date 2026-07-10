@@ -1,0 +1,299 @@
+# 📖 AJE — Documento di riferimento del progetto
+
+> **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
+> realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
+> Ultimo aggiornamento: **10 luglio 2026**.
+
+---
+
+## 1. Cos'è AJE
+
+**AJE** è un'app personale (webapp installabile / PWA) per **gestire finanze, tempo e documenti**,
+ottimizzata per **iPhone 16 Pro Max** ma funzionante anche su Android e desktop.
+
+- **App online:** https://rameno29.github.io/finanze-app/
+- **Repository GitHub:** https://github.com/Rameno29/finanze-app (pubblico)
+- **Utente/proprietario:** Bogdan (bogdanstafie1996@gmail.com)
+- **Lingua:** italiano
+- **Filosofia:** costi minimi (backend e AI su piani gratuiti), tutto il codice pubblico ma
+  **nessun dato personale o segreto nel repository**.
+
+### Come si installa sul telefono
+- **iPhone:** Safari → apri l'URL → Condividi → "Aggiungi a schermata Home".
+- **Android:** Chrome → apri l'URL → menu ⋮ → "Installa app" / "Aggiungi a schermata Home".
+
+---
+
+## 2. Strumenti e tecnologie utilizzate
+
+| Ambito | Strumento | Note |
+|---|---|---|
+| **Frontend** | Vite + React 19 + TypeScript | App a pagina singola (SPA) |
+| **Stile** | Tailwind CSS 4 | Mobile-first, tema chiaro/scuro |
+| **Grafici** | Recharts | Torte, barre, andamenti |
+| **Icone** | lucide-react | Set coerente in tutta l'app |
+| **PWA** | vite-plugin-pwa (Workbox) | Installabile + service worker + notifiche push |
+| **PDF** | jsPDF | Generazione documenti lato client |
+| **Backend** | **Supabase** (piano gratuito) | Database, autenticazione, storage, funzioni server |
+| **Database** | PostgreSQL (Supabase) | Con Row Level Security (RLS) |
+| **Funzioni server** | Supabase Edge Functions (Deno) | Logica AI e notifiche |
+| **Automazioni** | pg_cron + pg_net (Postgres) | Task pianificati (ricorrenze, promemoria) |
+| **AI** | **Google Gemini 2.5 Flash** (piano gratuito) | Analisi documenti, assistente, voce, ricerca web |
+| **Hosting** | GitHub Pages | Deploy automatico via GitHub Actions |
+| **Integrazioni** | Google (Calendar/Gmail/Drive/Maps), Spotify, YouTube | Vedi sezione 6 |
+
+### Dettagli infrastruttura
+- **Progetto Supabase:** `finanze-organizzazione` — ID `boucbthrnddmnzcowafy`, regione eu-central-1.
+- **Deploy:** ogni `git push` sul branch `main` fa partire GitHub Actions che compila e pubblica su
+  GitHub Pages. C'è anche un workflow **keep-alive** che "sveglia" Supabase ogni 3 giorni per evitare
+  che il progetto gratuito venga messo in pausa.
+- **base URL:** l'app vive nel sottopercorso `/finanze-app/` (importante per link e routing).
+
+---
+
+## 3. Architettura in breve
+
+```
+┌─────────────────────────┐        ┌──────────────────────────────┐
+│  App (browser/telefono) │        │  Supabase (cloud gratuito)   │
+│  React PWA su GitHub     │◄──────►│  • Auth (email/password)     │
+│  Pages                   │        │  • Postgres + RLS            │
+│                          │        │  • Storage (documenti)       │
+│  Chiama le Edge Function │        │  • Edge Functions (Deno):    │
+│  per le funzioni AI      │        │      - ai-analyze            │
+└─────────────────────────┘        │      - ai-command            │
+                                     │      - send-reminders        │
+          │                          │  • pg_cron (task notturni)   │
+          │                          └──────────────┬───────────────┘
+          │                                         │
+          └─── integrazioni dirette ───┐            └──► Google Gemini API
+              (dal browser):           │
+              Google, Spotify, YouTube ┘
+```
+
+**Principio di sicurezza:** le chiavi segrete (Gemini, VAPID per le notifiche) stanno **solo sul
+server** (tabella protetta `app_secrets` o secret di GitHub). Il browser non le vede mai. Le chiavi
+"pubbliche per design" (Client ID Google/Spotify, chiave anon Supabase) possono stare nel codice.
+
+---
+
+## 4. Funzionalità realizzate (stato: completo e online)
+
+### 💰 Finanze
+- Entrate/uscite con categorie personalizzabili (icona + colore), seed automatico di 12 categorie
+  italiane al primo accesso.
+- Vista mensile con saldo, filtri, modifica/elimina.
+- **Budget mensili** per categoria con barra di avanzamento (rossa se sfori).
+- **Obiettivi di risparmio** ("salvadanaio") con traguardo, scadenza e avanzamento.
+- **Movimenti ricorrenti automatici** (affitto, stipendio…): si registrano da soli alla scadenza.
+- **Scadenzario spese fisse e abbonamenti** con costo mensile/annuo.
+- **Export CSV/Excel** di tutti i movimenti (formato italiano, protetto da CSV injection).
+- **Aggiunta rapida a voce o con una frase** ("20 euro pizza ieri") → l'AI compila il movimento.
+
+### 📅 Agenda
+- Attività/promemoria con data, ora e note; raggruppate per urgenza (in ritardo/oggi/prossime).
+- Vista **calendario mensile** con puntini sui giorni impegnati.
+- Widget "Da fare oggi" in Home.
+- **Notifiche push** all'orario dell'attività (con pulsante "invia notifica di prova").
+
+### 📄 Documenti (AI)
+- **Busta paga** (PDF o foto) → estrae netto/lordo/trattenute → crea l'entrata stipendio + grafico andamento.
+- **Scontrini/ricevute** → estrae totale, data, negozio, categoria → crea l'uscita.
+- **Documento qualsiasi** (contratto, bolletta, referto…) → riassunto + spiegazione semplice.
+- **Crea PDF con l'AI** da una richiesta scritta o dal contenuto di un video YouTube.
+
+### 🤖 Assistente AI (chat + voce)
+- **Risponde** a domande sui tuoi dati ("quanto ho speso in ristoranti?").
+- **Agisce** su comando (registra spese, crea promemoria/obiettivi, imposta budget) **previa conferma**.
+- **Microfono**: registri, vedi la trascrizione **modificabile**, la correggi e invii.
+- Report mensile scritto dall'AI (dalla Home).
+
+### 🔵 Google (tab Altro → Google)
+- **Ricerca web con AI** (con fonti).
+- **Maps** (ricerca luoghi).
+- **Calendar / Gmail / Drive** in lettura (prossimi eventi, email non lette, file recenti).
+
+### 🎵 Media (tab Altro → Media)
+- **YouTube**: ricerca video in-app, mini-player persistente, riassunto AI del video, Picture-in-Picture.
+- **Spotify**: ricerca brani, player interno (embed), controllo riproduzione sul dispositivo.
+
+### ⚙️ Altro
+- Tema chiaro/scuro/automatico.
+- **Guida all'uso** completa dentro l'app (accordion per ogni sezione).
+- Login/registrazione con **lista di email autorizzate** (app privata).
+
+---
+
+## 5. Schema del database (Supabase / Postgres)
+
+Tutte le tabelle hanno `user_id` + **RLS**: ogni utente vede solo i propri dati.
+
+| Tabella | Contenuto |
+|---|---|
+| `categories` | Categorie entrate/uscite (nome, tipo, colore, icona) |
+| `transactions` | Movimenti (importo in centesimi, tipo, categoria, data, ricorrenza, link a documento) |
+| `budgets` | Budget mensile per categoria |
+| `goals` | Obiettivi di risparmio (traguardo, risparmiato, scadenza) |
+| `tasks` | Attività/promemoria dell'agenda (+ flag `notified` per le notifiche) |
+| `documents` | Documenti caricati (tipo, path storage, stato, analisi AI salvata) |
+| `payslips` | Dati estratti dalle buste paga |
+| `push_subscriptions` | Iscrizioni alle notifiche push |
+| `allowed_emails` | Email autorizzate a registrarsi (protetta, solo server) |
+| `app_secrets` | Segreti server: chiave Gemini, chiavi VAPID, segreto cron (protetta, solo server) |
+
+**Storage:** bucket privato `documents` (max 20 MB, solo PDF/immagini), ogni file nella cartella
+dell'utente.
+
+**Edge Functions (Deno):**
+- `ai-analyze` — analisi buste paga/scontrini/documenti, riassunti YouTube, generazione PDF, ricerca web, assistente sui dati.
+- `ai-command` — interpreta comandi (testo o voce) in azioni + sola trascrizione vocale.
+- `send-reminders` — invia le notifiche push dei promemoria (chiamata dal cron ogni 5 min) + notifica di prova.
+
+**Task pianificati (pg_cron):**
+- `materialize-recurring` — ogni notte crea i movimenti ricorrenti scaduti.
+- `send-reminders` — ogni 5 minuti controlla e invia i promemoria dovuti.
+
+---
+
+## 6. Configurazione e chiavi (cosa serve per far funzionare tutto)
+
+| Cosa | Dove sta | Stato |
+|---|---|---|
+| **Chiave Gemini** (AI) | Supabase `app_secrets.GEMINI_API_KEY` | ✅ Configurata (Google AI Studio) |
+| **Chiavi VAPID** (notifiche push) | Supabase `app_secrets` | ✅ Generate e configurate |
+| **Segreto cron** | Supabase `app_secrets.CRON_SECRET` | ✅ Configurato |
+| **Google Client ID** (Calendar/Gmail/Drive/Maps) | `src/lib/config.ts` (pubblico) | ✅ Configurato |
+| **Spotify Client ID** | `src/lib/config.ts` (pubblico) | ✅ Configurato |
+| **Chiave YouTube Data API** | secret GitHub `VITE_YOUTUBE_API_KEY` | ✅ Configurata + ristretta al dominio |
+| **Chiave anon Supabase** | `src/lib/config.ts` (pubblica per design) | ✅ |
+
+**Google OAuth** è in modalità test: solo le email aggiunte come "utenti di test" nella console
+Google Cloud possono collegarsi (compare l'avviso "app non verificata", normale).
+
+---
+
+## 7. Problemi incontrati e come sono stati risolti
+
+Cronologia dei principali intoppi e delle soluzioni — utile per non ripetere gli errori.
+
+1. **Deploy iniziale su Vercel bloccato** (CLI non autenticata sul PC).
+   → Passati a **GitHub Pages** con deploy automatico via GitHub Actions.
+
+2. **Popup illeggibile sui grafici della Home** (tooltip bianco fisso, invisibile nel tema scuro).
+   → Sostituito con un **riquadro dettagli sotto il grafico** (tocchi un mese → vedi entrate/uscite/saldo),
+   coerente col tema.
+
+3. **Chiave YouTube esposta nel repository** (avviso di GitHub).
+   → Spostata in un **secret di GitHub** e, soprattutto, **ristretta al dominio** dell'app su Google
+   Cloud (una chiave così, anche se visibile, non è usabile da altri siti).
+
+4. **Analisi buste paga a pagamento (Anthropic)** era la scelta iniziale.
+   → Passati a **Google Gemini** (piano gratuito), che gestisce anche audio e video.
+
+5. **Audit di sicurezza** → chiuse diverse falle:
+   - chiunque poteva registrarsi → **lista email autorizzate**;
+   - funzione ricorrenze invocabile da fuori → **permessi revocati**;
+   - export CSV vulnerabile a injection → **celle neutralizzate**;
+   - aggiunta **Content-Security-Policy**, indici DB, policy RLS ottimizzate.
+
+6. **Notifiche push "non arrivavano"**.
+   → In realtà **il sistema funzionava**: l'attività di test era stata segnata come completata prima
+   che scattasse il controllo (che gira ogni 5 min). Aggiunti: **pulsante "invia notifica di prova"**,
+   fix per non "bruciare" un promemoria se un invio fallisce, diagnostica.
+
+7. **Microfono che tagliava le parole se si parlava veloce** e **niente possibilità di correggere**.
+   → Riscritto: registrazione in **formato WAV** (compatibile ovunque, niente più problemi coi formati
+   di iPhone/Android), con **cattura della coda** della frase; nuovo **flusso a due passi**: registri →
+   la trascrizione appare **modificabile** → correggi e invii.
+
+8. **Riconoscimento vocale del browser inaffidabile su iPhone** (Web Speech API).
+   → Sostituito con **registrazione audio + trascrizione via Gemini** sul server: funziona identico su
+   tutti i dispositivi.
+
+9. **"Sempre Ops, non sono riuscito a elaborare la richiesta"**.
+   → Diagnosi: **server perfetto** (tutti i test a 200). Causa: **versione vecchia in cache** della PWA
+   sull'iPhone (iOS non aggiorna le web-app installate finché non le chiudi del tutto). Fix: **auto-reload
+   quando esce una nuova versione**; soluzione immediata: rimuovere e reinstallare l'app dalla Home.
+
+10. **Limiti del piano gratuito Gemini** (troppe richieste ravvicinate durante i test → errori 429/503).
+    → Aggiunto **ritentativo automatico** quando il servizio è momentaneamente occupato. Per l'uso
+    normale i limiti non si toccano.
+
+---
+
+## 8. Stato attuale
+
+✅ **App completa e funzionante online.** Tutte le funzionalità della visione iniziale sono realizzate:
+finanze, agenda, documenti con AI, integrazioni Google, musica/video, assistente vocale, notifiche.
+
+Punti di attenzione noti:
+- **Google OAuth in modalità test** (solo email autorizzate; avviso "app non verificata" normale).
+- **Limiti iOS non aggirabili**: audio di YouTube in sottofondo si ferma a schermo bloccato (soluzione:
+  Picture-in-Picture); player Spotify completo dentro l'app non è possibile (si usa il controllo remoto).
+- **Piani gratuiti**: Supabase (tenuto attivo dal keep-alive), Gemini (limiti generosi per uso personale).
+- Consigliato attivare su Supabase la **"Leaked password protection"** (Authentication → Passwords).
+
+---
+
+## 9. Piani futuri (idee approvate, non ancora realizzate)
+
+- 🔍 **Ricerca nei documenti** analizzati (ritrovare per contenuto).
+- 🏦 **Multi-conto** (contanti, conto, carte separati con saldi distinti).
+- 📅 **Scrittura eventi su Google Calendar** dall'app (ora è solo lettura).
+- ☁️ **Backup automatico su Google Drive** dei dati.
+- 📊 **Confronto anno su anno** con previsione di fine mese.
+- 👪 **Modalità condivisa** (spese di coppia/famiglia).
+
+---
+
+## 10. Manutenzione e sviluppo (per riprendere in mano il progetto)
+
+### Sviluppo locale
+```bash
+npm install
+npm run dev       # sviluppo su http://localhost:5173/finanze-app/
+npm run build     # build di produzione in dist/
+npm run preview   # anteprima della build di produzione
+```
+Serve un file **`.env`** locale (non versionato) con:
+```
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+VITE_YOUTUBE_API_KEY=...
+```
+
+### Deploy
+- Basta fare **push su `main`**: GitHub Actions compila e pubblica su GitHub Pages.
+- Le **Edge Functions** si ridistribuiscono dal pannello Supabase o via connettore.
+- Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
+
+### Struttura cartelle principali
+```
+src/
+  lib/            → supabase, config, voice, push, pdf, export, dati
+  context/        → Auth, Tema, Player YouTube
+  components/     → UI condivisa, TabBar, MiniPlayer, AiText
+  modules/        → home, finance, agenda, documents, google, media, assistant, settings, guide, auth
+supabase/functions/ → ai-analyze, ai-command, send-reminders (codice Deno)
+.github/workflows/  → deploy.yml (GitHub Pages), keep-alive.yml (Supabase)
+```
+
+### Se qualcosa "non si aggiorna" sul telefono
+Chiudi del tutto l'app (app switcher) o rimuovila dalla Home e reinstallala da Safari. I dati non si
+perdono (sono nel cloud). Con l'auto-reload aggiunto, dovrebbe aggiornarsi da sola.
+
+---
+
+## 11. Cose che il proprietario (Bogdan) deve sapere
+
+- **I dati sono al sicuro** nel database cloud: rimuovere/reinstallare l'app non li cancella.
+- **Costi:** tutto su piani gratuiti. Gemini gratuito potrebbe usare i dati inviati per migliorare i
+  servizi Google (irrilevante per i riassunti; per le buste paga valutare, se si vuole massima privacy,
+  una chiave a pagamento in futuro).
+- **Per far usare l'app a qualcun altro** (famiglia): va aggiunta la sua email alla lista autorizzate.
+- **Notifiche su iPhone:** funzionano solo con l'app installata sulla Home e permesso concesso.
+
+---
+
+*Documento mantenuto aggiornato insieme all'evoluzione dell'app. Per la cronologia tecnica dettagliata,
+vedere anche i messaggi di commit su GitHub.*
