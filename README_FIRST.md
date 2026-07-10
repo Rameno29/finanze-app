@@ -282,6 +282,13 @@ VITE_YOUTUBE_API_KEY=...
 - Le **Edge Functions** si ridistribuiscono dal pannello Supabase o via connettore.
 - Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
+### Ultimo rilascio
+- **11 luglio 2026 — frontend:** commit `7c5e098` pubblicato su `main`; workflow GitHub Pages
+  completato con successo e build online verificata tramite l'hash dell'asset principale.
+- **11 luglio 2026 — Edge Functions:** codice di `ai-analyze`, `ai-command`, `send-reminders` e
+  `analyze-payslip` validato con `deno check`; ridistribuzione cloud in attesa del login locale alla
+  CLI Supabase.
+
 ### Struttura cartelle principali
 ```
 src/
