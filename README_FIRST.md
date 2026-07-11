@@ -371,8 +371,9 @@ VITE_YOUTUBE_API_KEY=...
 ### Ultimo rilascio
 - **11 luglio 2026 — CI/CD:** aggiornate alle versioni stabili basate sul runtime Node 24
   `actions/checkout` (v5), `actions/setup-node` (v5) e `actions/upload-pages-artifact` (v4).
-  `actions/deploy-pages` resta alla v4 ufficiale: l'eventuale avviso Node 20 residuo dipende
-  dall'azione upstream e GitHub ne forza già l'esecuzione su Node 24.
+  L'avviso Node 20 residuo proviene dalla dipendenza interna `actions/upload-artifact@v4.6.2`
+  dell'azione Pages ufficiale; GitHub ne forza già l'esecuzione su Node 24 e il deploy termina
+  correttamente. `actions/deploy-pages` resta alla v4 ufficiale.
 - **11 luglio 2026 — frontend:** commit `7c5e098` pubblicato su `main`; workflow GitHub Pages
   completato con successo e build online verificata tramite l'hash dell'asset principale.
 - **11 luglio 2026 — Edge Functions:** `ai-analyze` v5, `ai-command` v6, `send-reminders` v3 e
