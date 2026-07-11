@@ -243,14 +243,98 @@ Punti di attenzione noti:
 
 ---
 
-## 9. Piani futuri (idee approvate, non ancora realizzate)
+## 9. Roadmap proposta (ricerca aggiornata all'11 luglio 2026)
 
-- 🔍 **Ricerca nei documenti** analizzati (ritrovare per contenuto).
-- 🏦 **Multi-conto** (contanti, conto, carte separati con saldi distinti).
-- 📅 **Scrittura eventi su Google Calendar** dall'app (ora è solo lettura).
-- ☁️ **Backup automatico su Google Drive** dei dati.
-- 📊 **Confronto anno su anno** con previsione di fine mese.
-- 👪 **Modalità condivisa** (spese di coppia/famiglia).
+Le funzioni seguenti non sono ancora realizzate. L'ordine privilegia valore nell'uso quotidiano,
+costi gratuiti, semplicità operativa e protezione dei dati.
+
+### Priorità A — consigliate come prossimi sviluppi
+
+1. **Multi-conto + import estratti conto CSV**
+   - Conti separati per contanti, banca e carte, con saldo e trasferimenti interni.
+   - Import guidato CSV con anteprima, mappatura colonne, riconoscimento duplicati e regole automatiche
+     per categoria/esercente.
+   - È la strada più utile e affidabile per ridurre l'inserimento manuale senza dipendere da API
+     bancarie a pagamento o da consensi PSD2 periodici.
+
+2. **Ricerca completa nei documenti**
+   - Prima fase gratuita con Full Text Search nativa di PostgreSQL su titolo, riassunto, spiegazione e
+     punti chiave; indice GIN e risultati sempre filtrati tramite RLS.
+   - Seconda fase facoltativa con ricerca semantica `pgvector`, generando embeddings solo sul testo
+     già estratto e non sui file originali.
+
+3. **Agenda Google scrivibile e sincronizzazione Google Tasks**
+   - Creare eventi Calendar dall'agenda o dall'assistente solo dopo conferma esplicita.
+   - Collegare opzionalmente una lista Google Tasks, salvando gli ID esterni per evitare duplicati e
+     conflitti; partire con sincronizzazione manuale/monodirezionale prima del bidirezionale.
+   - Richiede ampliare gli scope OAuth attuali, quindi va mostrata chiaramente la nuova autorizzazione.
+
+4. **Backup cifrato su Google Drive**
+   - Esportazione JSON versionata nel folder nascosto `appDataFolder`, accessibile solo ad AJE.
+   - Cifratura lato client prima dell'upload, ripristino con anteprima e controllo versione schema.
+   - Lo scope `drive.appdata` è più ristretto e non sensibile rispetto all'accesso generale a Drive.
+
+5. **Scadenze intelligenti e controllo abbonamenti**
+   - Rilevare automaticamente ricorrenze, rincari, doppioni e servizi non usati dai movimenti.
+   - Promemoria per rinnovi, disdette, documenti, garanzie, bollo, assicurazione e contratti.
+   - Previsione di fine mese, confronto anno su anno e simulatore “quanto posso spendere”.
+
+6. **MFA con app Authenticator**
+   - Aggiungere enrollment, verifica e recupero TOTP nelle impostazioni account.
+   - La MFA di base è compresa nel piano gratuito Supabase ed è preferibile all'SMS per costi e
+     affidabilità.
+
+### Priorità B — utili dopo il consolidamento del modello dati
+
+7. **Modalità famiglia/coppia con spazi condivisi**
+   - Tabelle `households`, `memberships` e ruoli; ogni movimento appartiene a uno spazio personale o
+     condiviso.
+   - RLS basata sulle membership e aggiornamenti live tramite canali Supabase Realtime privati.
+   - Richiede una migrazione delicata: non va implementata aggiungendo semplicemente altri `user_id`.
+
+8. **Import di fatture e ricevute da Gmail**
+   - Ricerca mirata di email selezionate dall'utente e download dei soli allegati confermati, poi
+     riuso dell'analisi scontrini/documenti già esistente.
+   - `gmail.readonly` permette query e allegati ma è uno scope Google ristretto: mantenere l'app
+     privata/in test, minimizzare i dati e non creare scansioni automatiche indiscriminate.
+
+9. **Multi-valuta e viaggi**
+   - Valuta originale sul movimento, cambio applicato e controvalore EUR.
+   - Tassi giornalieri ufficiali BCE, cache locale/database e nessuna chiave API commerciale.
+
+10. **Modalità offline controllata**
+    - Cache IndexedDB cifrata per le ultime viste e coda locale delle modifiche.
+    - Sincronizzazione esplicita al ritorno online, con gestione conflitti e senza memorizzare token o
+      documenti sensibili oltre il necessario.
+
+### Sperimentali / da valutare contrattualmente
+
+11. **Sincronizzazione bancaria Open Banking (PSD2)**
+    - GoCardless Bank Account Data dichiara fino a 24 mesi di storico e fino a 90 giorni di accesso
+      continuativo; le banche possono limitare le chiamate anche a quattro al giorno.
+    - TrueLayer espone conti, carte, saldi, transazioni, addebiti diretti e ordini permanenti.
+    - Prima di sviluppare servono conferma aggiornata di copertura delle banche italiane, accesso alla
+      produzione, prezzo e condizioni per uso personale. Secret e refresh token dovrebbero vivere
+      solo nelle Edge Functions; l'utente deve poter revocare e cancellare ogni collegamento.
+
+12. **Integrazione Splitwise o servizi simili**
+    - Utile solo se la modalità condivisa interna non basta.
+    - Richiederebbe OAuth, token server-side, mapping degli utenti e strategia anti-duplicati; priorità
+      bassa per evitare una seconda fonte autorevole delle stesse spese.
+
+### Riferimenti tecnici ufficiali della ricerca
+
+- Google Calendar `events.insert`: https://developers.google.com/workspace/calendar/api/guides/create-events
+- Google Tasks API: https://developers.google.com/workspace/tasks/reference/rest
+- Google Drive `appDataFolder`: https://developers.google.com/workspace/drive/api/guides/appdata
+- Gmail ricerca messaggi/allegati: https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list
+- Supabase Full Text Search: https://supabase.com/docs/guides/database/full-text-search
+- Supabase ricerca semantica/pgvector: https://supabase.com/docs/guides/ai/semantic-search
+- Supabase MFA: https://supabase.com/docs/guides/auth/auth-mfa
+- Supabase Realtime privato: https://supabase.com/docs/guides/realtime/subscribing-to-database-changes
+- API dati BCE: https://data.ecb.europa.eu/help/api/data-examples
+- GoCardless Bank Account Data: https://developer.gocardless.com/bank-account-data/overview
+- TrueLayer Data API: https://docs.truelayer.com/docs/data-api-basics
 
 ---
 
