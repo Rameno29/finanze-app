@@ -148,6 +148,8 @@ dell'utente.
 - `ai-analyze` — analisi buste paga/scontrini/documenti, riassunti YouTube, generazione PDF, ricerca web, assistente sui dati.
 - `ai-command` — interpreta comandi (testo o voce) in azioni + sola trascrizione vocale.
 - `send-reminders` — invia le notifiche push dei promemoria (chiamata dal cron ogni 5 min) + notifica di prova.
+- `analyze-payslip` — funzione legacy mantenuta per compatibilità; il frontend corrente usa
+  `ai-analyze` anche per le buste paga.
 
 **Task pianificati (pg_cron):**
 - `materialize-recurring` — ogni notte crea i movimenti ricorrenti scaduti.
@@ -285,9 +287,10 @@ VITE_YOUTUBE_API_KEY=...
 ### Ultimo rilascio
 - **11 luglio 2026 — frontend:** commit `7c5e098` pubblicato su `main`; workflow GitHub Pages
   completato con successo e build online verificata tramite l'hash dell'asset principale.
-- **11 luglio 2026 — Edge Functions:** codice di `ai-analyze`, `ai-command`, `send-reminders` e
-  `analyze-payslip` validato con `deno check`; ridistribuzione cloud in attesa del login locale alla
-  CLI Supabase.
+- **11 luglio 2026 — Edge Functions:** `ai-analyze` v5, `ai-command` v6, `send-reminders` v3 e
+  `analyze-payslip` v3 validate con `deno check`, ridistribuite e verificate `ACTIVE`. La verifica JWT
+  è attiva sulle funzioni AI; `send-reminders` mantiene `verify_jwt=false` perché il cron la autentica
+  tramite `CRON_SECRET`.
 
 ### Struttura cartelle principali
 ```
