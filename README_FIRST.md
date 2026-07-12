@@ -399,9 +399,9 @@ VITE_YOUTUBE_API_KEY=...
   senza errori JavaScript; il test autenticato completo richiede l'accesso dell'utente nell'app.
 - **11 luglio 2026 — CI/CD:** aggiornate alle versioni stabili basate sul runtime Node 24
   `actions/checkout` (v5), `actions/setup-node` (v5) e `actions/upload-pages-artifact` (v4).
-  L'avviso Node 20 residuo proviene dalla dipendenza interna `actions/upload-artifact@v4.6.2`
-  dell'azione Pages ufficiale; GitHub ne forza già l'esecuzione su Node 24 e il deploy termina
-  correttamente. `actions/deploy-pages` resta alla v4 ufficiale.
+  Gli avvisi Node 20 residui provengono dalla dipendenza interna `actions/upload-artifact@v4.6.2`
+  e da `actions/deploy-pages@v4`; GitHub ne forza già l'esecuzione su Node 24 e il deploy termina
+  correttamente. Non risultano ancora major ufficiali successive per l'intero flusso Pages.
 - **11 luglio 2026 — frontend:** commit `7c5e098` pubblicato su `main`; workflow GitHub Pages
   completato con successo e build online verificata tramite l'hash dell'asset principale.
 - **11 luglio 2026 — Edge Functions:** `ai-analyze` v5, `ai-command` v6, `send-reminders` v3 e
