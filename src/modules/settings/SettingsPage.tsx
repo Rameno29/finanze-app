@@ -12,6 +12,7 @@ import {
   Smartphone,
   Sparkles,
   Sun,
+  CloudOff,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -205,6 +206,17 @@ export function SettingsPage() {
             </button>
           )}
           {pushMsg && <p className="mt-3 rounded-xl bg-card-2 px-3 py-2.5 text-xs">{pushMsg}</p>}
+        </Card>
+
+        <Card>
+          <h2 className="mb-2 flex items-center gap-2 font-semibold">
+            <CloudOff className="h-4 w-4 text-accent" /> Modalità offline automatica
+          </h2>
+          <p className="text-sm text-muted">
+            Le ultime viste di Finanze e Agenda sono cifrate sul dispositivo. Senza rete puoi
+            consultarle e modificare movimenti o attività; AJE sincronizza la coda appena torni online.
+            Token, documenti e allegati non vengono duplicati nella cache offline.
+          </p>
         </Card>
 
         <Card>

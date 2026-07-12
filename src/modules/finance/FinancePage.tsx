@@ -11,6 +11,7 @@ import { useBudgets, useCategories, useGoals, useTransactions, sumByKind } from 
 import { exportTransactionsCsv } from '../../lib/exportCsv'
 import { formatCents, formatDay, monthLabel } from '../../lib/format'
 import { CategoryIcon } from '../../lib/icons'
+import { formatCurrencyCents } from '../../lib/currency'
 import type { Transaction } from '../../types'
 
 type View = 'movimenti' | 'budget' | 'categorie' | 'obiettivi'
@@ -357,10 +358,15 @@ export function FinancePage() {
                               {t.recurrence ? ` · ${t.recurrence}` : ''}
                             </span>
                           </span>
-                          <span
-                            className={`font-bold ${t.kind === 'income' ? 'text-income' : 'text-expense'}`}
-                          >
-                            {t.kind === 'income' ? '+' : '−'}{formatCents(t.amount_cents)}
+                          <span className="shrink-0 text-right">
+                            <span className={`block font-bold ${t.kind === 'income' ? 'text-income' : 'text-expense'}`}>
+                              {t.kind === 'income' ? '+' : '−'}{formatCents(t.amount_cents)}
+                            </span>
+                            {t.currency_code && t.currency_code !== 'EUR' && (
+                              <span className="block text-[11px] text-muted">
+                                {formatCurrencyCents(t.original_amount_cents, t.currency_code)} · BCE
+                              </span>
+                            )}
                           </span>
                         </button>
                       )

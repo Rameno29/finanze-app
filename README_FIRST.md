@@ -2,7 +2,7 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **11 luglio 2026**.
+> Ultimo aggiornamento: **12 luglio 2026**.
 
 ---
 
@@ -89,6 +89,9 @@ server** (tabella protetta `app_secrets` o secret di GitHub). Il browser non le 
 - **Scadenzario spese fisse e abbonamenti** con costo mensile/annuo.
 - **Export CSV/Excel** di tutti i movimenti (formato italiano, protetto da CSV injection).
 - **Aggiunta rapida a voce o con una frase** ("20 euro pizza ieri") → l'AI compila il movimento.
+- **Supporto multivaluta**: 16 valute, importo originale e controvalore EUR calcolato con il cambio
+  ufficiale BCE del giorno o dell'ultimo giorno lavorativo precedente; tasso, data e fonte restano
+  salvati sul movimento e sono inclusi nell'export CSV.
 
 ### 📅 Agenda
 - Attività/promemoria con data, ora e note; raggruppate per urgenza (in ritardo/oggi/prossime).
@@ -119,6 +122,9 @@ server** (tabella protetta `app_secrets` o secret di GitHub). Il browser non le 
 
 ### ⚙️ Altro
 - Tema chiaro/scuro/automatico.
+- **Modalità offline automatica**: ultime viste di Finanze e Agenda cifrate sul dispositivo; creazione,
+  modifica ed eliminazione di movimenti e attività accodate e sincronizzate in ordine al ritorno online.
+  La barra di stato mostra offline, sincronizzazione ed eventuali operazioni in attesa.
 - **Guida all'uso** completa dentro l'app (accordion per ogni sezione).
 - Login/registrazione con **lista di email autorizzate** (app privata).
 
@@ -131,7 +137,8 @@ Tutte le tabelle hanno `user_id` + **RLS**: ogni utente vede solo i propri dati.
 | Tabella | Contenuto |
 |---|---|
 | `categories` | Categorie entrate/uscite (nome, tipo, colore, icona) |
-| `transactions` | Movimenti (importo in centesimi, tipo, categoria, data, ricorrenza, link a documento) |
+| `transactions` | Movimenti (controvalore EUR, valuta/importo originali, cambio BCE, tipo, categoria, data, ricorrenza, documento) |
+| `exchange_rates` | Cache server dei cambi di riferimento BCE per valuta e giorno (sola lettura per utenti autenticati) |
 | `budgets` | Budget mensile per categoria |
 | `goals` | Obiettivi di risparmio (traguardo, risparmiato, scadenza) |
 | `tasks` | Attività/promemoria dell'agenda (+ flag `notified` per le notifiche) |
@@ -150,6 +157,8 @@ dell'utente.
 - `send-reminders` — invia le notifiche push dei promemoria (chiamata dal cron ogni 5 min) + notifica di prova.
 - `analyze-payslip` — funzione legacy mantenuta per compatibilità; il frontend corrente usa
   `ai-analyze` anche per le buste paga.
+- `ecb-rates` — recupera i cambi giornalieri dal Data Portal BCE, usa solo valute ammesse, autentica
+  l'utente, riutilizza la cache server e restituisce il giorno lavorativo disponibile più vicino.
 
 **Task pianificati (pg_cron):**
 - `materialize-recurring` — ogni notte crea i movimenti ricorrenti scaduti.
@@ -227,6 +236,14 @@ Cronologia dei principali intoppi e delle soluzioni — utile per non ripetere g
     nelle funzioni server; gestione esplicita degli errori nei salvataggi; conferme di scontrini e
     buste paga rese idempotenti; caricamento delle pagine separato per ridurre il bundle iniziale.
 
+12. **Multivaluta e modalità offline del 12 luglio 2026**.
+    → Gli aggregati restano sempre in EUR per non alterare budget e grafici; il database conserva
+    anche importo/valuta originali e rifiuta tramite trigger controvalori incoerenti col cambio.
+    I cambi arrivano esclusivamente dall'API ufficiale BCE e vengono memorizzati con data e fonte.
+    La cache offline usa IndexedDB e AES-GCM con chiave non esportabile separata per utente; payload
+    della coda e viste sono cifrati. Non vengono messi nella cache offline documenti, allegati o token.
+    Sono accodabili solo movimenti e attività; AI, documenti e integrazioni esterne richiedono rete.
+
 ---
 
 ## 8. Stato attuale
@@ -239,6 +256,10 @@ Punti di attenzione noti:
 - **Limiti iOS non aggirabili**: audio di YouTube in sottofondo si ferma a schermo bloccato (soluzione:
   Picture-in-Picture); player Spotify completo dentro l'app non è possibile (si usa il controllo remoto).
 - **Piani gratuiti**: Supabase (tenuto attivo dal keep-alive), Gemini (limiti generosi per uso personale).
+- I cambi BCE sono tassi informativi di riferimento: possono differire dal cambio realmente applicato
+  da banca o carta. Un cambio già salvato sul movimento non viene riscritto retroattivamente.
+- L'offline diventa disponibile dopo aver visitato almeno una volta online la vista interessata; le
+  modifiche locali sono sincronizzate in ordine e una coda con errore resta visibile per il nuovo tentativo.
 - Consigliato attivare su Supabase la **"Leaked password protection"** (Authentication → Passwords).
 
 ---
@@ -298,15 +319,6 @@ costi gratuiti, semplicità operativa e protezione dei dati.
    - `gmail.readonly` permette query e allegati ma è uno scope Google ristretto: mantenere l'app
      privata/in test, minimizzare i dati e non creare scansioni automatiche indiscriminate.
 
-9. **Multi-valuta e viaggi**
-   - Valuta originale sul movimento, cambio applicato e controvalore EUR.
-   - Tassi giornalieri ufficiali BCE, cache locale/database e nessuna chiave API commerciale.
-
-10. **Modalità offline controllata**
-    - Cache IndexedDB cifrata per le ultime viste e coda locale delle modifiche.
-    - Sincronizzazione esplicita al ritorno online, con gestione conflitti e senza memorizzare token o
-      documenti sensibili oltre il necessario.
-
 ### Sperimentali / da valutare contrattualmente
 
 11. **Sincronizzazione bancaria Open Banking (PSD2)**
@@ -320,7 +332,14 @@ costi gratuiti, semplicità operativa e protezione dei dati.
 12. **Integrazione Splitwise o servizi simili**
     - Utile solo se la modalità condivisa interna non basta.
     - Richiederebbe OAuth, token server-side, mapping degli utenti e strategia anti-duplicati; priorità
-      bassa per evitare una seconda fonte autorevole delle stesse spese.
+     bassa per evitare una seconda fonte autorevole delle stesse spese.
+
+### Completate dalla roadmap
+
+- ✅ **Multi-valuta e viaggi** — realizzata il 12 luglio 2026 con importo originale, controvalore EUR,
+  tassi giornalieri BCE e cache locale/server.
+- ✅ **Modalità offline controllata** — realizzata il 12 luglio 2026 per lettura delle ultime viste e
+  operazioni su movimenti/attività, con IndexedDB cifrato e coda automatica osservabile.
 
 ### Riferimenti tecnici ufficiali della ricerca
 
@@ -369,6 +388,13 @@ VITE_YOUTUBE_API_KEY=...
 - Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
 ### Ultimo rilascio
+- **12 luglio 2026 — multivaluta/offline:** aggiunti schema e controlli DB multivaluta, Edge Function
+  `ecb-rates`, UI a 16 valute, export esteso, cache IndexedDB AES-GCM, coda offline per movimenti e
+  attività con replay idempotente, indicatore di stato e guida aggiornata. Verifiche locali: 43 test
+  superati, lint senza errori e build PWA completata. Migrazione
+  `20260712090000_multicurrency.sql` applicata al database; `ecb-rates` v2 distribuita `ACTIVE` con
+  verifica JWT e testata: le richieste prive di sessione vengono respinte con HTTP 401. Cronologia
+  migrazioni locale/remota allineata e `npm audit --omit=dev`: 0 vulnerabilità.
 - **11 luglio 2026 — CI/CD:** aggiornate alle versioni stabili basate sul runtime Node 24
   `actions/checkout` (v5), `actions/setup-node` (v5) e `actions/upload-pages-artifact` (v4).
   L'avviso Node 20 residuo proviene dalla dipendenza interna `actions/upload-artifact@v4.6.2`
@@ -384,11 +410,12 @@ VITE_YOUTUBE_API_KEY=...
 ### Struttura cartelle principali
 ```
 src/
-  lib/            → supabase, config, voice, push, pdf, export, dati
+  lib/            → supabase, config, voice, push, pdf, export, dati, cambi BCE, offline cifrato
   context/        → Auth, Tema, Player YouTube
   components/     → UI condivisa, TabBar, MiniPlayer, AiText
   modules/        → home, finance, agenda, documents, google, media, assistant, settings, guide, auth
-supabase/functions/ → ai-analyze, ai-command, send-reminders (codice Deno)
+supabase/functions/ → ai-analyze, ai-command, send-reminders, analyze-payslip, ecb-rates (codice Deno)
+supabase/migrations/ → cronologia SQL completa + schema multivaluta
 .github/workflows/  → deploy.yml (GitHub Pages), keep-alive.yml (Supabase)
 ```
 

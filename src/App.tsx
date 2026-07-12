@@ -8,6 +8,7 @@ import { MiniPlayer } from './components/MiniPlayer'
 import { FullPageSpinner } from './components/ui'
 import { handleSpotifyCallback } from './lib/spotifyAuth'
 import { LoginPage } from './modules/auth/LoginPage'
+import { OfflineBanner } from './components/OfflineBanner'
 
 const HomePage = lazy(() => import('./modules/home/HomePage').then((m) => ({ default: m.HomePage })))
 const FinancePage = lazy(() => import('./modules/finance/FinancePage').then((m) => ({ default: m.FinancePage })))
@@ -37,6 +38,7 @@ function Shell() {
 
   return (
     <div className="min-h-dvh bg-bg">
+      <OfflineBanner userId={session.user.id} />
       <Suspense fallback={<FullPageSpinner />}>
         <Routes>
           <Route path="/" element={<HomePage />} />

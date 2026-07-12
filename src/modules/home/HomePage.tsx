@@ -21,6 +21,7 @@ import {
 } from '../../lib/data'
 import { MONTH_NAMES, formatCents, monthLabel, todayISO } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
+import { mutateOffline } from '../../lib/offline'
 import { AiText } from '../../components/AiText'
 import { Sheet } from '../../components/ui'
 import { Bot, Check, Euro, FileBarChart } from 'lucide-react'
@@ -57,11 +58,14 @@ export function HomePage() {
   )
 
   async function completeTask(id: string) {
-    const { error } = await supabase.from('tasks').update({ done: true }).eq('id', id)
-    if (error) setOperationError('Non riesco a completare l’attività. Riprova.')
-    else {
+    const task = tasks.find((item) => item.id === id)
+    if (!task) return
+    try {
+      await mutateOffline('tasks', 'update', id, { done: true }, { ...task, done: true })
       setOperationError('')
       void reloadTasks()
+    } catch {
+      setOperationError('Non riesco a completare l’attività. Riprova.')
     }
   }
 

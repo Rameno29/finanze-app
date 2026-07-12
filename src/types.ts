@@ -13,6 +13,14 @@ export interface Transaction {
   id: string
   user_id: string
   amount_cents: number
+  /** Controvalore contabile in EUR, usato per totali, budget e grafici. */
+  currency_code: string
+  /** Importo nella valuta originale, espresso in centesimi della valuta. */
+  original_amount_cents: number
+  /** EUR ottenuti per una unità della valuta originale. */
+  exchange_rate_to_eur: number
+  exchange_rate_date: string | null
+  exchange_rate_source: 'ECB' | 'EUR'
   kind: Kind
   category_id: string | null
   date: string

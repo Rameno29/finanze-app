@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Trash2 } from 'lucide-react'
-import { requireUserId, supabase } from '../../lib/supabase'
+import { currentUserId, mutateOffline } from '../../lib/offline'
 import { Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import type { Task } from '../../types'
 
@@ -45,7 +45,7 @@ export function TaskSheet({
     if (!title.trim()) return
     setBusy(true)
     try {
-      const userId = await requireUserId()
+      const userId = await currentUserId()
       const values = {
         title: title.trim(),
         notes: notes.trim(),
@@ -54,10 +54,16 @@ export function TaskSheet({
         // se cambia la scadenza, la notifica va rimandata
         notified: false,
       }
-      const result = editing
-        ? await supabase.from('tasks').update(values).eq('id', editing.id)
-        : await supabase.from('tasks').insert({ ...values, user_id: userId })
-      if (result.error) throw result.error
+      const recordId = editing?.id ?? crypto.randomUUID()
+      const insertPayload = { id: recordId, ...values, user_id: userId, done: false }
+      await mutateOffline(
+        'tasks', editing ? 'update' : 'insert', recordId,
+        editing ? values : insertPayload,
+        {
+          ...(editing ?? {}), ...insertPayload,
+          created_at: editing?.created_at ?? new Date().toISOString(),
+        },
+      )
       onSaved()
       onClose()
     } catch {
@@ -71,12 +77,14 @@ export function TaskSheet({
     if (!editing) return
     if (!window.confirm('Eliminare questa attività?')) return
     setBusy(true)
-    const { error: deleteError } = await supabase.from('tasks').delete().eq('id', editing.id)
-    setBusy(false)
-    if (deleteError) setError('Eliminazione non riuscita, riprova.')
-    else {
+    try {
+      await mutateOffline('tasks', 'delete', editing.id, {}, null)
+      setBusy(false)
       onSaved()
       onClose()
+    } catch {
+      setBusy(false)
+      setError('Eliminazione non riuscita, riprova.')
     }
   }
 

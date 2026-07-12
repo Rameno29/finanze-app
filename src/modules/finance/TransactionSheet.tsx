@@ -1,7 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Trash2 } from 'lucide-react'
-import { requireUserId, supabase } from '../../lib/supabase'
+import { currentUserId, mutateOffline } from '../../lib/offline'
 import { parseAmountToCents, todayISO } from '../../lib/format'
+import {
+  SUPPORTED_CURRENCIES,
+  convertToEurCents,
+  formatCurrencyCents,
+  getExchangeRate,
+  isCurrencyCode,
+  type CurrencyCode,
+  type ExchangeRate,
+} from '../../lib/currency'
 import { CategoryIcon } from '../../lib/icons'
 import { Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import type { Category, Kind, Transaction } from '../../types'
@@ -12,6 +21,7 @@ export interface TransactionDraft {
   category_id?: string | null
   date?: string | null
   description?: string
+  currency_code?: CurrencyCode
 }
 
 export function TransactionSheet({
@@ -35,18 +45,32 @@ export function TransactionSheet({
   const [date, setDate] = useState(todayISO())
   const [description, setDescription] = useState('')
   const [recurrence, setRecurrence] = useState<string>('')
+  const [currency, setCurrency] = useState<CurrencyCode>('EUR')
+  const [rate, setRate] = useState<ExchangeRate | null>(null)
+  const [rateBusy, setRateBusy] = useState(false)
+  const [rateError, setRateError] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!open) return
     if (editing) {
+      const editingCurrency = isCurrencyCode(editing.currency_code) ? editing.currency_code : 'EUR'
       setKind(editing.kind)
-      setAmount((editing.amount_cents / 100).toFixed(2).replace('.', ','))
+      setCurrency(editingCurrency)
+      setAmount(((editing.original_amount_cents ?? editing.amount_cents) / 100).toFixed(2).replace('.', ','))
       setCategoryId(editing.category_id ?? '')
       setDate(editing.date)
       setDescription(editing.description)
       setRecurrence(editing.recurrence ?? '')
+      setRate({
+        currency: editingCurrency,
+        requested_date: editing.date,
+        observed_on: editing.exchange_rate_date ?? editing.date,
+        units_per_eur: 1 / (editing.exchange_rate_to_eur ?? 1),
+        rate_to_eur: editing.exchange_rate_to_eur ?? 1,
+        source: 'ECB',
+      })
     } else if (draft) {
       // Precompilato dall'AI (spesa a voce/frase): l'utente controlla e salva
       setKind(draft.kind ?? 'expense')
@@ -55,6 +79,8 @@ export function TransactionSheet({
       setDate(draft.date ?? todayISO())
       setDescription(draft.description ?? '')
       setRecurrence('')
+      setCurrency(draft.currency_code ?? 'EUR')
+      setRate(null)
     } else {
       setKind('expense')
       setAmount('')
@@ -62,9 +88,35 @@ export function TransactionSheet({
       setDate(todayISO())
       setDescription('')
       setRecurrence('')
+      setCurrency('EUR')
+      setRate(null)
     }
     setError('')
   }, [open, editing, draft])
+
+  useEffect(() => {
+    if (!open) return
+    const cents = parseAmountToCents(amount)
+    if (currency === 'EUR') {
+      setRate({
+        currency: 'EUR', requested_date: date, observed_on: date,
+        units_per_eur: 1, rate_to_eur: 1, source: 'ECB',
+      })
+      setRateError('')
+      return
+    }
+    if (!cents || !date) return
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setRateBusy(true)
+      setRateError('')
+      void getExchangeRate(currency, date)
+        .then((nextRate) => { if (!cancelled) setRate(nextRate) })
+        .catch(() => { if (!cancelled) setRateError('Cambio BCE non disponibile per questa data.') })
+        .finally(() => { if (!cancelled) setRateBusy(false) })
+    }, 400)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [open, amount, currency, date])
 
   const visibleCategories = categories.filter((c) => c.kind === kind)
 
@@ -77,23 +129,41 @@ export function TransactionSheet({
     }
     setBusy(true)
     try {
-      const userId = await requireUserId()
+      const userId = await currentUserId()
+      const appliedRate = currency === 'EUR' ? await getExchangeRate('EUR', date) : await getExchangeRate(currency, date)
+      const eurCents = convertToEurCents(cents, appliedRate.rate_to_eur)
       const values = {
-        amount_cents: cents,
+        amount_cents: eurCents,
+        original_amount_cents: cents,
+        currency_code: currency,
+        exchange_rate_to_eur: appliedRate.rate_to_eur,
+        exchange_rate_date: currency === 'EUR' ? null : appliedRate.observed_on,
+        exchange_rate_source: currency === 'EUR' ? 'EUR' : 'ECB',
         kind,
         category_id: categoryId || null,
         date,
         description: description.trim(),
         recurrence: recurrence || null,
       }
-      const result = editing
-        ? await supabase.from('transactions').update(values).eq('id', editing.id)
-        : await supabase.from('transactions').insert({ ...values, user_id: userId })
-      if (result.error) throw result.error
+      const recordId = editing?.id ?? crypto.randomUUID()
+      const insertPayload = { id: recordId, ...values, user_id: userId }
+      const localRecord = {
+        ...(editing ?? {}),
+        ...insertPayload,
+        document_id: editing?.document_id ?? null,
+        created_at: (editing as Transaction & { created_at?: string } | null)?.created_at ?? new Date().toISOString(),
+      }
+      await mutateOffline(
+        'transactions', editing ? 'update' : 'insert', recordId,
+        editing ? values : insertPayload,
+        localRecord,
+      )
       onSaved()
       onClose()
-    } catch {
-      setError('Errore durante il salvataggio, riprova.')
+    } catch (cause) {
+      setError(cause instanceof Error && cause.message.includes('Cambio BCE')
+        ? cause.message
+        : 'Errore durante il salvataggio, riprova.')
     } finally {
       setBusy(false)
     }
@@ -103,13 +173,14 @@ export function TransactionSheet({
     if (!editing) return
     if (!window.confirm('Eliminare questo movimento?')) return
     setBusy(true)
-    const { error: deleteError } = await supabase.from('transactions').delete().eq('id', editing.id)
-    setBusy(false)
-    if (deleteError) {
-      setError('Eliminazione non riuscita, riprova.')
-    } else {
+    try {
+      await mutateOffline('transactions', 'delete', editing.id, {}, null)
+      setBusy(false)
       onSaved()
       onClose()
+    } catch {
+      setBusy(false)
+      setError('Eliminazione non riuscita, riprova.')
     }
   }
 
@@ -138,7 +209,8 @@ export function TransactionSheet({
           ))}
         </div>
 
-        <Field label="Importo (€)">
+        <div className="grid grid-cols-[1fr_112px] gap-3">
+        <Field label={`Importo (${currency})`}>
           <input
             inputMode="decimal"
             required
@@ -148,6 +220,39 @@ export function TransactionSheet({
             placeholder="0,00"
           />
         </Field>
+        <Field label="Valuta">
+          <select
+            value={currency}
+            onChange={(e) => {
+              const next = e.target.value
+              if (isCurrencyCode(next)) {
+                setCurrency(next)
+                if (next !== 'EUR') setRecurrence('')
+              }
+            }}
+            className={inputClass}
+          >
+            {SUPPORTED_CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}
+          </select>
+        </Field>
+        </div>
+
+        {currency !== 'EUR' && (
+          <div className="mb-4 rounded-xl bg-card-2 px-4 py-3 text-sm">
+            {rateBusy ? (
+              <span className="flex items-center gap-2 text-muted"><Spinner className="h-4 w-4" /> Recupero cambio BCE…</span>
+            ) : rate && rate.currency === currency && parseAmountToCents(amount) ? (
+              <>
+                <p className="font-semibold">
+                  Controvalore: {formatCurrencyCents(convertToEurCents(parseAmountToCents(amount)!, rate.rate_to_eur), 'EUR')}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  BCE {rate.observed_on} · 1 {currency} = {rate.rate_to_eur.toFixed(6)} EUR
+                </p>
+              </>
+            ) : <p className="text-xs text-expense">{rateError || 'Inserisci importo e data per calcolare il cambio.'}</p>}
+          </div>
+        )}
 
         <Field label="Categoria">
           <div className="grid grid-cols-4 gap-2">
@@ -197,18 +302,20 @@ export function TransactionSheet({
           <select
             value={recurrence}
             onChange={(e) => setRecurrence(e.target.value)}
-            className={inputClass}
+            disabled={currency !== 'EUR'}
+            className={`${inputClass} disabled:opacity-50`}
           >
             <option value="">Nessuna (una tantum)</option>
             <option value="mensile">Mensile</option>
             <option value="settimanale">Settimanale</option>
             <option value="annuale">Annuale</option>
           </select>
+          {currency !== 'EUR' && <p className="mt-1 text-xs text-muted">Le ricorrenze multivaluta non sono ancora automatiche.</p>}
         </Field>
 
         {error && <p className="mb-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>}
 
-        <PrimaryButton type="submit" disabled={busy}>
+        <PrimaryButton type="submit" disabled={busy || rateBusy || Boolean(rateError && currency !== 'EUR')}>
           {busy ? <Spinner className="h-5 w-5 text-white" /> : 'Salva'}
         </PrimaryButton>
 

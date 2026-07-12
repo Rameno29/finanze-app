@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, ClipboardList, Plus } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { mutateOffline } from '../../lib/offline'
 import { useTasks } from '../../lib/data'
 import { MONTH_NAMES, formatDay, todayISO } from '../../lib/format'
 import { Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
@@ -66,11 +66,12 @@ export function AgendaPage() {
   const { tasks, loading, reload } = useTasks()
 
   async function toggleTask(t: Task) {
-    const { error } = await supabase.from('tasks').update({ done: !t.done }).eq('id', t.id)
-    if (error) setOperationError('Aggiornamento non riuscito, controlla la connessione.')
-    else {
+    try {
+      await mutateOffline('tasks', 'update', t.id, { done: !t.done }, { ...t, done: !t.done })
       setOperationError('')
       void reload()
+    } catch {
+      setOperationError('Aggiornamento non riuscito, controlla la connessione.')
     }
   }
 

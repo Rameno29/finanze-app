@@ -94,6 +94,7 @@ export function GuidePage() {
 
         <Section icon={Wallet} title="Finanze">
           <P><B>Movimenti</B> — il registro di entrate e uscite. Il bottone <B>+</B> aggiunge un movimento: scegli tipo, importo, categoria, data e (se vuoi) una <B>ricorrenza</B>. Tocca un movimento per modificarlo o eliminarlo. Con le frecce ‹ › cambi mese.</P>
+          <P><B>Valute estere</B> — scegli la valuta accanto all'importo: AJE conserva la cifra originale e usa il cambio ufficiale BCE del giorno (o dell'ultimo giorno lavorativo precedente) per mostrare e sommare il controvalore in euro.</P>
           <P><B>Aggiunta rapida a voce o con una frase</B> — nella barra in alto scrivi (o detti col microfono) qualcosa come <B>"20 euro pizza ieri sera"</B>: l'AI capisce importo, categoria e data e ti mostra il movimento già compilato — controlli e salvi.</P>
           <P><B>Ricorrenze automatiche</B> — se imposti "mensile" su affitto o stipendio, alla scadenza la nuova occorrenza si crea da sola ogni notte: non devi fare nulla.</P>
           <P><B>Budget</B> — tocca una categoria e imposta il tetto mensile: la barra mostra quanto hai già speso e diventa rossa se sfori. In fondo trovi <B>Spese fisse e abbonamenti</B>: l'elenco dei movimenti ricorrenti con il costo al mese e all'anno.</P>
@@ -140,6 +141,7 @@ export function GuidePage() {
         <Section icon={Lightbulb} title="Consigli utili">
           <P>• <B>Installazione</B> — iPhone: Safari → Condividi → "Aggiungi a schermata Home". Android: Chrome → menu ⋮ → "Aggiungi a schermata Home" (o "Installa app").</P>
           <P>• <B>Aggiornamenti</B> — l'app si aggiorna da sola: se non vedi una novità, chiudila e riaprila.</P>
+          <P>• <B>Uso offline</B> — dopo aver aperto almeno una volta Finanze o Agenda online, le ultime viste restano disponibili in forma cifrata. Puoi aggiungere o modificare movimenti e attività: la barra in alto indica le operazioni in attesa e le sincronizza in ordine appena torna la connessione. Documenti e funzioni AI richiedono internet.</P>
           <P>• <B>Privacy</B> — i tuoi dati sono nel tuo database personale, protetti dal tuo account; solo le email autorizzate possono registrarsi.</P>
           <P>• <B>Foto migliori per l'AI</B> — scontrini e buste paga ben illuminati e dritti si leggono meglio.</P>
         </Section>

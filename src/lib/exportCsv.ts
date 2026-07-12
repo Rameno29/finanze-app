@@ -20,13 +20,18 @@ export async function exportTransactionsCsv(): Promise<boolean> {
   const catById = new Map(((catRes.data as Category[]) ?? []).map((c) => [c.id, c.name]))
 
   const rows = [
-    ['Data', 'Tipo', 'Categoria', 'Descrizione', 'Importo (EUR)', 'Ricorrenza'],
+    ['Data', 'Tipo', 'Categoria', 'Descrizione', 'Importo originale', 'Valuta', 'Controvalore (EUR)', 'Cambio a EUR', 'Data cambio', 'Fonte', 'Ricorrenza'],
     ...transactions.map((t) => [
       t.date,
       t.kind === 'income' ? 'Entrata' : 'Uscita',
       t.category_id ? (catById.get(t.category_id) ?? '') : '',
       t.description,
+      ((t.kind === 'income' ? 1 : -1) * ((t.original_amount_cents ?? t.amount_cents) / 100)).toFixed(2).replace('.', ','),
+      t.currency_code ?? 'EUR',
       ((t.kind === 'income' ? 1 : -1) * (t.amount_cents / 100)).toFixed(2).replace('.', ','),
+      String(t.exchange_rate_to_eur ?? 1).replace('.', ','),
+      t.exchange_rate_date ?? '',
+      t.exchange_rate_source ?? 'EUR',
       t.recurrence ?? '',
     ]),
   ]
