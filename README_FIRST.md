@@ -395,6 +395,8 @@ VITE_YOUTUBE_API_KEY=...
   `20260712090000_multicurrency.sql` applicata al database; `ecb-rates` v2 distribuita `ACTIVE` con
   verifica JWT e testata: le richieste prive di sessione vengono respinte con HTTP 401. Cronologia
   migrazioni locale/remota allineata e `npm audit --omit=dev`: 0 vulnerabilità.
+  Frontend pubblicato con commit `0625dfa`: workflow GitHub Pages completato e pagina online caricata
+  senza errori JavaScript; il test autenticato completo richiede l'accesso dell'utente nell'app.
 - **11 luglio 2026 — CI/CD:** aggiornate alle versioni stabili basate sul runtime Node 24
   `actions/checkout` (v5), `actions/setup-node` (v5) e `actions/upload-pages-artifact` (v4).
   L'avviso Node 20 residuo proviene dalla dipendenza interna `actions/upload-artifact@v4.6.2`
