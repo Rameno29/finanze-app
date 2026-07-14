@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Category, Transaction } from '../types'
+import type { Account, Category, Transaction } from '../types'
 
 export function csvEscape(value: string): string {
   // Protezione da CSV injection: Excel interpreta =, +, -, @ a inizio cella come formule.
@@ -11,20 +11,25 @@ export function csvEscape(value: string): string {
 
 /** Esporta tutti i movimenti in CSV (separatore ; e virgola decimale, per Excel italiano). */
 export async function exportTransactionsCsv(): Promise<boolean> {
-  const [txRes, catRes] = await Promise.all([
+  const [txRes, catRes, accountRes] = await Promise.all([
     supabase.from('transactions').select('*').order('date', { ascending: false }),
     supabase.from('categories').select('*'),
+    supabase.from('accounts').select('*'),
   ])
   const transactions = (txRes.data as Transaction[]) ?? []
   if (transactions.length === 0) return false
   const catById = new Map(((catRes.data as Category[]) ?? []).map((c) => [c.id, c.name]))
+  const accountById = new Map(((accountRes.data as Account[]) ?? []).map((a) => [a.id, a.name]))
 
   const rows = [
-    ['Data', 'Tipo', 'Categoria', 'Descrizione', 'Importo originale', 'Valuta', 'Controvalore (EUR)', 'Cambio a EUR', 'Data cambio', 'Fonte', 'Ricorrenza'],
+    ['Data', 'Tipo', 'Categoria', 'Conto', 'Descrizione', 'Importo originale', 'Valuta', 'Controvalore (EUR)', 'Cambio a EUR', 'Data cambio', 'Fonte', 'Ricorrenza'],
     ...transactions.map((t) => [
       t.date,
-      t.kind === 'income' ? 'Entrata' : 'Uscita',
+      t.transfer_group
+        ? (t.kind === 'income' ? 'Trasferimento (in entrata)' : 'Trasferimento (in uscita)')
+        : t.kind === 'income' ? 'Entrata' : 'Uscita',
       t.category_id ? (catById.get(t.category_id) ?? '') : '',
+      t.account_id ? (accountById.get(t.account_id) ?? '') : '',
       t.description,
       ((t.kind === 'income' ? 1 : -1) * ((t.original_amount_cents ?? t.amount_cents) / 100)).toFixed(2).replace('.', ','),
       t.currency_code ?? 'EUR',

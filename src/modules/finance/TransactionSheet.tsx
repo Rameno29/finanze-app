@@ -13,7 +13,7 @@ import {
 } from '../../lib/currency'
 import { CategoryIcon } from '../../lib/icons'
 import { Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
-import type { Category, Kind, Transaction } from '../../types'
+import type { Account, Category, Kind, Transaction } from '../../types'
 
 export interface TransactionDraft {
   kind?: Kind
@@ -29,6 +29,7 @@ export function TransactionSheet({
   onClose,
   onSaved,
   categories,
+  accounts,
   editing,
   draft,
 }: {
@@ -36,12 +37,14 @@ export function TransactionSheet({
   onClose: () => void
   onSaved: () => void
   categories: Category[]
+  accounts: Account[]
   editing: Transaction | null
   draft?: TransactionDraft | null
 }) {
   const [kind, setKind] = useState<Kind>('expense')
   const [amount, setAmount] = useState('')
   const [categoryId, setCategoryId] = useState<string>('')
+  const [accountId, setAccountId] = useState<string>('')
   const [date, setDate] = useState(todayISO())
   const [description, setDescription] = useState('')
   const [recurrence, setRecurrence] = useState<string>('')
@@ -60,6 +63,7 @@ export function TransactionSheet({
       setCurrency(editingCurrency)
       setAmount(((editing.original_amount_cents ?? editing.amount_cents) / 100).toFixed(2).replace('.', ','))
       setCategoryId(editing.category_id ?? '')
+      setAccountId(editing.account_id ?? '')
       setDate(editing.date)
       setDescription(editing.description)
       setRecurrence(editing.recurrence ?? '')
@@ -76,6 +80,7 @@ export function TransactionSheet({
       setKind(draft.kind ?? 'expense')
       setAmount(draft.amount_cents ? (draft.amount_cents / 100).toFixed(2).replace('.', ',') : '')
       setCategoryId(draft.category_id ?? '')
+      setAccountId('')
       setDate(draft.date ?? todayISO())
       setDescription(draft.description ?? '')
       setRecurrence('')
@@ -85,6 +90,7 @@ export function TransactionSheet({
       setKind('expense')
       setAmount('')
       setCategoryId('')
+      setAccountId('')
       setDate(todayISO())
       setDescription('')
       setRecurrence('')
@@ -141,6 +147,7 @@ export function TransactionSheet({
         exchange_rate_source: currency === 'EUR' ? 'EUR' : 'ECB',
         kind,
         category_id: categoryId || null,
+        account_id: accountId || null,
         date,
         description: description.trim(),
         recurrence: recurrence || null,
@@ -151,6 +158,7 @@ export function TransactionSheet({
         ...(editing ?? {}),
         ...insertPayload,
         document_id: editing?.document_id ?? null,
+        transfer_group: editing?.transfer_group ?? null,
         created_at: (editing as Transaction & { created_at?: string } | null)?.created_at ?? new Date().toISOString(),
       }
       await mutateOffline(
@@ -278,6 +286,21 @@ export function TransactionSheet({
             ))}
           </div>
         </Field>
+
+        {accounts.length > 0 && (
+          <Field label="Conto">
+            <select
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Nessun conto</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <Field label="Data">
           <input

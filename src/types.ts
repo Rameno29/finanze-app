@@ -1,5 +1,17 @@
 export type Kind = 'income' | 'expense'
 
+export type AccountKind = 'contanti' | 'banca' | 'carta'
+
+export interface Account {
+  id: string
+  user_id: string
+  name: string
+  kind: AccountKind
+  /** Saldo di partenza del conto (può essere negativo). */
+  initial_balance_cents: number
+  created_at: string
+}
+
 export interface Category {
   id: string
   user_id: string
@@ -27,6 +39,10 @@ export interface Transaction {
   description: string
   recurrence: 'mensile' | 'settimanale' | 'annuale' | null
   document_id: string | null
+  /** Conto di appartenenza (null = nessun conto). */
+  account_id: string | null
+  /** I due movimenti di un trasferimento interno condividono lo stesso gruppo. */
+  transfer_group: string | null
 }
 
 export interface Budget {

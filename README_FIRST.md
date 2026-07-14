@@ -2,7 +2,7 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **12 luglio 2026**.
+> Ultimo aggiornamento: **14 luglio 2026**.
 
 ---
 
@@ -92,6 +92,14 @@ server** (tabella protetta `app_secrets` o secret di GitHub). Il browser non le 
 - **Supporto multivaluta**: 16 valute, importo originale e controvalore EUR calcolato con il cambio
   ufficiale BCE del giorno o dell'ultimo giorno lavorativo precedente; tasso, data e fonte restano
   salvati sul movimento e sono inclusi nell'export CSV.
+- **Multi-conto**: conti separati per contanti, banca e carte con saldo iniziale (anche negativo),
+  saldo aggiornato per conto e patrimonio totale; ogni movimento può essere assegnato a un conto.
+- **Trasferimenti interni** tra conti: coppia di movimenti legati (`transfer_group`), esclusi dai
+  totali entrate/uscite e dai grafici; si eliminano insieme.
+- **Import estratti conto CSV** (lato client, il file non lascia il dispositivo): riconoscimento
+  automatico di delimitatore, colonne (anche dare/avere separate), date e importi italiani;
+  mappatura colonne modificabile, anteprima con selezione riga per riga, possibili duplicati
+  segnalati e deselezionati, categoria proposta dallo storico dei movimenti.
 
 ### 📅 Agenda
 - Attività/promemoria con data, ora e note; raggruppate per urgenza (in ritardo/oggi/prossime).
@@ -137,7 +145,8 @@ Tutte le tabelle hanno `user_id` + **RLS**: ogni utente vede solo i propri dati.
 | Tabella | Contenuto |
 |---|---|
 | `categories` | Categorie entrate/uscite (nome, tipo, colore, icona) |
-| `transactions` | Movimenti (controvalore EUR, valuta/importo originali, cambio BCE, tipo, categoria, data, ricorrenza, documento) |
+| `accounts` | Conti dell'utente (nome, tipo contanti/banca/carta, saldo iniziale) |
+| `transactions` | Movimenti (controvalore EUR, valuta/importo originali, cambio BCE, tipo, categoria, conto, gruppo trasferimento, data, ricorrenza, documento) |
 | `exchange_rates` | Cache server dei cambi di riferimento BCE per valuta e giorno (sola lettura per utenti autenticati) |
 | `budgets` | Budget mensile per categoria |
 | `goals` | Obiettivi di risparmio (traguardo, risparmiato, scadenza) |
@@ -271,49 +280,42 @@ costi gratuiti, semplicità operativa e protezione dei dati.
 
 ### Priorità A — consigliate come prossimi sviluppi
 
-1. **Multi-conto + import estratti conto CSV**
-   - Conti separati per contanti, banca e carte, con saldo e trasferimenti interni.
-   - Import guidato CSV con anteprima, mappatura colonne, riconoscimento duplicati e regole automatiche
-     per categoria/esercente.
-   - È la strada più utile e affidabile per ridurre l'inserimento manuale senza dipendere da API
-     bancarie a pagamento o da consensi PSD2 periodici.
-
-2. **Ricerca completa nei documenti**
+1. **Ricerca completa nei documenti**
    - Prima fase gratuita con Full Text Search nativa di PostgreSQL su titolo, riassunto, spiegazione e
      punti chiave; indice GIN e risultati sempre filtrati tramite RLS.
    - Seconda fase facoltativa con ricerca semantica `pgvector`, generando embeddings solo sul testo
      già estratto e non sui file originali.
 
-3. **Agenda Google scrivibile e sincronizzazione Google Tasks**
+2. **Agenda Google scrivibile e sincronizzazione Google Tasks**
    - Creare eventi Calendar dall'agenda o dall'assistente solo dopo conferma esplicita.
    - Collegare opzionalmente una lista Google Tasks, salvando gli ID esterni per evitare duplicati e
      conflitti; partire con sincronizzazione manuale/monodirezionale prima del bidirezionale.
    - Richiede ampliare gli scope OAuth attuali, quindi va mostrata chiaramente la nuova autorizzazione.
 
-4. **Backup cifrato su Google Drive**
+3. **Backup cifrato su Google Drive**
    - Esportazione JSON versionata nel folder nascosto `appDataFolder`, accessibile solo ad AJE.
    - Cifratura lato client prima dell'upload, ripristino con anteprima e controllo versione schema.
    - Lo scope `drive.appdata` è più ristretto e non sensibile rispetto all'accesso generale a Drive.
 
-5. **Scadenze intelligenti e controllo abbonamenti**
+4. **Scadenze intelligenti e controllo abbonamenti**
    - Rilevare automaticamente ricorrenze, rincari, doppioni e servizi non usati dai movimenti.
    - Promemoria per rinnovi, disdette, documenti, garanzie, bollo, assicurazione e contratti.
    - Previsione di fine mese, confronto anno su anno e simulatore “quanto posso spendere”.
 
-6. **MFA con app Authenticator**
+5. **MFA con app Authenticator**
    - Aggiungere enrollment, verifica e recupero TOTP nelle impostazioni account.
    - La MFA di base è compresa nel piano gratuito Supabase ed è preferibile all'SMS per costi e
      affidabilità.
 
 ### Priorità B — utili dopo il consolidamento del modello dati
 
-7. **Modalità famiglia/coppia con spazi condivisi**
+6. **Modalità famiglia/coppia con spazi condivisi**
    - Tabelle `households`, `memberships` e ruoli; ogni movimento appartiene a uno spazio personale o
      condiviso.
    - RLS basata sulle membership e aggiornamenti live tramite canali Supabase Realtime privati.
    - Richiede una migrazione delicata: non va implementata aggiungendo semplicemente altri `user_id`.
 
-8. **Import di fatture e ricevute da Gmail**
+7. **Import di fatture e ricevute da Gmail**
    - Ricerca mirata di email selezionate dall'utente e download dei soli allegati confermati, poi
      riuso dell'analisi scontrini/documenti già esistente.
    - `gmail.readonly` permette query e allegati ma è uno scope Google ristretto: mantenere l'app
@@ -321,7 +323,7 @@ costi gratuiti, semplicità operativa e protezione dei dati.
 
 ### Sperimentali / da valutare contrattualmente
 
-11. **Sincronizzazione bancaria Open Banking (PSD2)**
+8. **Sincronizzazione bancaria Open Banking (PSD2)**
     - GoCardless Bank Account Data dichiara fino a 24 mesi di storico e fino a 90 giorni di accesso
       continuativo; le banche possono limitare le chiamate anche a quattro al giorno.
     - TrueLayer espone conti, carte, saldi, transazioni, addebiti diretti e ordini permanenti.
@@ -329,13 +331,17 @@ costi gratuiti, semplicità operativa e protezione dei dati.
       produzione, prezzo e condizioni per uso personale. Secret e refresh token dovrebbero vivere
       solo nelle Edge Functions; l'utente deve poter revocare e cancellare ogni collegamento.
 
-12. **Integrazione Splitwise o servizi simili**
+9. **Integrazione Splitwise o servizi simili**
     - Utile solo se la modalità condivisa interna non basta.
     - Richiederebbe OAuth, token server-side, mapping degli utenti e strategia anti-duplicati; priorità
      bassa per evitare una seconda fonte autorevole delle stesse spese.
 
 ### Completate dalla roadmap
 
+- ✅ **Multi-conto + import estratti conto CSV** — realizzata il 14 luglio 2026: conti con saldo
+  iniziale e patrimonio, trasferimenti interni esclusi dai totali, import CSV lato client con
+  mappatura colonne, duplicati segnalati e categoria proposta dallo storico. (Le regole persistenti
+  per esercente restano un possibile raffinamento futuro.)
 - ✅ **Multi-valuta e viaggi** — realizzata il 12 luglio 2026 con importo originale, controvalore EUR,
   tassi giornalieri BCE e cache locale/server.
 - ✅ **Modalità offline controllata** — realizzata il 12 luglio 2026 per lettura delle ultime viste e
@@ -388,6 +394,16 @@ VITE_YOUTUBE_API_KEY=...
 - Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
 ### Ultimo rilascio
+- **14 luglio 2026 — multi-conto/import CSV:** nuova tabella `accounts` (RLS) e colonne
+  `account_id`/`transfer_group` su `transactions` (migrazione `20260714020000_accounts_transfers.sql`,
+  con vincolo: i trasferimenti non hanno categoria né ricorrenza); la funzione delle ricorrenze
+  conserva il conto. Nuova vista **Conti** in Finanze: saldi per conto e patrimonio, trasferimenti
+  interni (coppia di movimenti, esclusi da totali/grafici, eliminazione in coppia, funziona anche
+  offline tramite la coda), import CSV guidato per conto (`src/lib/csvImport.ts` +
+  `ImportSheet.tsx`, tutto lato client), selettore conto nel movimento, conto nell'export CSV.
+  Verifiche locali: 62 test superati, lint invariato, `tsc` pulito e build PWA completata.
+  **Attenzione:** la migrazione va applicata al database remoto **prima** di pubblicare il
+  frontend (la vista Conti interroga la tabella `accounts`).
 - **12 luglio 2026 — multivaluta/offline:** aggiunti schema e controlli DB multivaluta, Edge Function
   `ecb-rates`, UI a 16 valute, export esteso, cache IndexedDB AES-GCM, coda offline per movimenti e
   attività con replay idempotente, indicatore di stato e guida aggiornata. Verifiche locali: 43 test
@@ -412,7 +428,7 @@ VITE_YOUTUBE_API_KEY=...
 ### Struttura cartelle principali
 ```
 src/
-  lib/            → supabase, config, voice, push, pdf, export, dati, cambi BCE, offline cifrato
+  lib/            → supabase, config, voice, push, pdf, export, import CSV, dati, cambi BCE, offline cifrato
   context/        → Auth, Tema, Player YouTube
   components/     → UI condivisa, TabBar, MiniPlayer, AiText
   modules/        → home, finance, agenda, documents, google, media, assistant, settings, guide, auth

@@ -105,7 +105,7 @@ export function HomePage() {
   const pieData = useMemo(() => {
     const byCategory = new Map<string, number>()
     for (const t of transactions) {
-      if (t.kind !== 'expense') continue
+      if (t.kind !== 'expense' || t.transfer_group) continue
       const key = t.category_id ?? 'none'
       byCategory.set(key, (byCategory.get(key) ?? 0) + t.amount_cents)
     }

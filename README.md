@@ -7,7 +7,7 @@ Le icone si rigenerano da `scripts/icon-source.png` con `node scripts/generate-i
 
 ## Funzioni (MVP)
 
-- **Finanze**: entrate/uscite con categorie, budget mensili con barre di avanzamento, dashboard con grafici (saldo mese, torta per categorie, andamento 6 mesi)
+- **Finanze**: entrate/uscite con categorie, multi-conto (contanti/banca/carte) con saldi e trasferimenti interni, import estratti conto CSV con anteprima e duplicati, budget mensili con barre di avanzamento, dashboard con grafici (saldo mese, torta per categorie, andamento 6 mesi)
 - **Documenti**: carica la busta paga (PDF o foto) → analisi AI (Claude) estrae netto, lordo, trattenute → conferma → l'entrata "Stipendio" appare nelle finanze; storico stipendi con grafico
 - **Tema** chiaro/scuro automatico da sistema, forzabile dalle impostazioni
 - Installabile sulla home: Safari → Condividi → "Aggiungi a schermata Home"

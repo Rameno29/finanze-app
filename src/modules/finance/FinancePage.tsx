@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Plus, Sparkles } from 'lucide-react'
+import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Plus, Sparkles } from 'lucide-react'
 import { PageHeader, Card, EmptyState, Spinner, inputClass } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
+import { mutateOffline } from '../../lib/offline'
 import { TransactionSheet, type TransactionDraft } from './TransactionSheet'
 import { BudgetsView } from './BudgetsView'
 import { CategoriesView } from './CategoriesView'
 import { GoalsView } from './GoalsView'
-import { useBudgets, useCategories, useGoals, useTransactions, sumByKind } from '../../lib/data'
+import { AccountsView } from './AccountsView'
+import { useAccounts, useBudgets, useCategories, useGoals, useTransactions, sumByKind } from '../../lib/data'
 import { exportTransactionsCsv } from '../../lib/exportCsv'
 import { formatCents, formatDay, monthLabel } from '../../lib/format'
 import { CategoryIcon } from '../../lib/icons'
 import { formatCurrencyCents } from '../../lib/currency'
 import type { Transaction } from '../../types'
 
-type View = 'movimenti' | 'budget' | 'categorie' | 'obiettivi'
+type View = 'movimenti' | 'conti' | 'budget' | 'categorie' | 'obiettivi'
 
 export function FinancePage() {
   const now = new Date()
@@ -140,8 +142,10 @@ export function FinancePage() {
   const { transactions, loading, reload } = useTransactions(year, month)
   const { budgets, reload: reloadBudgets } = useBudgets()
   const { goals, loading: goalsLoading, reload: reloadGoals } = useGoals()
+  const { accounts, loading: accountsLoading, reload: reloadAccounts } = useAccounts()
   const [exporting, setExporting] = useState(false)
   const [exportMsg, setExportMsg] = useState('')
+  const [listError, setListError] = useState('')
 
   async function handleExport() {
     setExporting(true)
@@ -160,7 +164,23 @@ export function FinancePage() {
     () => new Map(categories.map((c) => [c.id, c])),
     [categories],
   )
+  const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts])
   const totals = useMemo(() => sumByKind(transactions), [transactions])
+
+  /** Un trasferimento si elimina intero: entrambi i movimenti collegati. */
+  async function deleteTransfer(transferGroup: string) {
+    if (!window.confirm('Eliminare il trasferimento? Verranno rimossi entrambi i movimenti collegati.')) return
+    try {
+      const legs = transactions.filter((t) => t.transfer_group === transferGroup)
+      for (const leg of legs) {
+        await mutateOffline('transactions', 'delete', leg.id, {}, null)
+      }
+      setListError('')
+      void reload()
+    } catch {
+      setListError('Eliminazione del trasferimento non riuscita, riprova.')
+    }
+  }
 
   const byDay = useMemo(() => {
     const groups = new Map<string, Transaction[]>()
@@ -200,19 +220,20 @@ export function FinancePage() {
           <p className="mt-3 rounded-xl bg-accent-soft px-4 py-3 text-sm text-accent">{exportMsg}</p>
         )}
         {/* Selettore vista */}
-        <div className="mt-4 grid grid-cols-4 gap-1 rounded-xl bg-card-2 p-1">
+        <div className="mt-4 grid grid-cols-5 gap-1 rounded-xl bg-card-2 p-1">
           {(
             [
-              ['movimenti', 'Movimenti'],
+              ['movimenti', 'Movim.'],
+              ['conti', 'Conti'],
               ['budget', 'Budget'],
-              ['categorie', 'Categorie'],
-              ['obiettivi', 'Obiettivi'],
+              ['categorie', 'Categ.'],
+              ['obiettivi', 'Obiett.'],
             ] as const
           ).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setView(key)}
-              className={`min-h-[40px] rounded-lg text-[13px] font-semibold transition ${
+              className={`min-h-[40px] rounded-lg text-[12px] font-semibold transition ${
                 view === key ? 'bg-card shadow text-ink' : 'text-muted'
               }`}
             >
@@ -297,6 +318,9 @@ export function FinancePage() {
             {quickError && (
               <p className="mt-2 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{quickError}</p>
             )}
+            {listError && (
+              <p className="mt-2 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{listError}</p>
+            )}
 
             <Card className="mt-4">
               <div className="grid grid-cols-3 text-center">
@@ -334,10 +358,16 @@ export function FinancePage() {
                   <Card className="divide-y divide-line p-0">
                     {list.map((t) => {
                       const cat = t.category_id ? categoryById.get(t.category_id) : undefined
+                      const account = t.account_id ? accountById.get(t.account_id) : undefined
+                      const isTransfer = Boolean(t.transfer_group)
                       return (
                         <button
                           key={t.id}
                           onClick={() => {
+                            if (t.transfer_group) {
+                              void deleteTransfer(t.transfer_group)
+                              return
+                            }
                             setEditing(t)
                             setSheetOpen(true)
                           }}
@@ -345,16 +375,21 @@ export function FinancePage() {
                         >
                           <span
                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
-                            style={{ backgroundColor: cat?.color ?? '#71717a' }}
+                            style={{ backgroundColor: isTransfer ? '#0ea5e9' : (cat?.color ?? '#71717a') }}
                           >
-                            <CategoryIcon icon={cat?.icon ?? 'tag'} className="h-5 w-5" />
+                            {isTransfer ? (
+                              <ArrowLeftRight className="h-5 w-5" />
+                            ) : (
+                              <CategoryIcon icon={cat?.icon ?? 'tag'} className="h-5 w-5" />
+                            )}
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-medium">
                               {t.description || cat?.name || 'Movimento'}
                             </span>
                             <span className="block text-xs text-muted">
-                              {cat?.name ?? 'Senza categoria'}
+                              {isTransfer ? 'Trasferimento' : (cat?.name ?? 'Senza categoria')}
+                              {account ? ` · ${account.name}` : ''}
                               {t.recurrence ? ` · ${t.recurrence}` : ''}
                             </span>
                           </span>
@@ -376,6 +411,16 @@ export function FinancePage() {
               ))
             )}
           </>
+        )}
+
+        {view === 'conti' && (
+          <AccountsView
+            accounts={accounts}
+            loading={accountsLoading}
+            categories={categories}
+            onChanged={reloadAccounts}
+            onTransactionsChanged={reload}
+          />
         )}
 
         {view === 'budget' && (
@@ -419,6 +464,7 @@ export function FinancePage() {
         }}
         onSaved={reload}
         categories={categories}
+        accounts={accounts}
         editing={editing}
         draft={draft}
       />

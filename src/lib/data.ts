@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import { monthRange } from './format'
-import type { Budget, Category, Goal, Task, Transaction } from '../types'
+import type { Account, Budget, Category, Goal, Task, Transaction } from '../types'
 import { cacheData, currentUserId, readCachedData } from './offline'
 
 async function loadWithOfflineCache<T>(
@@ -138,11 +138,62 @@ export function useBudgets() {
   return { budgets, loading, reload }
 }
 
-/** Totali entrate/uscite (centesimi) di un elenco di transazioni */
+export function useAccounts() {
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const reload = useCallback(async () => {
+    const data = await loadWithOfflineCache<Account>('accounts', () => supabase
+      .from('accounts').select('*').order('created_at'))
+    setAccounts(data)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  return { accounts, loading, reload }
+}
+
+/**
+ * Saldo attuale di ogni conto: saldo iniziale + tutti i movimenti assegnati
+ * (trasferimenti inclusi). Chiave = id del conto, valore in centesimi.
+ */
+export async function fetchAccountBalances(accounts: Account[]): Promise<Map<string, number>> {
+  const userId = await currentUserId()
+  type Row = Pick<Transaction, 'amount_cents' | 'kind' | 'account_id'>
+  let data: Row[] | null = null
+  if (navigator.onLine) {
+    const result = await supabase
+      .from('transactions')
+      .select('amount_cents, kind, account_id')
+      .not('account_id', 'is', null)
+    if (!result.error) {
+      data = result.data as Row[]
+      await cacheData(userId, 'account-balances', data)
+    }
+  }
+  data ??= await readCachedData<Row[]>(userId, 'account-balances')
+
+  const balances = new Map<string, number>(accounts.map((a) => [a.id, a.initial_balance_cents]))
+  for (const t of data ?? []) {
+    if (!t.account_id || !balances.has(t.account_id)) continue
+    const delta = t.kind === 'income' ? t.amount_cents : -t.amount_cents
+    balances.set(t.account_id, balances.get(t.account_id)! + delta)
+  }
+  return balances
+}
+
+/**
+ * Totali entrate/uscite (centesimi) di un elenco di transazioni.
+ * I trasferimenti interni tra conti sono esclusi: non sono né entrate né uscite.
+ */
 export function sumByKind(transactions: Transaction[]) {
   let income = 0
   let expense = 0
   for (const t of transactions) {
+    if (t.transfer_group) continue
     if (t.kind === 'income') income += t.amount_cents
     else expense += t.amount_cents
   }
@@ -155,11 +206,15 @@ export async function fetchMonthlyTotals(n: number) {
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth() - (n - 1), 1)
   const from = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-01`
-  let data: Array<Pick<Transaction, 'amount_cents' | 'kind' | 'date'>> | null = null
+  type Row = Pick<Transaction, 'amount_cents' | 'kind' | 'date' | 'transfer_group'>
+  let data: Row[] | null = null
   if (navigator.onLine) {
-    const result = await supabase.from('transactions').select('amount_cents, kind, date').gte('date', from)
+    const result = await supabase
+      .from('transactions')
+      .select('amount_cents, kind, date, transfer_group')
+      .gte('date', from)
     if (!result.error) {
-      data = result.data as Array<Pick<Transaction, 'amount_cents' | 'kind' | 'date'>>
+      data = result.data as Row[]
       await cacheData(userId, `monthly-totals:${n}`, data)
     }
   }
@@ -174,6 +229,7 @@ export async function fetchMonthlyTotals(n: number) {
     })
   }
   for (const t of data ?? []) {
+    if (t.transfer_group) continue
     const key = t.date.slice(0, 7)
     const bucket = buckets.get(key)
     if (!bucket) continue
