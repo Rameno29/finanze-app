@@ -402,8 +402,10 @@ VITE_YOUTUBE_API_KEY=...
   offline tramite la coda), import CSV guidato per conto (`src/lib/csvImport.ts` +
   `ImportSheet.tsx`, tutto lato client), selettore conto nel movimento, conto nell'export CSV.
   Verifiche locali: 62 test superati, lint invariato, `tsc` pulito e build PWA completata.
-  **Attenzione:** la migrazione va applicata al database remoto **prima** di pubblicare il
-  frontend (la vista Conti interroga la tabella `accounts`).
+  Migrazione applicata al database remoto (versione `20260714002316`, cronologia locale/remota
+  allineata, advisor di sicurezza senza nuove segnalazioni); frontend pubblicato con commit
+  `4b3dd5b`: workflow GitHub Pages completato e verificato che il chunk `FinancePage` online
+  contenga le nuove funzioni. Il test completo autenticato richiede l'accesso dell'utente nell'app.
 - **12 luglio 2026 — multivaluta/offline:** aggiunti schema e controlli DB multivaluta, Edge Function
   `ecb-rates`, UI a 16 valute, export esteso, cache IndexedDB AES-GCM, coda offline per movimenti e
   attività con replay idempotente, indicatore di stato e guida aggiornata. Verifiche locali: 43 test
