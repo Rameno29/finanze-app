@@ -162,12 +162,13 @@ export function useAccounts() {
  */
 export async function fetchAccountBalances(accounts: Account[]): Promise<Map<string, number>> {
   const userId = await currentUserId()
-  type Row = Pick<Transaction, 'amount_cents' | 'kind' | 'account_id'>
+  // L'id serve alla cache offline per riconciliare le operazioni in coda.
+  type Row = Pick<Transaction, 'id' | 'amount_cents' | 'kind' | 'account_id'>
   let data: Row[] | null = null
   if (navigator.onLine) {
     const result = await supabase
       .from('transactions')
-      .select('amount_cents, kind, account_id')
+      .select('id, amount_cents, kind, account_id')
       .not('account_id', 'is', null)
     if (!result.error) {
       data = result.data as Row[]

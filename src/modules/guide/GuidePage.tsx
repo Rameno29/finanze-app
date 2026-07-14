@@ -117,6 +117,7 @@ export function GuidePage() {
           <P>• <B>Busta paga</B> (PDF o foto) — l'AI estrae netto, lordo, trattenute, ferie: tu controlli, correggi se serve e confermi. L'entrata "Stipendio" finisce da sola nelle Finanze e il grafico <B>Andamento stipendio</B> si aggiorna.</P>
           <P>• <B>Scontrino</B> — scatta una foto: l'AI legge totale, data, negozio e categoria, e alla conferma crea l'uscita nelle Finanze.</P>
           <P>• <B>Documento</B> — carica qualsiasi cosa (contratto, bolletta, lettera, referto): ricevi riassunto, punti chiave e una spiegazione in parole semplici, che resta salvata (ritocca il documento per rileggerla).</P>
+          <P><B>Cerca nei documenti</B> — la barra di ricerca sopra l'elenco trova i documenti per parole contenute nel nome del file o nell'analisi AI (titolo, riassunto, spiegazione, punti chiave): scrivi ad esempio "bolletta luce" e vedi solo i documenti pertinenti.</P>
           <P><B>Crea un documento PDF</B> — descrivi cosa ti serve (una guida, una lettera, un programma) e volendo incolla un link YouTube: l'AI scrive il documento, tu lo vedi in anteprima e scarichi il PDF.</P>
         </Section>
 

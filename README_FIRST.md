@@ -111,6 +111,9 @@ server** (tabella protetta `app_secrets` o secret di GitHub). Il browser non le 
 - **Busta paga** (PDF o foto) → estrae netto/lordo/trattenute → crea l'entrata stipendio + grafico andamento.
 - **Scontrini/ricevute** → estrae totale, data, negozio, categoria → crea l'uscita.
 - **Documento qualsiasi** (contratto, bolletta, referto…) → riassunto + spiegazione semplice.
+- **Ricerca completa nei documenti**: Full Text Search PostgreSQL in italiano su nome file, titolo,
+  riassunto, spiegazione e punti chiave dell'analisi AI (colonna `search_vector` generata + indice
+  GIN, risultati filtrati dalla RLS).
 - **Crea PDF con l'AI** da una richiesta scritta o dal contenuto di un video YouTube.
 
 ### 🤖 Assistente AI (chat + voce)
@@ -151,7 +154,7 @@ Tutte le tabelle hanno `user_id` + **RLS**: ogni utente vede solo i propri dati.
 | `budgets` | Budget mensile per categoria |
 | `goals` | Obiettivi di risparmio (traguardo, risparmiato, scadenza) |
 | `tasks` | Attività/promemoria dell'agenda (+ flag `notified` per le notifiche) |
-| `documents` | Documenti caricati (tipo, path storage, stato, analisi AI salvata) |
+| `documents` | Documenti caricati (tipo, path storage, stato, analisi AI salvata, `search_vector` per la ricerca) |
 | `payslips` | Dati estratti dalle buste paga |
 | `push_subscriptions` | Iscrizioni alle notifiche push |
 | `allowed_emails` | Email autorizzate a registrarsi (protetta, solo server) |
@@ -253,6 +256,15 @@ Cronologia dei principali intoppi e delle soluzioni — utile per non ripetere g
     della coda e viste sono cifrati. Non vengono messi nella cache offline documenti, allegati o token.
     Sono accodabili solo movimenti e attività; AI, documenti e integrazioni esterne richiedono rete.
 
+13. **Debug generale del 14 luglio 2026** (dopo multi-conto e ricerca documenti). Trovati e corretti:
+    il contesto dell'assistente AI contava i trasferimenti come entrate/uscite (ora esclusi con
+    `transfer_group is null`, `ai-analyze` v6); i saldi dei conti in cache offline non riflettevano
+    le operazioni in coda (ora le cache derivate `account-balances` e `recurring` vengono aggiornate);
+    gli importi CSV con solo separatore delle migliaia ("1.234") venivano rifiutati; cambiando la
+    colonna data nell'import non si ricontrollavano i duplicati sul nuovo intervallo. Collaudo E2E
+    autenticato eseguito con utente temporaneo poi eliminato: conti, trasferimento (saldi 850/350,
+    totali mese a zero) e ricerca documenti verificati nel browser contro il database reale.
+
 ---
 
 ## 8. Stato attuale
@@ -280,42 +292,36 @@ costi gratuiti, semplicità operativa e protezione dei dati.
 
 ### Priorità A — consigliate come prossimi sviluppi
 
-1. **Ricerca completa nei documenti**
-   - Prima fase gratuita con Full Text Search nativa di PostgreSQL su titolo, riassunto, spiegazione e
-     punti chiave; indice GIN e risultati sempre filtrati tramite RLS.
-   - Seconda fase facoltativa con ricerca semantica `pgvector`, generando embeddings solo sul testo
-     già estratto e non sui file originali.
-
-2. **Agenda Google scrivibile e sincronizzazione Google Tasks**
+1. **Agenda Google scrivibile e sincronizzazione Google Tasks**
    - Creare eventi Calendar dall'agenda o dall'assistente solo dopo conferma esplicita.
    - Collegare opzionalmente una lista Google Tasks, salvando gli ID esterni per evitare duplicati e
      conflitti; partire con sincronizzazione manuale/monodirezionale prima del bidirezionale.
    - Richiede ampliare gli scope OAuth attuali, quindi va mostrata chiaramente la nuova autorizzazione.
 
-3. **Backup cifrato su Google Drive**
+2. **Backup cifrato su Google Drive**
    - Esportazione JSON versionata nel folder nascosto `appDataFolder`, accessibile solo ad AJE.
    - Cifratura lato client prima dell'upload, ripristino con anteprima e controllo versione schema.
    - Lo scope `drive.appdata` è più ristretto e non sensibile rispetto all'accesso generale a Drive.
 
-4. **Scadenze intelligenti e controllo abbonamenti**
+3. **Scadenze intelligenti e controllo abbonamenti**
    - Rilevare automaticamente ricorrenze, rincari, doppioni e servizi non usati dai movimenti.
    - Promemoria per rinnovi, disdette, documenti, garanzie, bollo, assicurazione e contratti.
    - Previsione di fine mese, confronto anno su anno e simulatore “quanto posso spendere”.
 
-5. **MFA con app Authenticator**
+4. **MFA con app Authenticator**
    - Aggiungere enrollment, verifica e recupero TOTP nelle impostazioni account.
    - La MFA di base è compresa nel piano gratuito Supabase ed è preferibile all'SMS per costi e
      affidabilità.
 
 ### Priorità B — utili dopo il consolidamento del modello dati
 
-6. **Modalità famiglia/coppia con spazi condivisi**
+5. **Modalità famiglia/coppia con spazi condivisi**
    - Tabelle `households`, `memberships` e ruoli; ogni movimento appartiene a uno spazio personale o
      condiviso.
    - RLS basata sulle membership e aggiornamenti live tramite canali Supabase Realtime privati.
    - Richiede una migrazione delicata: non va implementata aggiungendo semplicemente altri `user_id`.
 
-7. **Import di fatture e ricevute da Gmail**
+6. **Import di fatture e ricevute da Gmail**
    - Ricerca mirata di email selezionate dall'utente e download dei soli allegati confermati, poi
      riuso dell'analisi scontrini/documenti già esistente.
    - `gmail.readonly` permette query e allegati ma è uno scope Google ristretto: mantenere l'app
@@ -323,7 +329,7 @@ costi gratuiti, semplicità operativa e protezione dei dati.
 
 ### Sperimentali / da valutare contrattualmente
 
-8. **Sincronizzazione bancaria Open Banking (PSD2)**
+7. **Sincronizzazione bancaria Open Banking (PSD2)**
     - GoCardless Bank Account Data dichiara fino a 24 mesi di storico e fino a 90 giorni di accesso
       continuativo; le banche possono limitare le chiamate anche a quattro al giorno.
     - TrueLayer espone conti, carte, saldi, transazioni, addebiti diretti e ordini permanenti.
@@ -331,13 +337,16 @@ costi gratuiti, semplicità operativa e protezione dei dati.
       produzione, prezzo e condizioni per uso personale. Secret e refresh token dovrebbero vivere
       solo nelle Edge Functions; l'utente deve poter revocare e cancellare ogni collegamento.
 
-9. **Integrazione Splitwise o servizi simili**
+8. **Integrazione Splitwise o servizi simili**
     - Utile solo se la modalità condivisa interna non basta.
     - Richiederebbe OAuth, token server-side, mapping degli utenti e strategia anti-duplicati; priorità
      bassa per evitare una seconda fonte autorevole delle stesse spese.
 
 ### Completate dalla roadmap
 
+- ✅ **Ricerca completa nei documenti (fase 1)** — realizzata il 14 luglio 2026 con Full Text Search
+  PostgreSQL in italiano (colonna generata + indice GIN) e barra di ricerca nella pagina Documenti.
+  La fase 2 facoltativa (ricerca semantica `pgvector`) resta un possibile sviluppo futuro.
 - ✅ **Multi-conto + import estratti conto CSV** — realizzata il 14 luglio 2026: conti con saldo
   iniziale e patrimonio, trasferimenti interni esclusi dai totali, import CSV lato client con
   mappatura colonne, duplicati segnalati e categoria proposta dallo storico. (Le regole persistenti
@@ -394,6 +403,12 @@ VITE_YOUTUBE_API_KEY=...
 - Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
 ### Ultimo rilascio
+- **14 luglio 2026 (sera) — ricerca documenti + debug generale:** colonna generata `search_vector`
+  (tsvector italiano su nome file e analisi AI) + indice GIN su `documents` (migrazione remota
+  `20260714010629`), barra di ricerca nella pagina Documenti (`websearch`, debounce, max 50
+  risultati, RLS invariata). Debug approfondito con 4 correzioni (vedi sezione 7, punto 12) e
+  ridistribuzione `ai-analyze` v6. Verifiche: 63 test, lint e `tsc` puliti, build PWA ok, collaudo
+  E2E autenticato di conti/trasferimenti/ricerca su database reale con utente temporaneo (rimosso).
 - **14 luglio 2026 — multi-conto/import CSV:** nuova tabella `accounts` (RLS) e colonne
   `account_id`/`transfer_group` su `transactions` (migrazione `20260714020000_accounts_transfers.sql`,
   con vincolo: i trasferimenti non hanno categoria né ricorrenza); la funzione delle ricorrenze

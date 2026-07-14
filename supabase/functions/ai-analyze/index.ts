@@ -249,6 +249,8 @@ Deno.serve(async (req: Request) => {
           .from('transactions')
           .select('date, amount_cents, kind, category_id, description')
           .eq('user_id', userId)
+          // I trasferimenti tra conti non sono entrate/uscite: fuori dal contesto AI.
+          .is('transfer_group', null)
           .gte('date', fromISO)
           .order('date', { ascending: false })
           .limit(1500),

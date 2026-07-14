@@ -163,6 +163,10 @@ export function parseSignedAmountCents(raw: string): number | null {
   const lastDot = value.lastIndexOf('.')
   let normalized: string
   if (lastComma === -1 && lastDot === -1) normalized = value
+  else if (/^\d{1,3}(\.\d{3})+$/.test(value) || /^\d{1,3}(,\d{3})+$/.test(value)) {
+    // Solo separatori delle migliaia, senza decimali: "1.234" o "1,234" = 1234.
+    normalized = value.replace(/[.,]/g, '')
+  }
   else if (lastComma > lastDot) normalized = value.replace(/\./g, '').replace(',', '.')
   else normalized = value.replace(/,/g, '')
   if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null

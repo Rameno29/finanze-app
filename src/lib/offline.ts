@@ -141,12 +141,24 @@ async function updateCachedEntity(
 ): Promise<void> {
   const db = await openDb()
   const rows = await requestResult<CacheRow[]>(db.transaction('cache').objectStore('cache').index('userId').getAll(userId))
-  for (const row of rows.filter((item) => item.collection === table || item.collection.startsWith(`${table}:`))) {
+  const related = rows.filter((item) =>
+    item.collection === table ||
+    item.collection.startsWith(`${table}:`) ||
+    // Cache derivate dai movimenti: vanno tenute coerenti con la coda offline.
+    (table === 'transactions' && (item.collection === 'account-balances' || item.collection === 'recurring')),
+  )
+  for (const row of related) {
     const list = await decrypt<Array<Record<string, unknown>>>(userId, row.value)
     const without = list.filter((item) => item.id !== recordId)
     let belongs = record !== null
-    if (record && table === 'transactions' && row.collection.startsWith('transactions:')) {
-      belongs = String(record.date ?? '').slice(0, 7) === row.collection.slice('transactions:'.length)
+    if (record && table === 'transactions') {
+      if (row.collection.startsWith('transactions:')) {
+        belongs = String(record.date ?? '').slice(0, 7) === row.collection.slice('transactions:'.length)
+      } else if (row.collection === 'account-balances') {
+        belongs = record.account_id != null
+      } else if (row.collection === 'recurring') {
+        belongs = record.recurrence != null
+      }
     }
     if (belongs && record) without.push(record)
     row.value = await encrypt(userId, without)

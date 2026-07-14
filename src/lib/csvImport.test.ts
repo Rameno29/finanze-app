@@ -91,10 +91,18 @@ describe('parseSignedAmountCents', () => {
     expect(parseSignedAmountCents('€ 45,00')).toBe(4500)
   })
 
+  it('interpreta i separatori delle migliaia senza decimali', () => {
+    expect(parseSignedAmountCents('1.234')).toBe(123400)
+    expect(parseSignedAmountCents('-1,234')).toBe(-123400)
+    expect(parseSignedAmountCents('12,345')).toBe(1234500)
+    expect(parseSignedAmountCents('1.234.567')).toBe(123456700)
+  })
+
   it('rifiuta valori non numerici', () => {
     expect(parseSignedAmountCents('')).toBeNull()
     expect(parseSignedAmountCents('abc')).toBeNull()
-    expect(parseSignedAmountCents('12,345')).toBeNull()
+    expect(parseSignedAmountCents('12,3456')).toBeNull()
+    expect(parseSignedAmountCents('1.23.45')).toBeNull()
   })
 })
 

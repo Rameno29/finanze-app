@@ -9,7 +9,9 @@ import {
   FilePlus2,
   FileText,
   ReceiptText,
+  Search,
   Sparkles,
+  X,
 } from 'lucide-react'
 import { downloadPdf, type GeneratedDoc } from '../../lib/pdf'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -47,6 +49,37 @@ export function DocumentsPage() {
   const [explainData, setExplainData] = useState<DocAnalysis | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const pendingType = useRef<DocType>('busta_paga')
+
+  // Ricerca nei documenti (Full Text Search Postgres, filtrata dalla RLS)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState<DocumentRow[] | null>(null)
+  const [searching, setSearching] = useState(false)
+
+  useEffect(() => {
+    const term = searchTerm.trim()
+    if (!term) {
+      setSearchResults(null)
+      setSearching(false)
+      return
+    }
+    let cancelled = false
+    setSearching(true)
+    const timer = window.setTimeout(async () => {
+      const { data, error: searchErr } = await supabase
+        .from('documents')
+        .select('*')
+        .textSearch('search_vector', term, { type: 'websearch', config: 'italian' })
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (cancelled) return
+      setSearchResults(searchErr ? [] : ((data as DocumentRow[]) ?? []))
+      setSearching(false)
+    }, 350)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [searchTerm])
 
   // Generazione PDF con AI
   const [pdfPrompt, setPdfPrompt] = useState('')
@@ -249,6 +282,29 @@ export function DocumentsPage() {
           </PrimaryButton>
         </Card>
 
+        {/* Ricerca nei documenti analizzati */}
+        {documents.length > 0 && (
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              maxLength={200}
+              className={`${inputClass} pl-11 pr-11`}
+              placeholder="Cerca nei documenti (es. bolletta luce)"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                aria-label="Cancella ricerca"
+                className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )}
+
         {error && <p className="rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>}
 
         {analyzingId && !payslipData && !receiptData && (
@@ -297,7 +353,7 @@ export function DocumentsPage() {
           </Card>
         )}
 
-        {loading ? (
+        {loading || (searchTerm.trim() && searching) ? (
           <div className="flex justify-center py-12">
             <Spinner />
           </div>
@@ -307,9 +363,15 @@ export function DocumentsPage() {
             title="Nessun documento"
             hint="Carica una busta paga, uno scontrino o un documento qualsiasi: l'AI lo legge per te."
           />
+        ) : searchTerm.trim() && (searchResults?.length ?? 0) === 0 ? (
+          <EmptyState
+            icon={<Search className="h-10 w-10" />}
+            title="Nessun risultato"
+            hint="Prova con altre parole: la ricerca guarda nome del file, titolo, riassunto e spiegazione dell'analisi AI."
+          />
         ) : (
           <Card className="divide-y divide-line p-0">
-            {documents.map((doc) => {
+            {(searchTerm.trim() ? (searchResults ?? []) : documents).map((doc) => {
               const meta = STATUS_META[doc.status]
               const StatusIcon = meta.icon
               const isAnalyzing = analyzingId === doc.id

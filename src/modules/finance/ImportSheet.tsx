@@ -12,6 +12,7 @@ import {
   suggestCategoryId,
   type ColumnMapping,
   type CsvTable,
+  type ImportEntry,
 } from '../../lib/csvImport'
 import { formatCents } from '../../lib/format'
 import type { Account, Category, Transaction } from '../../types'
@@ -72,6 +73,25 @@ export function ImportSheet({
     onClose()
   }
 
+  /** Movimenti già registrati nell'intervallo di date del file, per i duplicati. */
+  async function fetchExisting(entriesList: ImportEntry[]): Promise<ExistingRow[]> {
+    const dates = entriesList.map((e) => e.date).filter((d): d is string => d !== null).sort()
+    if (dates.length === 0) return []
+    const { data } = await supabase
+      .from('transactions')
+      .select('date, amount_cents, kind')
+      .gte('date', dates[0])
+      .lte('date', dates[dates.length - 1])
+    return (data as ExistingRow[]) ?? []
+  }
+
+  function applyEntries(entriesList: ImportEntry[], existingList: ExistingRow[]) {
+    setExisting(existingList)
+    const dup = markDuplicates(entriesList, existingList)
+    setSelected(new Set(entriesList.filter((e) => !e.error && !dup.has(e.row)).map((e) => e.row)))
+    setCategoryByRow(new Map())
+  }
+
   async function handleFile(file: File) {
     setError('')
     setImportedCount(null)
@@ -93,15 +113,8 @@ export function ImportSheet({
       }
       const guessed = guessMapping(parsed.header)
       const firstEntries = parseEntries(parsed, guessed)
-      const dates = firstEntries.map((e) => e.date).filter((d): d is string => d !== null).sort()
-      const [existingRes, historyRes] = await Promise.all([
-        dates.length > 0
-          ? supabase
-              .from('transactions')
-              .select('date, amount_cents, kind')
-              .gte('date', dates[0])
-              .lte('date', dates[dates.length - 1])
-          : Promise.resolve({ data: [], error: null }),
+      const [existingList, historyRes] = await Promise.all([
+        fetchExisting(firstEntries),
         supabase
           .from('transactions')
           .select('description, category_id, kind')
@@ -109,13 +122,10 @@ export function ImportSheet({
           .order('created_at', { ascending: false })
           .limit(500),
       ])
-      setExisting((existingRes.data as ExistingRow[]) ?? [])
       setHistory((historyRes.data as HistoryRow[]) ?? [])
       setTable(parsed)
       setMapping(guessed)
-      const dup = markDuplicates(firstEntries, (existingRes.data as ExistingRow[]) ?? [])
-      setSelected(new Set(firstEntries.filter((e) => !e.error && !dup.has(e.row)).map((e) => e.row)))
-      setCategoryByRow(new Map())
+      applyEntries(firstEntries, existingList)
     } catch {
       setError('Lettura del file non riuscita, riprova.')
     } finally {
@@ -123,13 +133,12 @@ export function ImportSheet({
     }
   }
 
-  function updateMapping(next: ColumnMapping) {
+  async function updateMapping(next: ColumnMapping) {
     setMapping(next)
     if (!table) return
     const nextEntries = parseEntries(table, next)
-    const dup = markDuplicates(nextEntries, existing)
-    setSelected(new Set(nextEntries.filter((e) => !e.error && !dup.has(e.row)).map((e) => e.row)))
-    setCategoryByRow(new Map())
+    // Cambiando colonne può cambiare l'intervallo di date: i duplicati vanno ricontrollati.
+    applyEntries(nextEntries, await fetchExisting(nextEntries))
   }
 
   function toggleRow(row: number) {
@@ -249,7 +258,7 @@ export function ImportSheet({
             <Field label="Colonna data">
               <select
                 value={mapping?.date ?? ''}
-                onChange={(e) => updateMapping({ ...mapping!, date: e.target.value === '' ? null : Number(e.target.value) })}
+                onChange={(e) => void updateMapping({ ...mapping!, date: e.target.value === '' ? null : Number(e.target.value) })}
                 className={inputClass}
               >
                 <option value="">—</option>
@@ -261,7 +270,7 @@ export function ImportSheet({
             <Field label="Colonna descrizione">
               <select
                 value={mapping?.description ?? ''}
-                onChange={(e) => updateMapping({ ...mapping!, description: e.target.value === '' ? null : Number(e.target.value) })}
+                onChange={(e) => void updateMapping({ ...mapping!, description: e.target.value === '' ? null : Number(e.target.value) })}
                 className={inputClass}
               >
                 <option value="">—</option>
@@ -278,10 +287,10 @@ export function ImportSheet({
                 onChange={(e) => {
                   const value = e.target.value
                   if (value.startsWith('a:')) {
-                    updateMapping({ ...mapping!, amount: Number(value.slice(2)), debit: null, credit: null })
+                    void updateMapping({ ...mapping!, amount: Number(value.slice(2)), debit: null, credit: null })
                   } else if (value.startsWith('dc:')) {
                     const [, debit, credit] = value.split(':')
-                    updateMapping({ ...mapping!, amount: null, debit: Number(debit), credit: Number(credit) })
+                    void updateMapping({ ...mapping!, amount: null, debit: Number(debit), credit: Number(credit) })
                   }
                 }}
                 className={inputClass}
