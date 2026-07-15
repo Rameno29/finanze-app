@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Plus, Sparkles } from 'lucide-react'
+import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Moon, Plus, Sparkles } from 'lucide-react'
 import { PageHeader, Card, EmptyState, Spinner, inputClass } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
 import { mutateOffline } from '../../lib/offline'
 import { TransactionSheet, type TransactionDraft } from './TransactionSheet'
+import { DiarySheet } from './DiarySheet'
+import { WhatIfCard } from './WhatIfCard'
 import { BudgetsView } from './BudgetsView'
 import { CategoriesView } from './CategoriesView'
 import { GoalsView } from './GoalsView'
@@ -24,6 +26,7 @@ export function FinancePage() {
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [view, setView] = useState<View>('movimenti')
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [diaryOpen, setDiaryOpen] = useState(false)
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [draft, setDraft] = useState<TransactionDraft | null>(null)
 
@@ -318,6 +321,18 @@ export function FinancePage() {
             {quickError && (
               <p className="mt-2 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{quickError}</p>
             )}
+
+            {/* Diario del giorno: più movimenti in una sola dettatura */}
+            <button
+              onClick={() => setDiaryOpen(true)}
+              className="mt-2 flex w-full items-center gap-2 rounded-xl bg-card-2 px-4 py-2.5 text-left text-sm"
+            >
+              <Moon className="h-4 w-4 shrink-0 text-accent" />
+              <span className="flex-1 text-muted">
+                <span className="font-semibold text-ink">Diario del giorno</span> — detta tutte le
+                spese in una volta
+              </span>
+            </button>
             {listError && (
               <p className="mt-2 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{listError}</p>
             )}
@@ -437,7 +452,10 @@ export function FinancePage() {
         )}
 
         {view === 'obiettivi' && (
-          <GoalsView goals={goals} loading={goalsLoading} onChanged={reloadGoals} />
+          <>
+            <GoalsView goals={goals} loading={goalsLoading} onChanged={reloadGoals} />
+            <WhatIfCard accounts={accounts} />
+          </>
         )}
       </div>
 
@@ -455,6 +473,14 @@ export function FinancePage() {
           <Plus className="h-7 w-7" />
         </button>
       )}
+
+      <DiarySheet
+        open={diaryOpen}
+        onClose={() => setDiaryOpen(false)}
+        categories={categories}
+        accounts={accounts}
+        onSaved={reload}
+      />
 
       <TransactionSheet
         open={sheetOpen}

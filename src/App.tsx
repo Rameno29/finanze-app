@@ -19,6 +19,7 @@ const GooglePage = lazy(() => import('./modules/google/GooglePage').then((m) => 
 const MediaPage = lazy(() => import('./modules/media/MediaPage').then((m) => ({ default: m.MediaPage })))
 const GuidePage = lazy(() => import('./modules/guide/GuidePage').then((m) => ({ default: m.GuidePage })))
 const AssistantPage = lazy(() => import('./modules/assistant/AssistantPage').then((m) => ({ default: m.AssistantPage })))
+const FuelPage = lazy(() => import('./modules/fuel/FuelPage').then((m) => ({ default: m.FuelPage })))
 
 function Shell() {
   const { session, loading } = useAuth()
@@ -50,6 +51,7 @@ function Shell() {
           <Route path="/media" element={<MediaPage />} />
           <Route path="/guida" element={<GuidePage />} />
           <Route path="/assistente" element={<AssistantPage />} />
+          <Route path="/carburanti" element={<FuelPage />} />
           <Route path="*" element={<HomePage />} />
         </Routes>
       </Suspense>

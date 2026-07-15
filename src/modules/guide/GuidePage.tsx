@@ -96,6 +96,8 @@ export function GuidePage() {
           <P><B>Movimenti</B> — il registro di entrate e uscite. Il bottone <B>+</B> aggiunge un movimento: scegli tipo, importo, categoria, data e (se vuoi) una <B>ricorrenza</B>. Tocca un movimento per modificarlo o eliminarlo. Con le frecce ‹ › cambi mese.</P>
           <P><B>Valute estere</B> — scegli la valuta accanto all'importo: AJE conserva la cifra originale e usa il cambio ufficiale BCE del giorno (o dell'ultimo giorno lavorativo precedente) per mostrare e sommare il controvalore in euro.</P>
           <P><B>Aggiunta rapida a voce o con una frase</B> — nella barra in alto scrivi (o detti col microfono) qualcosa come <B>"20 euro pizza ieri sera"</B>: l'AI capisce importo, categoria e data e ti mostra il movimento già compilato — controlli e salvi.</P>
+          <P><B>Diario del giorno</B> — a fine giornata detta (o scrivi) tutte le spese in una volta: <B>"caffè 1,20, pranzo 8 euro, benzina 40"</B>. L'AI le separa in movimenti singoli con categoria proposta: togli la spunta a quelli sbagliati, scegli il conto e registri tutto in blocco.</P>
+          <P><B>Simulatore what-if</B> (nella scheda Obiettivi) — "e se mettessi via 100 € in più al mese?": il grafico confronta il tuo ritmo attuale con lo scenario, calcolato su entrate e uscite reali degli ultimi mesi. Il bottone AI ti dice se è sostenibile e dove recuperare la cifra.</P>
           <P><B>Ricorrenze automatiche</B> — se imposti "mensile" su affitto o stipendio, alla scadenza la nuova occorrenza si crea da sola ogni notte: non devi fare nulla.</P>
           <P><B>Conti</B> — crea conti separati per contanti, banca e carte, ognuno con il suo saldo iniziale: assegnando i movimenti a un conto vedi il saldo aggiornato di ognuno e il patrimonio totale. Il bottone <B>Trasferimento</B> sposta soldi tra due conti senza contare come entrata o uscita (per eliminarlo, tocca uno dei due movimenti collegati).</P>
           <P><B>Importa l'estratto conto (CSV)</B> — nella vista Conti, l'icona di caricamento accanto a un conto legge il file CSV scaricato dal sito della banca: AJE riconosce da solo colonne, date e importi (puoi correggerli), <B>propone la categoria</B> in base ai tuoi movimenti passati e <B>segnala i possibili duplicati</B>, che restano deselezionati. Scegli le righe e importi tutto in un colpo: il file non lascia il tuo dispositivo.</P>
@@ -136,6 +138,7 @@ export function GuidePage() {
         </Section>
 
         <Section icon={Settings} title="Altro (impostazioni)">
+          <P>• <B>Carburanti</B> — la mappa dei distributori con i prezzi comunicati al Ministero (aggiornati ogni mattina): il più economico è evidenziato in verde. Usa la tua posizione, ma puoi anche trascinare la mappa dove vuoi e toccare "Cerca in quest'area"; il bottone <B>Naviga</B> apre le indicazioni stradali.</P>
           <P>• <B>Tema</B> — chiaro, scuro o automatico come il sistema.</P>
           <P>• <B>Passkey e Face ID</B> — crea una passkey su questo dispositivo e dalla volta dopo accedi col viso (o l'impronta), senza scrivere la password. La passkey resta sul tuo dispositivo o nel portachiavi iCloud: AJE conserva solo la parte pubblica, e puoi eliminarla quando vuoi. La password continua comunque a funzionare.</P>
           <P>• <B>Account</B> — la tua email e il bottone Esci.</P>

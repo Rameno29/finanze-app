@@ -116,6 +116,28 @@ const PARSE_TX_SCHEMA = {
   required: ['amount_eur', 'kind'],
 }
 
+const PARSE_TXS_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    transactions: {
+      type: 'ARRAY',
+      description: 'Tutti i movimenti citati nel testo, uno per voce, nell’ordine in cui compaiono',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          amount_eur: { type: 'NUMBER', description: 'Importo in euro (sempre positivo)' },
+          kind: { type: 'STRING', description: "'expense' per una spesa, 'income' per un'entrata" },
+          category: { type: 'STRING', description: 'Il nome ESATTO di una delle categorie fornite, oppure vuoto' },
+          date: { type: 'STRING', description: 'Data in formato YYYY-MM-DD (se non indicata, usa la data odierna fornita)' },
+          description: { type: 'STRING', description: 'Breve descrizione del movimento (es. "Caffè al bar")' },
+        },
+        required: ['amount_eur', 'kind'],
+      },
+    },
+  },
+  required: ['transactions'],
+}
+
 const DOCUMENT_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -347,6 +369,52 @@ Deno.serve(async (req: Request) => {
           typeof input.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : null,
         description: typeof input.description === 'string' ? input.description : '',
       })
+    }
+
+    // ---- Diario: interpreta più movimenti da un unico testo ----
+    if (mode === 'parse_transactions') {
+      if (typeof text !== 'string' || !text.trim()) return json({ error: 'testo mancante' }, 400)
+      if (text.length > 1000) return json({ error: 'Testo troppo lungo (max 1000 caratteri)' }, 400)
+
+      const { data: cats } = await admin
+        .from('categories')
+        .select('name, kind')
+        .eq('user_id', userId)
+      const catList = ((cats ?? []) as Array<{ name: string; kind: string }>)
+        .map((c) => `${c.name} (${c.kind === 'income' ? 'entrata' : 'uscita'})`)
+        .join(', ')
+
+      const parsed = await callGemini(
+        apiKey,
+        [
+          {
+            text:
+              `Oggi è ${new Date().toISOString().slice(0, 10)}. Questo è il diario delle spese di oggi di un utente italiano: ` +
+              `"${text.trim()}".\n` +
+              `Estrai OGNI movimento citato (spese e entrate), uno per voce. Non inventare movimenti non citati; ` +
+              `non unire movimenti diversi. Se una data non è indicata usa quella odierna.\n` +
+              `Categorie disponibili dell'utente: ${catList || '(nessuna)'}. Per ogni movimento scegli la più adatta ` +
+              `usando il nome ESATTO, oppure lascia vuoto.`,
+          },
+        ],
+        PARSE_TXS_SCHEMA,
+      )
+      const input = JSON.parse(parsed) as { transactions?: unknown[] }
+      const list = (Array.isArray(input.transactions) ? input.transactions : [])
+        .slice(0, 20)
+        .map((item) => {
+          const row = item as Record<string, unknown>
+          return {
+            amount_cents: eurToCents(row.amount_eur),
+            kind: row.kind === 'income' ? 'income' : 'expense',
+            category_name: typeof row.category === 'string' ? row.category : null,
+            date:
+              typeof row.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(row.date) ? row.date : null,
+            description: typeof row.description === 'string' ? row.description : '',
+          }
+        })
+        .filter((row) => row.amount_cents !== null)
+      return json({ transactions: list })
     }
 
     // ---- Ricerca web con AI ----

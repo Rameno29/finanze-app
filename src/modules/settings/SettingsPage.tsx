@@ -6,6 +6,7 @@ import {
   Bot,
   ChevronRight,
   Fingerprint,
+  Fuel,
   Globe,
   LogOut,
   Moon,
@@ -173,6 +174,14 @@ export function SettingsPage() {
             </span>
             <span className="flex-1 font-medium">Media</span>
             <span className="text-xs text-muted">Spotify · YouTube</span>
+            <ChevronRight className="h-4 w-4 text-muted" />
+          </Link>
+          <Link to="/carburanti" className="flex min-h-[52px] items-center gap-3 px-4">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15 text-amber-600">
+              <Fuel className="h-4 w-4" />
+            </span>
+            <span className="flex-1 font-medium">Carburanti</span>
+            <span className="text-xs text-muted">Il distributore più economico</span>
             <ChevronRight className="h-4 w-4 text-muted" />
           </Link>
           <Link to="/guida" className="flex min-h-[52px] items-center gap-3 px-4">

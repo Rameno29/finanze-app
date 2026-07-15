@@ -89,6 +89,12 @@ server** (tabella protetta `app_secrets` o secret di GitHub). Il browser non le 
 - **Scadenzario spese fisse e abbonamenti** con costo mensile/annuo.
 - **Export CSV/Excel** di tutti i movimenti (formato italiano, protetto da CSV injection).
 - **Aggiunta rapida a voce o con una frase** ("20 euro pizza ieri") → l'AI compila il movimento.
+- **Diario del giorno**: un'unica dettatura o frase con più spese ("caffè 1,20, pranzo 8 euro,
+  benzina 40") → l'AI la separa in movimenti singoli con categoria proposta; selezione, conto
+  comune e salvataggio in blocco (funziona anche offline tramite la coda).
+- **Simulatore what-if** (scheda Obiettivi): proiezione del patrimonio a 6/12/24/60 mesi calcolata
+  su medie reali di entrate/uscite (mesi completi) + scenario "risparmio/spesa in più al mese",
+  grafico baseline vs scenario e commento AI sulla sostenibilità (`src/lib/whatif.ts`, testato).
 - **Supporto multivaluta**: 16 valute, importo originale e controvalore EUR calcolato con il cambio
   ufficiale BCE del giorno o dell'ultimo giorno lavorativo precedente; tasso, data e fonte restano
   salvati sul movimento e sono inclusi nell'export CSV.
@@ -132,6 +138,10 @@ server** (tabella protetta `app_secrets` o secret di GitHub). Il browser non le 
 - **Spotify**: ricerca brani, player interno (embed), controllo riproduzione sul dispositivo.
 
 ### ⚙️ Altro
+- **Carburanti**: mappa interattiva Leaflet/OpenStreetMap (trascinabile e zoomabile) dei
+  distributori italiani con i prezzi degli open data MIMIT (Edge Function `fuel-prices` con cache
+  in memoria 6h, filtro per raggio, prezzi più vecchi di 30 giorni esclusi); geolocalizzazione,
+  "Cerca in quest'area" sul centro mappa, classifica per prezzo e link "Naviga" verso Google Maps.
 - Tema chiaro/scuro/automatico.
 - **Passkey (WebAuthn)**: accesso con Face ID/Touch ID senza password (API sperimentale Supabase,
   `signInWithPasskey`/`registerPasskey`); gestione delle passkey (elenco, creazione, eliminazione)
@@ -174,6 +184,8 @@ dell'utente.
   `ai-analyze` anche per le buste paga.
 - `ecb-rates` — recupera i cambi giornalieri dal Data Portal BCE, usa solo valute ammesse, autentica
   l'utente, riutilizza la cache server e restituisce il giorno lavorativo disponibile più vicino.
+- `fuel-prices` — scarica i CSV open data MIMIT dei prezzi carburante (cache in memoria 6 ore),
+  autentica l'utente e restituisce i distributori nel raggio richiesto ordinati per prezzo.
 
 **Task pianificati (pg_cron):**
 - `materialize-recurring` — ogni notte crea i movimenti ricorrenti scaduti.
@@ -410,6 +422,20 @@ VITE_YOUTUBE_API_KEY=...
 - Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
 ### Ultimo rilascio
+- **15 luglio 2026 (sera) — what-if, diario vocale e carburanti:** tre funzioni nuove.
+  1) *Simulatore what-if* nella scheda Obiettivi: proiezione patrimonio con medie reali +
+  scenario mensile, grafico e commento AI (riusa mode `assistant`; `src/lib/whatif.ts` con 8 test).
+  2) *Diario del giorno* nei Movimenti: dettatura unica → `ai-analyze` v7 mode
+  `parse_transactions` (schema ARRAY, max 20 movimenti) → conferma in blocco con conto comune.
+  3) *Carburanti* in Altro: nuova Edge Function `fuel-prices` (open data MIMIT, ~8 MB CSV in cache
+  6h) + pagina `/carburanti` con mappa Leaflet/OpenStreetMap navigabile (nuova dipendenza
+  `leaflet`, tile consentiti dalla CSP esistente via `img-src https:`), geolocalizzazione,
+  ricerca sul centro mappa (zoom automatico sui risultati), classifica prezzi e link navigazione.
+  Verifiche: 71 test, lint/`tsc` puliti, build PWA ok (FuelPage in chunk lazy separato da 46 kB gz);
+  `fuel-prices` v1 e `ai-analyze` v7 distribuite ACTIVE e collaudo E2E autenticato con utente
+  temporaneo (poi eliminato): 60 distributori reali intorno a Roma con "PIÙ ECONOMICO" evidenziato,
+  diario "caffè 1,20, pranzo 12, benzina 40, ricevuti 25 da Luca" → 4 movimenti con categorie
+  corrette registrati in blocco, simulatore con proiezione +1.200 €/anno e commento Gemini coerente.
 - **15 luglio 2026 — passkey con Face ID:** accesso senza password con WebAuthn (API sperimentale
   Supabase, client con `auth.experimental.passkey`, supabase-js 2.110): bottone "Accedi con passkey
   (Face ID)" nel login (visibile solo se il browser supporta WebAuthn) e sezione "Passkey e Face ID"
