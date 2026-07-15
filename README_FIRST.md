@@ -2,7 +2,7 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **14 luglio 2026**.
+> Ultimo aggiornamento: **15 luglio 2026**.
 
 ---
 
@@ -133,6 +133,9 @@ server** (tabella protetta `app_secrets` o secret di GitHub). Il browser non le 
 
 ### ⚙️ Altro
 - Tema chiaro/scuro/automatico.
+- **Passkey (WebAuthn)**: accesso con Face ID/Touch ID senza password (API sperimentale Supabase,
+  `signInWithPasskey`/`registerPasskey`); gestione delle passkey (elenco, creazione, eliminazione)
+  in Altro → "Passkey e Face ID". La password resta come metodo alternativo.
 - **Modalità offline automatica**: ultime viste di Finanze e Agenda cifrate sul dispositivo; creazione,
   modifica ed eliminazione di movimenti e attività accodate e sincronizzate in ordine al ritorno online.
   La barra di stato mostra offline, sincronizzazione ed eventuali operazioni in attesa.
@@ -189,6 +192,7 @@ dell'utente.
 | **Spotify Client ID** | `src/lib/config.ts` (pubblico) | ✅ Configurato |
 | **Chiave YouTube Data API** | secret GitHub `VITE_YOUTUBE_API_KEY` | ✅ Configurata + ristretta al dominio |
 | **Chiave anon Supabase** | `src/lib/config.ts` (pubblica per design) | ✅ |
+| **Passkey (WebAuthn)** | Dashboard Supabase → Authentication → Passkeys | ⚠️ Da attivare: RP Display Name `AJE`, RP ID `rameno29.github.io`, RP Origins `https://rameno29.github.io` |
 
 **Google OAuth** è in modalità test: solo le email aggiunte come "utenti di test" nella console
 Google Cloud possono collegarsi (compare l'avviso "app non verificata", normale).
@@ -312,6 +316,9 @@ costi gratuiti, semplicità operativa e protezione dei dati.
    - Aggiungere enrollment, verifica e recupero TOTP nelle impostazioni account.
    - La MFA di base è compresa nel piano gratuito Supabase ed è preferibile all'SMS per costi e
      affidabilità.
+   - Priorità ridotta dal 15 luglio 2026: le **passkey con Face ID** (già realizzate) offrono
+     un accesso resistente al phishing; la MFA TOTP resta utile solo per rafforzare il login
+     con password.
 
 ### Priorità B — utili dopo il consolidamento del modello dati
 
@@ -403,6 +410,16 @@ VITE_YOUTUBE_API_KEY=...
 - Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
 ### Ultimo rilascio
+- **15 luglio 2026 — passkey con Face ID:** accesso senza password con WebAuthn (API sperimentale
+  Supabase, client con `auth.experimental.passkey`, supabase-js 2.110): bottone "Accedi con passkey
+  (Face ID)" nel login (visibile solo se il browser supporta WebAuthn) e sezione "Passkey e Face ID"
+  in Altro per creare/elencare/eliminare le passkey (`src/lib/passkeys.ts` con messaggi di errore in
+  italiano). La password resta come metodo alternativo. **Da fare una volta nel dashboard Supabase**
+  (Authentication → Passkeys): abilitare e impostare RP Display Name `AJE`, RP ID
+  `rameno29.github.io`, RP Origins `https://rameno29.github.io` — finché non è attivo, il bottone
+  mostra un avviso dedicato. Nota: con questo RP ID la cerimonia non funziona da `localhost` (è
+  legata al dominio di produzione). Verifiche: `tsc`/lint puliti, 63 test, build PWA ok, smoke test
+  del messaggio "passkey non attive" nel browser; il test biometrico reale va fatto sull'iPhone.
 - **14 luglio 2026 (sera) — ricerca documenti + debug generale:** colonna generata `search_vector`
   (tsvector italiano su nome file e analisi AI) + indice GIN su `documents` (migrazione remota
   `20260714010629`), barra di ricerca nella pagina Documenti (`websearch`, debounce, max 50

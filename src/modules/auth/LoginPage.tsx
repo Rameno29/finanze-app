@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
+import { Fingerprint } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { passkeyErrorMessage, passkeySupported } from '../../lib/passkeys'
 import { Spinner } from '../../components/ui'
 
 const CREAM = '#F2EDE4'
@@ -12,7 +14,23 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
+  const [passkeyBusy, setPasskeyBusy] = useState(false)
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
+
+  /** Accesso con passkey: Face ID/Touch ID, senza email né password. */
+  async function handlePasskey() {
+    setPasskeyBusy(true)
+    setMessage(null)
+    try {
+      const { error } = await supabase.auth.signInWithPasskey()
+      if (error) setMessage({ kind: 'error', text: passkeyErrorMessage(error) })
+      // In caso di successo AuthContext riceve SIGNED_IN e mostra l'app.
+    } catch (cause) {
+      setMessage({ kind: 'error', text: passkeyErrorMessage(cause) })
+    } finally {
+      setPasskeyBusy(false)
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -142,6 +160,23 @@ export function LoginPage() {
             )}
           </button>
         </form>
+
+        {mode === 'login' && passkeySupported() && (
+          <button
+            onClick={() => void handlePasskey()}
+            disabled={busy || passkeyBusy}
+            className="mt-4 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] font-semibold backdrop-blur-xl transition active:scale-[0.98] disabled:opacity-60"
+            style={{ color: CREAM }}
+          >
+            {passkeyBusy ? (
+              <Spinner className="h-5 w-5" />
+            ) : (
+              <>
+                <Fingerprint className="h-5 w-5" /> Accedi con passkey (Face ID)
+              </>
+            )}
+          </button>
+        )}
 
         <button
           className="mt-6 w-full py-2 text-center text-sm font-medium"

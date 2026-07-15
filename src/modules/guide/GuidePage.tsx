@@ -137,6 +137,7 @@ export function GuidePage() {
 
         <Section icon={Settings} title="Altro (impostazioni)">
           <P>• <B>Tema</B> — chiaro, scuro o automatico come il sistema.</P>
+          <P>• <B>Passkey e Face ID</B> — crea una passkey su questo dispositivo e dalla volta dopo accedi col viso (o l'impronta), senza scrivere la password. La passkey resta sul tuo dispositivo o nel portachiavi iCloud: AJE conserva solo la parte pubblica, e puoi eliminarla quando vuoi. La password continua comunque a funzionare.</P>
           <P>• <B>Account</B> — la tua email e il bottone Esci.</P>
           <P>• Le funzioni AI sono attive con Google Gemini (piano gratuito): la chiave sta al sicuro sul server, mai sul telefono.</P>
         </Section>

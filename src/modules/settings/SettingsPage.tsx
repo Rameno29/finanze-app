@@ -5,16 +5,20 @@ import {
   BookOpen,
   Bot,
   ChevronRight,
+  Fingerprint,
   Globe,
   LogOut,
   Moon,
   Music,
+  Plus,
   Smartphone,
   Sparkles,
   Sun,
   CloudOff,
+  Trash2,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { passkeyErrorMessage, passkeySupported, type Passkey } from '../../lib/passkeys'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme, type ThemeSetting } from '../../context/ThemeContext'
 import {
@@ -47,6 +51,55 @@ export function SettingsPage() {
       .then((s) => setPushOn(s !== null))
       .catch(() => setPushMsg('Non riesco a leggere lo stato delle notifiche.'))
   }, [])
+
+  // Passkey (Face ID/Touch ID)
+  const [passkeys, setPasskeys] = useState<Passkey[]>([])
+  const [passkeyBusy, setPasskeyBusy] = useState(false)
+  const [passkeyMsg, setPasskeyMsg] = useState('')
+
+  useEffect(() => {
+    if (!passkeySupported() || !navigator.onLine) return
+    void supabase.auth.passkey
+      .list()
+      .then(({ data, error }) => {
+        if (error) setPasskeyMsg(passkeyErrorMessage(error))
+        else setPasskeys(data ?? [])
+      })
+      .catch((cause: unknown) => setPasskeyMsg(passkeyErrorMessage(cause)))
+  }, [])
+
+  async function addPasskey() {
+    setPasskeyBusy(true)
+    setPasskeyMsg('')
+    try {
+      const { data, error } = await supabase.auth.registerPasskey()
+      if (error) {
+        setPasskeyMsg(passkeyErrorMessage(error))
+      } else if (data) {
+        setPasskeys((prev) => [...prev, data as Passkey])
+        setPasskeyMsg('Passkey creata! Dalla prossima volta puoi accedere con Face ID.')
+      }
+    } catch (cause) {
+      setPasskeyMsg(passkeyErrorMessage(cause))
+    } finally {
+      setPasskeyBusy(false)
+    }
+  }
+
+  async function removePasskey(passkey: Passkey) {
+    if (!window.confirm(`Eliminare la passkey "${passkey.friendly_name ?? 'senza nome'}"? Non potrai più usarla per accedere.`)) return
+    setPasskeyBusy(true)
+    setPasskeyMsg('')
+    try {
+      const { error } = await supabase.auth.passkey.delete({ passkeyId: passkey.id })
+      if (error) setPasskeyMsg(passkeyErrorMessage(error))
+      else setPasskeys((prev) => prev.filter((p) => p.id !== passkey.id))
+    } catch (cause) {
+      setPasskeyMsg(passkeyErrorMessage(cause))
+    } finally {
+      setPasskeyBusy(false)
+    }
+  }
 
   async function testPush() {
     setTestBusy(true)
@@ -228,6 +281,58 @@ export function SettingsPage() {
             documenti, e riassunti dei video YouTube. L’elaborazione avviene su una funzione
             sicura del server: la chiave non passa mai dal telefono.
           </p>
+        </Card>
+
+        <Card>
+          <h2 className="mb-2 flex items-center gap-2 font-semibold">
+            <Fingerprint className="h-4 w-4 text-accent" /> Passkey e Face ID
+          </h2>
+          <p className="mb-3 text-sm text-muted">
+            Accedi senza password: la passkey usa Face ID (o Touch ID) e resta salvata solo sul tuo
+            dispositivo o nel portachiavi iCloud.
+          </p>
+          {!passkeySupported() ? (
+            <p className="text-xs text-muted">Questo browser non supporta le passkey.</p>
+          ) : (
+            <>
+              {passkeys.length > 0 && (
+                <ul className="mb-3 divide-y divide-line rounded-xl border border-line">
+                  {passkeys.map((p) => (
+                    <li key={p.id} className="flex items-center gap-3 px-3 py-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">
+                          {p.friendly_name || 'Passkey'}
+                        </span>
+                        <span className="block text-xs text-muted">
+                          creata il {new Date(p.created_at).toLocaleDateString('it-IT')}
+                          {p.last_used_at
+                            ? ` · ultimo uso ${new Date(p.last_used_at).toLocaleDateString('it-IT')}`
+                            : ''}
+                        </span>
+                      </span>
+                      <button
+                        onClick={() => void removePasskey(p)}
+                        disabled={passkeyBusy}
+                        aria-label={`Elimina passkey ${p.friendly_name ?? ''}`}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-expense disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                onClick={() => void addPasskey()}
+                disabled={passkeyBusy}
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-line text-sm font-semibold text-accent disabled:opacity-60"
+              >
+                {passkeyBusy ? <Spinner className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                Crea una passkey su questo dispositivo
+              </button>
+            </>
+          )}
+          {passkeyMsg && <p className="mt-3 rounded-xl bg-card-2 px-3 py-2.5 text-xs">{passkeyMsg}</p>}
         </Card>
 
         <Card>
