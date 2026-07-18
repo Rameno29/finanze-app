@@ -2,7 +2,7 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **15 luglio 2026**.
+> Ultimo aggiornamento: **18 luglio 2026**.
 
 ---
 
@@ -121,6 +121,11 @@ server** (tabella protetta `app_secrets` o secret di GitHub). Il browser non le 
   riassunto, spiegazione e punti chiave dell'analisi AI (colonna `search_vector` generata + indice
   GIN, risultati filtrati dalla RLS).
 - **Crea PDF con l'AI** da una richiesta scritta o dal contenuto di un video YouTube.
+- **Scanner documenti** (tutto lato client, `src/lib/scanner.ts` + `ScannerSheet.tsx`): fotocamera o
+  galleria, fino a 20 pagine, filtri per pagina (Migliorato = stretch contrasto sui percentili
+  2–98, Grigio, B/N con soglia di Otsu, Originale), rotazione, PDF A4 con jsPDF e condivisione con
+  il foglio nativo (Web Share API con file; fallback download); salvataggio facoltativo nei
+  Documenti senza avvio automatico dell'analisi AI.
 
 ### 🤖 Assistente AI (chat + voce)
 - **Risponde** a domande sui tuoi dati ("quanto ho speso in ristoranti?").
@@ -422,6 +427,19 @@ VITE_YOUTUBE_API_KEY=...
 - Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
 ### Ultimo rilascio
+- **18 luglio 2026 — scanner documenti:** solo frontend (nessuna migrazione né Edge Function).
+  Card "Scanner documenti" nella pagina Documenti → `ScannerSheet` con fotocamera/galleria
+  (`input capture`, max 20 pagine), filtri per pagina in `src/lib/scanner.ts` (Migliorato =
+  stretch contrasto percentili 2–98, Grigio, B/N con soglia di Otsu, Originale; ridimensionamento
+  a 2200 px, EXIF gestito da `createImageBitmap` con ripiego `<img>`), rotazione 90°, PDF A4
+  multi-pagina con jsPDF, condivisione con Web Share API (foglio nativo iOS: WhatsApp, Mail, …)
+  con ripiego download, salvataggio facoltativo nei Documenti (upload storage + riga `documents`,
+  senza avvio automatico dell'analisi AI, per privacy sui documenti d'identità). Verifiche: 82
+  test (11 nuovi su filtri/Otsu/percentili/fit A4), lint/`tsc` puliti, build PWA ok; collaudo E2E
+  con utente temporaneo (poi eliminato, incluso il file di test nello storage via Storage API —
+  nota: `storage.objects` non è cancellabile via SQL): 2 foto sintetiche → anteprime, B/N binario
+  al 92% verificato sui pixel, PDF salvato nei Documenti con stato "Da analizzare", fallback
+  download della condivisione corretto.
 - **15 luglio 2026 (sera) — what-if, diario vocale e carburanti:** tre funzioni nuove.
   1) *Simulatore what-if* nella scheda Obiettivi: proiezione patrimonio con medie reali +
   scenario mensile, grafico e commento AI (riusa mode `assistant`; `src/lib/whatif.ts` con 8 test).
