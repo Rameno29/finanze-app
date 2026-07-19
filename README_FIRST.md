@@ -121,11 +121,15 @@ server** (tabella protetta `app_secrets` o secret di GitHub). Il browser non le 
   riassunto, spiegazione e punti chiave dell'analisi AI (colonna `search_vector` generata + indice
   GIN, risultati filtrati dalla RLS).
 - **Crea PDF con l'AI** da una richiesta scritta o dal contenuto di un video YouTube.
-- **Scanner documenti** (tutto lato client, `src/lib/scanner.ts` + `ScannerSheet.tsx`): fotocamera o
-  galleria, fino a 20 pagine, filtri per pagina (Migliorato = stretch contrasto sui percentili
-  2–98, Grigio, B/N con soglia di Otsu, Originale), rotazione, PDF A4 con jsPDF e condivisione con
-  il foglio nativo (Web Share API con file; fallback download); salvataggio facoltativo nei
-  Documenti senza avvio automatico dell'analisi AI.
+- **Scanner documenti** (tutto lato client, `src/lib/scanner.ts` + `src/lib/docDetect.ts` +
+  `ScannerSheet.tsx`): fotocamera o galleria, fino a 20 pagine; **riconoscimento automatico dei
+  bordi** (Otsu + componente connessa più grande + 8 estremi direzionali → quadrilatero di area
+  massima) e **raddrizzamento prospettico** (omografia 8×8 risolta con Gauss, warp bilineare) come
+  le app di scansione; editor con i **4 angoli trascinabili** (bordi automatici / foto intera /
+  manuali); filtri per pagina (Migliorato = stretch contrasto sui percentili 2–98, Grigio, B/N con
+  soglia di Otsu, Originale), rotazione, PDF A4 con jsPDF e condivisione con il foglio nativo
+  (Web Share API con file; fallback download); salvataggio facoltativo nei Documenti senza avvio
+  automatico dell'analisi AI.
 
 ### 🤖 Assistente AI (chat + voce)
 - **Risponde** a domande sui tuoi dati ("quanto ho speso in ristoranti?").
@@ -427,6 +431,18 @@ VITE_YOUTUBE_API_KEY=...
 - Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
 ### Ultimo rilascio
+- **18 luglio 2026 (sera) — scanner "vero" con raddrizzamento:** su richiesta di Bogdan lo scanner
+  ora funziona come CamScanner. Nuovo `src/lib/docDetect.ts` (matematica pura, 10 test):
+  rilevamento del documento (Otsu → componente connessa più grande via flood fill → 8 estremi
+  direzionali → quadrilatero di area massima; ordinamento angolare attorno al centroide robusto
+  anche a 45°, dove le diagonali producono pareggi — bug trovato e corretto in sviluppo),
+  omografia prospettica (sistema 8×8 con eliminazione di Gauss) e warp bilineare. `processScan`
+  ora ritaglia e raddrizza sul quadrilatero prima di ruotare e filtrare; `previewScan` genera
+  l'anteprima originale + bordi rilevati. In `ScannerSheet`: ritaglio automatico all'aggiunta
+  (badge "ritagliata"/"foto intera") ed editor "Regola i bordi" con i 4 angoli trascinabili
+  (pointer events), overlay SVG, bottoni Bordi automatici/Foto intera. Verifiche: 92 test,
+  lint/`tsc` puliti, build ok; E2E con foto sintetica in prospettiva su sfondo scuro: bordi
+  rilevati con scarto <1% dagli angoli reali, documento raddrizzato senza sfondo residuo.
 - **18 luglio 2026 — scanner documenti:** solo frontend (nessuna migrazione né Edge Function).
   Card "Scanner documenti" nella pagina Documenti → `ScannerSheet` con fotocamera/galleria
   (`input capture`, max 20 pagine), filtri per pagina in `src/lib/scanner.ts` (Migliorato =

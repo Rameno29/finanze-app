@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Check, CloudUpload, Download, RotateCw, Share2, Trash2 } from 'lucide-react'
+import { Camera, Check, CloudUpload, Crop, Download, RotateCw, Share2, Trash2 } from 'lucide-react'
 import { PrimaryButton, Sheet, Spinner } from '../../components/ui'
 import { requireUserId, supabase } from '../../lib/supabase'
 import { todayISO } from '../../lib/format'
@@ -7,16 +7,22 @@ import {
   SCAN_FILTERS,
   buildScansPdf,
   canShareFiles,
+  previewScan,
   processScan,
   type ScanFilter,
   type ScanPageImage,
+  type ScanPreview,
 } from '../../lib/scanner'
+import { FULL_QUAD, orderQuad, type Quad } from '../../lib/docDetect'
 
 interface ScanPage {
   id: string
   file: File
   filter: ScanFilter
   rotation: 0 | 90 | 180 | 270
+  /** Bordi usati per il raddrizzamento (null = foto intera). */
+  quad: Quad | null
+  preview: ScanPreview | null
   image: ScanPageImage | null
   busy: boolean
 }
@@ -41,6 +47,7 @@ export function ScannerSheet({
   const [notice, setNotice] = useState('')
   const [exporting, setExporting] = useState(false)
   const [savingCloud, setSavingCloud] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -48,17 +55,21 @@ export function ScannerSheet({
     setPages([])
     setError('')
     setNotice('')
+    setEditingId(null)
   }, [open])
 
   function pdfFileName(): string {
     return `scansione-${todayISO()}.pdf`
   }
 
-  async function reprocess(page: ScanPage, patch: Partial<Pick<ScanPage, 'filter' | 'rotation'>>) {
+  async function reprocess(
+    page: ScanPage,
+    patch: Partial<Pick<ScanPage, 'filter' | 'rotation' | 'quad'>>,
+  ) {
     const next = { ...page, ...patch }
     setPages((prev) => prev.map((p) => (p.id === page.id ? { ...next, busy: true } : p)))
     try {
-      const image = await processScan(next.file, next.filter, next.rotation)
+      const image = await processScan(next.file, next.filter, next.rotation, next.quad)
       setPages((prev) => prev.map((p) => (p.id === page.id ? { ...next, image, busy: false } : p)))
     } catch {
       setPages((prev) => prev.map((p) => (p.id === page.id ? { ...p, busy: false } : p)))
@@ -72,11 +83,18 @@ export function ScannerSheet({
     for (const file of Array.from(files).slice(0, 20 - pages.length)) {
       if (!file.type.startsWith('image/')) continue
       const id = crypto.randomUUID()
-      const page: ScanPage = { id, file, filter: 'migliorato', rotation: 0, image: null, busy: true }
+      const page: ScanPage = {
+        id, file, filter: 'migliorato', rotation: 0, quad: null, preview: null, image: null, busy: true,
+      }
       setPages((prev) => [...prev, page])
       try {
-        const image = await processScan(file, page.filter, page.rotation)
-        setPages((prev) => prev.map((p) => (p.id === id ? { ...p, image, busy: false } : p)))
+        // Anteprima + riconoscimento bordi: se affidabile, ritaglia e raddrizza subito.
+        const preview = await previewScan(file)
+        const quad = preview.detectedQuad
+        const image = await processScan(file, page.filter, page.rotation, quad)
+        setPages((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, preview, quad, image, busy: false } : p)),
+        )
       } catch {
         setPages((prev) => prev.filter((p) => p.id !== id))
         setError('Non riesco a leggere una delle foto: riprova.')
@@ -180,6 +198,23 @@ export function ScannerSheet({
   }
 
   const ready = pages.length > 0 && pages.every((p) => !p.busy) && readyImages().length > 0
+  const editingPage = editingId ? pages.find((p) => p.id === editingId) : undefined
+
+  if (editingPage?.preview) {
+    return (
+      <Sheet open={open} onClose={() => setEditingId(null)} title="Regola i bordi">
+        <CornerEditor
+          preview={editingPage.preview}
+          quad={editingPage.quad}
+          onCancel={() => setEditingId(null)}
+          onApply={(quad) => {
+            setEditingId(null)
+            void reprocess(editingPage, { quad })
+          }}
+        />
+      </Sheet>
+    )
+  }
 
   return (
     <Sheet open={open} onClose={onClose} title="Scanner documenti">
@@ -231,8 +266,22 @@ export function ScannerSheet({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="text-sm font-semibold">Pagina {index + 1}</span>
+                        <span className="min-w-0 text-sm font-semibold">
+                          Pagina {index + 1}
+                          <span className="ml-1.5 align-middle text-[10px] font-medium text-muted">
+                            {page.quad ? '· ritagliata' : '· foto intera'}
+                          </span>
+                        </span>
                         <span className="flex gap-1">
+                          <button
+                            onClick={() => setEditingId(page.id)}
+                            disabled={page.busy || !page.preview}
+                            aria-label={`Regola i bordi della pagina ${index + 1}`}
+                            title="Regola i bordi"
+                            className="flex h-9 w-9 items-center justify-center rounded-full bg-card-2 text-accent disabled:opacity-50"
+                          >
+                            <Crop className="h-4 w-4" />
+                          </button>
                           <button
                             onClick={() =>
                               void reprocess(page, {
@@ -322,5 +371,113 @@ export function ScannerSheet({
         {error && <p className="mt-3 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>}
       </div>
     </Sheet>
+  )
+}
+
+/**
+ * Editor dei bordi: mostra la foto originale con i 4 angoli trascinabili;
+ * il quadrilatero scelto viene raddrizzato in una pagina piatta.
+ */
+function CornerEditor({
+  preview,
+  quad,
+  onCancel,
+  onApply,
+}: {
+  preview: ScanPreview
+  quad: Quad | null
+  onCancel: () => void
+  onApply: (quad: Quad | null) => void
+}) {
+  const [points, setPoints] = useState<Quad>(quad ?? preview.detectedQuad ?? FULL_QUAD)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const draggingRef = useRef<number | null>(null)
+
+  function moveTo(clientX: number, clientY: number) {
+    const index = draggingRef.current
+    const box = containerRef.current?.getBoundingClientRect()
+    if (index === null || !box) return
+    const x = Math.min(1, Math.max(0, (clientX - box.left) / box.width))
+    const y = Math.min(1, Math.max(0, (clientY - box.top) / box.height))
+    setPoints((prev) => prev.map((p, i) => (i === index ? { x, y } : p)) as Quad)
+  }
+
+  return (
+    <div className="pb-4">
+      <p className="mb-3 text-sm text-muted">
+        Trascina gli angoli sui bordi del documento: la pagina verrà ritagliata e raddrizzata.
+      </p>
+
+      <div
+        ref={containerRef}
+        className="relative touch-none select-none overflow-hidden rounded-2xl border border-line"
+        onPointerMove={(e) => moveTo(e.clientX, e.clientY)}
+        onPointerUp={() => (draggingRef.current = null)}
+        onPointerCancel={() => (draggingRef.current = null)}
+      >
+        <img src={preview.dataUrl} alt="Foto originale" className="block w-full" draggable={false} />
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+        >
+          <polygon
+            points={points.map((p) => `${p.x * 100},${p.y * 100}`).join(' ')}
+            fill="rgba(45,212,167,0.18)"
+            stroke="#2dd4a7"
+            strokeWidth="0.7"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        {points.map((p, i) => (
+          <button
+            key={i}
+            aria-label={`Angolo ${i + 1}`}
+            onPointerDown={(e) => {
+              draggingRef.current = i
+              ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+            }}
+            className="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-accent shadow-lg"
+            style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
+          />
+        ))}
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {preview.detectedQuad && (
+          <button
+            onClick={() => setPoints(preview.detectedQuad!)}
+            className="flex min-h-[42px] items-center justify-center rounded-xl border border-line text-sm font-semibold"
+          >
+            Bordi automatici
+          </button>
+        )}
+        <button
+          onClick={() => setPoints(FULL_QUAD)}
+          className="flex min-h-[42px] items-center justify-center rounded-xl border border-line text-sm font-semibold"
+        >
+          Foto intera
+        </button>
+      </div>
+
+      <PrimaryButton
+        onClick={() => {
+          const ordered = orderQuad([...points])
+          const isFull = ordered.every(
+            (p, i) => Math.abs(p.x - FULL_QUAD[i].x) < 0.01 && Math.abs(p.y - FULL_QUAD[i].y) < 0.01,
+          )
+          onApply(isFull ? null : ordered)
+        }}
+        className="mt-3"
+      >
+        Applica ritaglio
+      </PrimaryButton>
+      <button
+        onClick={onCancel}
+        className="mt-3 flex min-h-[44px] w-full items-center justify-center rounded-xl font-semibold text-muted"
+      >
+        Annulla
+      </button>
+    </div>
   )
 }

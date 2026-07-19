@@ -1,4 +1,11 @@
 import { jsPDF } from 'jspdf'
+import {
+  detectDocumentQuad,
+  quadOutputSize,
+  toGray,
+  warpPerspective,
+  type Quad,
+} from './docDetect'
 
 /**
  * Scanner documenti: elaborazione immagini lato client (nessun upload),
@@ -153,30 +160,96 @@ async function decodeImage(file: File): Promise<ImageBitmap | HTMLImageElement> 
   }
 }
 
-/** Elabora una foto: ridimensiona, ruota (0/90/180/270) e applica il filtro. */
+function drawToCanvas(
+  source: ImageBitmap | HTMLImageElement,
+  maxSide: number,
+): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+  const scale = Math.min(1, maxSide / Math.max(source.width, source.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(source.width * scale))
+  canvas.height = Math.max(1, Math.round(source.height * scale))
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas non disponibile')
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height)
+  return { canvas, ctx }
+}
+
+export interface ScanPreview extends ScanPageImage {
+  /** Bordi del documento trovati automaticamente (null = non affidabili). */
+  detectedQuad: Quad | null
+}
+
+/**
+ * Anteprima leggera della foto originale (senza filtri) + riconoscimento
+ * automatico dei bordi del documento: è la base dell'editor degli angoli.
+ */
+export async function previewScan(file: File): Promise<ScanPreview> {
+  const source = await decodeImage(file)
+  const { canvas } = drawToCanvas(source, 1000)
+  if ('close' in source) source.close()
+  const detectCanvas = document.createElement('canvas')
+  const detectScale = Math.min(1, 420 / Math.max(canvas.width, canvas.height))
+  detectCanvas.width = Math.max(1, Math.round(canvas.width * detectScale))
+  detectCanvas.height = Math.max(1, Math.round(canvas.height * detectScale))
+  const detectCtx = detectCanvas.getContext('2d')
+  let detectedQuad: Quad | null = null
+  if (detectCtx) {
+    detectCtx.drawImage(canvas, 0, 0, detectCanvas.width, detectCanvas.height)
+    const imageData = detectCtx.getImageData(0, 0, detectCanvas.width, detectCanvas.height)
+    detectedQuad = detectDocumentQuad(toGray(imageData), detectCanvas.width, detectCanvas.height)
+  }
+  return {
+    dataUrl: canvas.toDataURL('image/jpeg', 0.8),
+    width: canvas.width,
+    height: canvas.height,
+    detectedQuad,
+  }
+}
+
+/**
+ * Elabora una foto come uno scanner: ritaglia e raddrizza il documento sul
+ * quadrilatero indicato (null = foto intera), poi ruota e applica il filtro.
+ */
 export async function processScan(
   file: File,
   filter: ScanFilter,
   rotation: 0 | 90 | 180 | 270,
+  quad: Quad | null = null,
 ): Promise<ScanPageImage> {
   const source = await decodeImage(file)
-  const srcW = source.width
-  const srcH = source.height
-  const scale = Math.min(1, MAX_SIDE / Math.max(srcW, srcH))
-  const drawW = Math.round(srcW * scale)
-  const drawH = Math.round(srcH * scale)
-  const rotated = rotation === 90 || rotation === 270
-  const canvas = document.createElement('canvas')
-  canvas.width = rotated ? drawH : drawW
-  canvas.height = rotated ? drawW : drawH
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Canvas non disponibile')
-  ctx.save()
-  ctx.translate(canvas.width / 2, canvas.height / 2)
-  ctx.rotate((rotation * Math.PI) / 180)
-  ctx.drawImage(source, -drawW / 2, -drawH / 2, drawW, drawH)
-  ctx.restore()
+  let { canvas, ctx } = drawToCanvas(source, MAX_SIDE)
   if ('close' in source) source.close()
+
+  if (quad) {
+    const quadPx: Quad = quad.map((p) => ({
+      x: p.x * (canvas.width - 1),
+      y: p.y * (canvas.height - 1),
+    })) as Quad
+    const { w, h } = quadOutputSize(quadPx, MAX_SIDE)
+    const warped = warpPerspective(ctx.getImageData(0, 0, canvas.width, canvas.height), quadPx, w, h)
+    const warpedCanvas = document.createElement('canvas')
+    warpedCanvas.width = w
+    warpedCanvas.height = h
+    const warpedCtx = warpedCanvas.getContext('2d')
+    if (!warpedCtx) throw new Error('Canvas non disponibile')
+    warpedCtx.putImageData(warped, 0, 0)
+    canvas = warpedCanvas
+    ctx = warpedCtx
+  }
+
+  if (rotation !== 0) {
+    const rotated = rotation === 90 || rotation === 270
+    const rotatedCanvas = document.createElement('canvas')
+    rotatedCanvas.width = rotated ? canvas.height : canvas.width
+    rotatedCanvas.height = rotated ? canvas.width : canvas.height
+    const rotatedCtx = rotatedCanvas.getContext('2d')
+    if (!rotatedCtx) throw new Error('Canvas non disponibile')
+    rotatedCtx.translate(rotatedCanvas.width / 2, rotatedCanvas.height / 2)
+    rotatedCtx.rotate((rotation * Math.PI) / 180)
+    rotatedCtx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2)
+    canvas = rotatedCanvas
+    ctx = rotatedCtx
+  }
 
   if (filter !== 'originale') {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
