@@ -138,6 +138,38 @@ const PARSE_TXS_SCHEMA = {
   required: ['transactions'],
 }
 
+const CORNERS_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    found: { type: 'BOOLEAN', description: 'true solo se nella foto c’è un documento/foglio riconoscibile' },
+    top_left: {
+      type: 'OBJECT',
+      properties: { x: { type: 'INTEGER' }, y: { type: 'INTEGER' } },
+      required: ['x', 'y'],
+      description: 'Angolo in alto a sinistra del documento',
+    },
+    top_right: {
+      type: 'OBJECT',
+      properties: { x: { type: 'INTEGER' }, y: { type: 'INTEGER' } },
+      required: ['x', 'y'],
+      description: 'Angolo in alto a destra del documento',
+    },
+    bottom_right: {
+      type: 'OBJECT',
+      properties: { x: { type: 'INTEGER' }, y: { type: 'INTEGER' } },
+      required: ['x', 'y'],
+      description: 'Angolo in basso a destra del documento',
+    },
+    bottom_left: {
+      type: 'OBJECT',
+      properties: { x: { type: 'INTEGER' }, y: { type: 'INTEGER' } },
+      required: ['x', 'y'],
+      description: 'Angolo in basso a sinistra del documento',
+    },
+  },
+  required: ['found', 'top_left', 'top_right', 'bottom_right', 'bottom_left'],
+}
+
 const DOCUMENT_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -225,8 +257,9 @@ Deno.serve(async (req: Request) => {
   if (!originAllowed(req)) return json({ error: 'origin_not_allowed' }, 403)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
+  // 1,5 MB: consente l'immagine base64 del rilevamento bordi (le altre modalità restano piccole).
   const contentLength = Number(req.headers.get('content-length') ?? 0)
-  if (contentLength > 32_768) return json({ error: 'payload_too_large' }, 413)
+  if (contentLength > 1_500_000) return json({ error: 'payload_too_large' }, 413)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -254,7 +287,8 @@ Deno.serve(async (req: Request) => {
   }
   if (!apiKey) return json({ error: 'missing_api_key' }, 400)
 
-  const { mode, document_id, video_url, prompt, query, question, text } = await req.json().catch(() => ({}))
+  const { mode, document_id, video_url, prompt, query, question, text, image_base64, image_mime } =
+    await req.json().catch(() => ({}))
 
   try {
     // ---- Assistente finanziario: risponde guardando i dati dell'utente ----
@@ -415,6 +449,47 @@ Deno.serve(async (req: Request) => {
         })
         .filter((row) => row.amount_cents !== null)
       return json({ transactions: list })
+    }
+
+    // ---- Scanner: l'AI individua i 4 angoli del documento nella foto ----
+    if (mode === 'detect_corners') {
+      if (typeof image_base64 !== 'string' || image_base64.length < 100 || image_base64.length > 1_400_000) {
+        return json({ error: 'immagine mancante o troppo grande' }, 400)
+      }
+      if (image_mime !== 'image/jpeg' && image_mime !== 'image/png' && image_mime !== 'image/webp') {
+        return json({ error: 'formato immagine non valido' }, 400)
+      }
+      const out = await callGemini(
+        apiKey,
+        [
+          { inline_data: { mime_type: image_mime, data: image_base64 } },
+          {
+            text:
+              'Questa foto contiene un documento (foglio, carta d’identità, modulo, contratto…). ' +
+              'Individua con precisione i 4 angoli del documento — dove i bordi del foglio si incontrano, ' +
+              'anche se la foto è storta, in prospettiva o l’angolo è poco contrastato. ' +
+              'Coordinate intere da 0 a 1000: (0,0) è l’angolo in alto a sinistra dell’IMMAGINE, ' +
+              '(1000,1000) quello in basso a destra. Se nella foto non c’è nessun documento, found=false.',
+          },
+        ],
+        CORNERS_SCHEMA,
+      )
+      const input = JSON.parse(out) as {
+        found?: boolean
+        top_left?: { x?: number; y?: number }
+        top_right?: { x?: number; y?: number }
+        bottom_right?: { x?: number; y?: number }
+        bottom_left?: { x?: number; y?: number }
+      }
+      const norm = (p?: { x?: number; y?: number }) => {
+        const x = Number(p?.x)
+        const y = Number(p?.y)
+        if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1000 || y < 0 || y > 1000) return null
+        return { x: x / 1000, y: y / 1000 }
+      }
+      const corners = [input.top_left, input.top_right, input.bottom_right, input.bottom_left].map(norm)
+      if (input.found === false || corners.some((c) => c === null)) return json({ corners: null })
+      return json({ corners })
     }
 
     // ---- Ricerca web con AI ----

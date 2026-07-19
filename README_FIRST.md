@@ -431,6 +431,19 @@ VITE_YOUTUBE_API_KEY=...
 - Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
 ### Ultimo rilascio
+- **19 luglio 2026 — precisione bordi scanner:** 1) *lente d'ingrandimento* nell'editor dei bordi:
+  trascinando un angolo compare una lente (120 px, zoom 2,5×) con mirino sopra il dito, spostata
+  sotto quando l'angolo è in alto; 2) *"Trova i bordi con l'AI"*: nuova modalità `detect_corners`
+  in `ai-analyze` v8 (immagine base64 ≤1,4 MB — cap payload della funzione alzato a 1,5 MB, come
+  già fa `ai-command` per l'audio; schema Gemini con angoli interi 0–1000, validazione lato server
+  e `orderQuad` lato client; avvertenza privacy sotto il bottone: la foto viene inviata al server
+  solo per questa richiesta); 3) rilevamento locale migliorato: blur 3×3 anti-rumore e più soglie
+  candidate (Otsu + percentili 35/65, chiaro/scuro) con scelta a punteggio area×riempimento invece
+  della prima valida. Verifiche: 95 test (blur e basso contrasto inclusi), lint/`tsc` puliti,
+  build ok; `ai-analyze` v8 distribuita ACTIVE; E2E con utente temporaneo (eliminato): sulla foto
+  sintetica in prospettiva "Trova i bordi con l'AI" ha posizionato i 4 angoli con scarti del
+  4–8% dagli angoli reali (Gemini stima, poi si rifinisce con la lente) e la lente con mirino
+  compare correttamente durante il trascinamento (spostata sotto il dito quando l'angolo è in alto).
 - **18 luglio 2026 (sera) — scanner "vero" con raddrizzamento:** su richiesta di Bogdan lo scanner
   ora funziona come CamScanner. Nuovo `src/lib/docDetect.ts` (matematica pura, 10 test):
   rilevamento del documento (Otsu → componente connessa più grande via flood fill → 8 estremi

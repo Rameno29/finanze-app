@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Check, CloudUpload, Crop, Download, RotateCw, Share2, Trash2 } from 'lucide-react'
+import { Camera, Check, CloudUpload, Crop, Download, RotateCw, Share2, Sparkles, Trash2 } from 'lucide-react'
 import { PrimaryButton, Sheet, Spinner } from '../../components/ui'
 import { requireUserId, supabase } from '../../lib/supabase'
 import { todayISO } from '../../lib/format'
@@ -374,9 +374,15 @@ export function ScannerSheet({
   )
 }
 
+/** Dimensioni e zoom della lente d'ingrandimento sul trascinamento degli angoli. */
+const LOUPE_SIZE = 120
+const LOUPE_ZOOM = 2.5
+
 /**
- * Editor dei bordi: mostra la foto originale con i 4 angoli trascinabili;
- * il quadrilatero scelto viene raddrizzato in una pagina piatta.
+ * Editor dei bordi: mostra la foto originale con i 4 angoli trascinabili
+ * (con lente d'ingrandimento per la precisione); il quadrilatero scelto
+ * viene raddrizzato in una pagina piatta. Il bottone AI chiede a Gemini
+ * di individuare gli angoli del documento.
  */
 function CornerEditor({
   preview,
@@ -390,30 +396,62 @@ function CornerEditor({
   onApply: (quad: Quad | null) => void
 }) {
   const [points, setPoints] = useState<Quad>(quad ?? preview.detectedQuad ?? FULL_QUAD)
+  const [dragging, setDragging] = useState<number | null>(null)
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiError, setAiError] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
-  const draggingRef = useRef<number | null>(null)
 
   function moveTo(clientX: number, clientY: number) {
-    const index = draggingRef.current
     const box = containerRef.current?.getBoundingClientRect()
-    if (index === null || !box) return
+    if (dragging === null || !box) return
     const x = Math.min(1, Math.max(0, (clientX - box.left) / box.width))
     const y = Math.min(1, Math.max(0, (clientY - box.top) / box.height))
-    setPoints((prev) => prev.map((p, i) => (i === index ? { x, y } : p)) as Quad)
+    setPoints((prev) => prev.map((p, i) => (i === dragging ? { x, y } : p)) as Quad)
   }
+
+  /** L'AI (Gemini) individua i 4 angoli: utile quando il rilevamento locale sbaglia. */
+  async function detectWithAi() {
+    if (!navigator.onLine) {
+      setAiError('Per i bordi con AI serve la connessione a internet.')
+      return
+    }
+    setAiBusy(true)
+    setAiError('')
+    try {
+      const base64 = preview.dataUrl.split(',')[1] ?? ''
+      const { data, error } = await supabase.functions.invoke('ai-analyze', {
+        body: { mode: 'detect_corners', image_base64: base64, image_mime: 'image/jpeg' },
+      })
+      if (error) throw error
+      const corners = (data as { corners: Quad | null }).corners
+      if (!corners) {
+        setAiError('L’AI non ha riconosciuto un documento in questa foto.')
+        return
+      }
+      setPoints(orderQuad([...corners]))
+    } catch {
+      setAiError('Rilevamento AI non riuscito, riprova tra poco.')
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
+  const loupePoint = dragging !== null ? points[dragging] : null
+  const containerBox = containerRef.current?.getBoundingClientRect()
 
   return (
     <div className="pb-4">
       <p className="mb-3 text-sm text-muted">
-        Trascina gli angoli sui bordi del documento: la pagina verrà ritagliata e raddrizzata.
+        Trascina gli angoli sui bordi del documento: tenendo premuto compare una lente
+        d'ingrandimento per la massima precisione.
       </p>
 
       <div
         ref={containerRef}
         className="relative touch-none select-none overflow-hidden rounded-2xl border border-line"
         onPointerMove={(e) => moveTo(e.clientX, e.clientY)}
-        onPointerUp={() => (draggingRef.current = null)}
-        onPointerCancel={() => (draggingRef.current = null)}
+        onPointerUp={() => setDragging(null)}
+        onPointerCancel={() => setDragging(null)}
       >
         <img src={preview.dataUrl} alt="Foto originale" className="block w-full" draggable={false} />
         <svg
@@ -434,14 +472,51 @@ function CornerEditor({
             key={i}
             aria-label={`Angolo ${i + 1}`}
             onPointerDown={(e) => {
-              draggingRef.current = i
+              setDragging(i)
               ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
             }}
-            className="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-accent shadow-lg"
+            className={`absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white shadow-lg transition-opacity ${
+              dragging === i ? 'bg-accent/70 opacity-60' : 'bg-accent'
+            }`}
             style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
           />
         ))}
+
+        {/* Lente d'ingrandimento: zona sotto il dito ingrandita, con mirino */}
+        {loupePoint && containerBox && (
+          <div
+            className="pointer-events-none absolute z-10 rounded-full border-4 border-white bg-card shadow-2xl"
+            style={{
+              width: LOUPE_SIZE,
+              height: LOUPE_SIZE,
+              left: `${Math.min(0.86, Math.max(0.14, loupePoint.x)) * 100}%`,
+              top: `${loupePoint.y * 100}%`,
+              transform: `translate(-50%, ${loupePoint.y < 0.3 ? '35%' : '-135%'})`,
+              backgroundImage: `url(${preview.dataUrl})`,
+              backgroundRepeat: 'no-repeat',
+              backgroundSize: `${containerBox.width * LOUPE_ZOOM}px ${containerBox.height * LOUPE_ZOOM}px`,
+              backgroundPosition: `${-(loupePoint.x * containerBox.width * LOUPE_ZOOM - LOUPE_SIZE / 2)}px ${-(loupePoint.y * containerBox.height * LOUPE_ZOOM - LOUPE_SIZE / 2)}px`,
+            }}
+          >
+            <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-accent/70" />
+            <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-accent/70" />
+            <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-accent" />
+          </div>
+        )}
       </div>
+
+      <button
+        onClick={() => void detectWithAi()}
+        disabled={aiBusy}
+        className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent-soft text-sm font-semibold text-accent disabled:opacity-60"
+      >
+        {aiBusy ? <Spinner className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+        Trova i bordi con l'AI
+      </button>
+      <p className="mt-1.5 text-center text-[11px] text-muted">
+        Questo bottone invia la foto alla funzione AI sicura di AJE solo per trovare i bordi.
+      </p>
+      {aiError && <p className="mt-2 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{aiError}</p>}
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         {preview.detectedQuad && (

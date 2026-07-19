@@ -13,6 +13,7 @@ class FakeImageData {
 }
 ;(globalThis as { ImageData?: unknown }).ImageData ??= FakeImageData
 import {
+  boxBlur3,
   detectDocumentQuad,
   homographyToQuad,
   orderQuad,
@@ -186,5 +187,37 @@ describe('detectDocumentQuad', () => {
   it('restituisce null se non c’è un documento distinguibile', () => {
     const gray = new Uint8Array(80 * 60).fill(128)
     expect(detectDocumentQuad(gray, 80, 60)).toBeNull()
+  })
+
+  it('trova un documento a basso contrasto nonostante il rumore', () => {
+    const w = 80, h = 60
+    const gray = new Uint8Array(w * h)
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const noise = ((x + y) % 2) * 14 // trama a scacchiera
+        gray[y * w + x] = (x >= 14 && x <= 66 && y >= 10 && y <= 50 ? 135 : 100) + noise
+      }
+    }
+    const quad = detectDocumentQuad(gray, w, h)
+    expect(quad).not.toBeNull()
+    expect(quad![0].x).toBeCloseTo(14 / 79, 1)
+    expect(quad![2].y).toBeCloseTo(50 / 59, 1)
+  })
+})
+
+describe('boxBlur3', () => {
+  it('attenua un pixel isolato distribuendolo sui vicini', () => {
+    const w = 5, h = 5
+    const gray = new Uint8Array(w * h)
+    gray[2 * w + 2] = 90
+    const out = boxBlur3(gray, w, h)
+    expect(out[2 * w + 2]).toBe(10) // 90 / 9
+    expect(out[1 * w + 1]).toBe(10)
+    expect(out[0]).toBe(0)
+  })
+
+  it('lascia invariata un’immagine uniforme (bordi inclusi)', () => {
+    const gray = new Uint8Array(16).fill(77)
+    expect(Array.from(boxBlur3(gray, 4, 4))).toEqual(new Array(16).fill(77))
   })
 })

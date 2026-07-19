@@ -229,38 +229,90 @@ function componentCorners(pixels: Int32Array, w: number): Quad {
   return best ?? orderQuad([candidates[0], candidates[0], candidates[0], candidates[0]])
 }
 
+/** Sfocatura 3×3 (media): riduce rumore e trame prima della sogliatura. */
+export function boxBlur3(gray: Uint8Array, w: number, h: number): Uint8Array {
+  const out = new Uint8Array(gray.length)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sum = 0
+      let count = 0
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = y + dy
+        if (yy < 0 || yy >= h) continue
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx
+          if (xx < 0 || xx >= w) continue
+          sum += gray[yy * w + xx]
+          count++
+        }
+      }
+      out[y * w + x] = Math.round(sum / count)
+    }
+  }
+  return out
+}
+
+/** Valore di luminanza al percentile richiesto (0..1) dell'istogramma. */
+function percentileLevel(histogram: number[], total: number, pct: number): number {
+  const target = total * pct
+  let cumulative = 0
+  for (let i = 0; i < 256; i++) {
+    cumulative += histogram[i]
+    if (cumulative >= target) return i
+  }
+  return 255
+}
+
 /**
- * Cerca il documento nella foto: sceglie con Otsu la soglia carta/sfondo,
- * prende la regione connessa più grande e ne stima i 4 angoli.
- * Restituisce il quadrilatero normalizzato, o null se non è affidabile.
+ * Cerca il documento nella foto provando più soglie (Otsu + percentili, chiaro
+ * e scuro): per ogni candidata prende la regione connessa più grande, ne stima
+ * i 4 angoli e assegna un punteggio (area × riempimento). Vince il candidato
+ * migliore; null se nessuno è affidabile.
  */
-export function detectDocumentQuad(gray: Uint8Array, w: number, h: number): Quad | null {
+export function detectDocumentQuad(rawGray: Uint8Array, w: number, h: number): Quad | null {
+  const gray = boxBlur3(rawGray, w, h)
   const histogram = new Array<number>(256).fill(0)
   for (let i = 0; i < gray.length; i++) histogram[gray[i]]++
-  const threshold = otsuThreshold(histogram, gray.length)
-
   const total = gray.length
-  for (const bright of [true, false]) {
-    const mask = new Uint8Array(total)
-    for (let i = 0; i < total; i++) mask[i] = (bright ? gray[i] > threshold : gray[i] <= threshold) ? 1 : 0
-    const component = largestComponent(mask, w)
-    if (!component) continue
-    const ratio = component.size / total
-    // Il documento deve occupare una parte sostanziale ma non tutta la foto.
-    if (ratio < 0.15 || ratio > 0.97) continue
-    const corners = componentCorners(component.pixels, w)
-    const quad: Quad = [
-      { x: corners[0].x / (w - 1), y: corners[0].y / (h - 1) },
-      { x: corners[1].x / (w - 1), y: corners[1].y / (h - 1) },
-      { x: corners[2].x / (w - 1), y: corners[2].y / (h - 1) },
-      { x: corners[3].x / (w - 1), y: corners[3].y / (h - 1) },
-    ]
-    // Il quadrilatero deve essere coerente con l'area della regione trovata
-    // (evita forme a L o rilevamenti spurî) e non degenere.
-    const area = quadArea(quad)
-    if (area < 0.12) continue
-    if (component.size / (area * total) < 0.72) continue
-    return quad
+  const thresholds = Array.from(
+    new Set([
+      otsuThreshold(histogram, total),
+      percentileLevel(histogram, total, 0.35),
+      percentileLevel(histogram, total, 0.65),
+    ]),
+  )
+
+  let best: Quad | null = null
+  let bestScore = 0
+  for (const threshold of thresholds) {
+    for (const bright of [true, false]) {
+      const mask = new Uint8Array(total)
+      for (let i = 0; i < total; i++) {
+        mask[i] = (bright ? gray[i] > threshold : gray[i] <= threshold) ? 1 : 0
+      }
+      const component = largestComponent(mask, w)
+      if (!component) continue
+      const ratio = component.size / total
+      // Il documento deve occupare una parte sostanziale ma non tutta la foto.
+      if (ratio < 0.15 || ratio > 0.97) continue
+      const corners = componentCorners(component.pixels, w)
+      const quad: Quad = [
+        { x: corners[0].x / (w - 1), y: corners[0].y / (h - 1) },
+        { x: corners[1].x / (w - 1), y: corners[1].y / (h - 1) },
+        { x: corners[2].x / (w - 1), y: corners[2].y / (h - 1) },
+        { x: corners[3].x / (w - 1), y: corners[3].y / (h - 1) },
+      ]
+      // Coerenza tra area del quadrilatero e regione trovata (niente forme a L).
+      const area = quadArea(quad)
+      if (area < 0.12) continue
+      const fill = component.size / (area * total)
+      if (fill < 0.72) continue
+      const score = area * Math.min(fill, 1)
+      if (score > bestScore) {
+        bestScore = score
+        best = quad
+      }
+    }
   }
-  return null
+  return best
 }
