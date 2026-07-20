@@ -2,7 +2,7 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **18 luglio 2026**.
+> Ultimo aggiornamento: **20 luglio 2026**.
 
 ---
 
@@ -431,6 +431,18 @@ VITE_YOUTUBE_API_KEY=...
 - Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
 
 ### Ultimo rilascio
+- **20 luglio 2026 — rilevamento bordi molto più robusto:** dopo il feedback ("non legge bene i
+  bordi"), rifatta la pipeline in `src/lib/docDetect.ts` (solo frontend, nessun deploy funzione):
+  chiusura morfologica (`closeMask`, dilata+erode) per riempire il testo e ricucire le ombre;
+  gradiente Sobel (`sobelMagnitude`) + `edgeAlignment` (i lati del quad devono appoggiarsi a bordi
+  reali); 5 soglie candidate (Otsu + percentili 30/45/60/75, chiaro e scuro), punteggio
+  area×riempimento×allineamento invece della prima valida. La chiusura è **separabile** (passata
+  orizzontale + verticale, esatta per kernel quadrato) e la griglia di analisi è 340 px: il
+  rilevamento locale scende a ~180–230 ms. L'AI resta **manuale** ("Trova i bordi con l'AI"): una
+  prova di auto-AI-alla-cattura è stata scartata perché la chiamata vision di Gemini impiega
+  10–20 s per pagina (troppo lenta e costosa) mentre il detector locale, verificato E2E su una foto
+  difficile (beige su beige, ombra, tilt), ora azzecca i 4 angoli con **scarto ~0,5%**. Verifiche:
+  101 test (chiusura, Sobel, allineamento, caso "ombra su un lato"), lint/`tsc` puliti, build ok.
 - **19 luglio 2026 — precisione bordi scanner:** 1) *lente d'ingrandimento* nell'editor dei bordi:
   trascinando un angolo compare una lente (120 px, zoom 2,5×) con mirino sopra il dito, spostata
   sotto quando l'angolo è in alto; 2) *"Trova i bordi con l'AI"*: nuova modalità `detect_corners`

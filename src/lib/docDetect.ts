@@ -264,23 +264,126 @@ function percentileLevel(histogram: number[], total: number, pct: number): numbe
 }
 
 /**
- * Cerca il documento nella foto provando più soglie (Otsu + percentili, chiaro
- * e scuro): per ogni candidata prende la regione connessa più grande, ne stima
- * i 4 angoli e assegna un punteggio (area × riempimento). Vince il candidato
- * migliore; null se nessuno è affidabile.
+ * Chiusura morfologica (dilatazione poi erosione) con raggio `r`: riempie i
+ * buchi lasciati dal testo e ricuce le rientranze causate dalle ombre, così la
+ * regione del documento diventa un blocco pieno e continuo.
+ *
+ * Implementata in modo separabile (una passata orizzontale + una verticale per
+ * ciascuna operazione): esatta per un elemento strutturante quadrato e molto
+ * più veloce della versione a finestra piena (O(r) invece di O(r²) per pixel).
+ */
+export function closeMask(mask: Uint8Array, w: number, h: number, r: number): Uint8Array {
+  // dilate = OR sulla finestra; erode = AND sulla finestra (fuori dai bordi
+  // conta come "acceso", per non erodere un documento a filo della cornice).
+  const passH = (src: Uint8Array, dilate: boolean): Uint8Array => {
+    const out = new Uint8Array(src.length)
+    for (let y = 0; y < h; y++) {
+      const row = y * w
+      for (let x = 0; x < w; x++) {
+        const from = Math.max(0, x - r)
+        const to = Math.min(w - 1, x + r)
+        let val = dilate ? 0 : 1
+        for (let xx = from; xx <= to; xx++) {
+          if (dilate) { if (src[row + xx]) { val = 1; break } }
+          else if (!src[row + xx]) { val = 0; break }
+        }
+        out[row + x] = val
+      }
+    }
+    return out
+  }
+  const passV = (src: Uint8Array, dilate: boolean): Uint8Array => {
+    const out = new Uint8Array(src.length)
+    for (let x = 0; x < w; x++) {
+      for (let y = 0; y < h; y++) {
+        const from = Math.max(0, y - r)
+        const to = Math.min(h - 1, y + r)
+        let val = dilate ? 0 : 1
+        for (let yy = from; yy <= to; yy++) {
+          if (dilate) { if (src[yy * w + x]) { val = 1; break } }
+          else if (!src[yy * w + x]) { val = 0; break }
+        }
+        out[y * w + x] = val
+      }
+    }
+    return out
+  }
+  const dilated = passV(passH(mask, true), true)
+  return passV(passH(dilated, false), false)
+}
+
+/** Magnitudine del gradiente (Sobel) su luminanza: i bordi reali dell'immagine. */
+export function sobelMagnitude(gray: Uint8Array, w: number, h: number): Float32Array {
+  const mag = new Float32Array(gray.length)
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x
+      const tl = gray[i - w - 1], tc = gray[i - w], tr = gray[i - w + 1]
+      const ml = gray[i - 1], mr = gray[i + 1]
+      const bl = gray[i + w - 1], bc = gray[i + w], br = gray[i + w + 1]
+      const gx = tr + 2 * mr + br - (tl + 2 * ml + bl)
+      const gy = bl + 2 * bc + br - (tl + 2 * tc + tr)
+      mag[i] = Math.abs(gx) + Math.abs(gy)
+    }
+  }
+  return mag
+}
+
+/**
+ * Quanto i bordi del quadrilatero si appoggiano a gradienti forti dell'immagine:
+ * campiona punti lungo i 4 lati e media la magnitudine. Serve a scegliere, tra
+ * i candidati, quello che segue davvero i bordi del foglio. Valore normalizzato.
+ */
+export function edgeAlignment(quad: Quad, mag: Float32Array, w: number, h: number, maxMag: number): number {
+  if (maxMag <= 0) return 0
+  const samplesPerEdge = 24
+  let sum = 0
+  let count = 0
+  for (let e = 0; e < 4; e++) {
+    const a = quad[e]
+    const b = quad[(e + 1) % 4]
+    for (let s = 0; s <= samplesPerEdge; s++) {
+      const t = s / samplesPerEdge
+      const x = Math.round((a.x + (b.x - a.x) * t) * (w - 1))
+      const y = Math.round((a.y + (b.y - a.y) * t) * (h - 1))
+      if (x >= 0 && x < w && y >= 0 && y < h) {
+        sum += mag[y * w + x]
+        count++
+      }
+    }
+  }
+  return count > 0 ? Math.min(1, sum / count / maxMag) : 0
+}
+
+/**
+ * Cerca il documento nella foto. Pipeline robusta:
+ *  1. sfocatura anti-rumore + gradiente Sobel (bordi reali);
+ *  2. molte soglie candidate (Otsu + percentili, su chiaro e su scuro);
+ *  3. per ogni maschera: chiusura morfologica (riempie testo e ricuce le ombre)
+ *     → regione connessa più grande → stima dei 4 angoli;
+ *  4. punteggio = area × riempimento × allineamento ai bordi dell'immagine.
+ * Vince il candidato migliore; null se nessuno è affidabile.
  */
 export function detectDocumentQuad(rawGray: Uint8Array, w: number, h: number): Quad | null {
   const gray = boxBlur3(rawGray, w, h)
-  const histogram = new Array<number>(256).fill(0)
-  for (let i = 0; i < gray.length; i++) histogram[gray[i]]++
   const total = gray.length
+  const histogram = new Array<number>(256).fill(0)
+  for (let i = 0; i < total; i++) histogram[gray[i]]++
+  const mag = sobelMagnitude(gray, w, h)
+  let maxMag = 1
+  for (let i = 0; i < mag.length; i++) if (mag[i] > maxMag) maxMag = mag[i]
+
   const thresholds = Array.from(
     new Set([
       otsuThreshold(histogram, total),
-      percentileLevel(histogram, total, 0.35),
-      percentileLevel(histogram, total, 0.65),
+      percentileLevel(histogram, total, 0.3),
+      percentileLevel(histogram, total, 0.45),
+      percentileLevel(histogram, total, 0.6),
+      percentileLevel(histogram, total, 0.75),
     ]),
   )
+  // Raggio della chiusura proporzionato alla risoluzione della griglia di analisi.
+  const radius = Math.min(3, Math.max(1, Math.round(Math.min(w, h) / 150)))
 
   let best: Quad | null = null
   let bestScore = 0
@@ -290,11 +393,12 @@ export function detectDocumentQuad(rawGray: Uint8Array, w: number, h: number): Q
       for (let i = 0; i < total; i++) {
         mask[i] = (bright ? gray[i] > threshold : gray[i] <= threshold) ? 1 : 0
       }
-      const component = largestComponent(mask, w)
+      const closed = closeMask(mask, w, h, radius)
+      const component = largestComponent(closed, w)
       if (!component) continue
       const ratio = component.size / total
       // Il documento deve occupare una parte sostanziale ma non tutta la foto.
-      if (ratio < 0.15 || ratio > 0.97) continue
+      if (ratio < 0.12 || ratio > 0.985) continue
       const corners = componentCorners(component.pixels, w)
       const quad: Quad = [
         { x: corners[0].x / (w - 1), y: corners[0].y / (h - 1) },
@@ -304,10 +408,13 @@ export function detectDocumentQuad(rawGray: Uint8Array, w: number, h: number): Q
       ]
       // Coerenza tra area del quadrilatero e regione trovata (niente forme a L).
       const area = quadArea(quad)
-      if (area < 0.12) continue
+      if (area < 0.1) continue
       const fill = component.size / (area * total)
-      if (fill < 0.72) continue
-      const score = area * Math.min(fill, 1)
+      if (fill < 0.7) continue
+      const alignment = edgeAlignment(quad, mag, w, h, maxMag)
+      // Area e riempimento dominano; l'allineamento ai bordi rompe i pareggi
+      // e scarta i quad che non seguono un vero contorno.
+      const score = area * Math.min(fill, 1) * (0.35 + 0.65 * alignment)
       if (score > bestScore) {
         bestScore = score
         best = quad

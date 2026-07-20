@@ -28,10 +28,27 @@ interface ScanPage {
 }
 
 /**
+ * Chiede all'AI (Gemini) i 4 angoli del documento in un'immagine (data URL JPEG).
+ * Restituisce il quadrilatero normalizzato e ordinato, o null se non trovato.
+ */
+async function requestAiCorners(dataUrl: string): Promise<Quad | null> {
+  const base64 = dataUrl.split(',')[1] ?? ''
+  if (base64.length < 100) return null
+  const { data, error } = await supabase.functions.invoke('ai-analyze', {
+    body: { mode: 'detect_corners', image_base64: base64, image_mime: 'image/jpeg' },
+  })
+  if (error) throw error
+  const corners = (data as { corners: Quad | null }).corners
+  return corners ? orderQuad([...corners]) : null
+}
+
+/**
  * Scanner documenti: fotografa una o più pagine (documenti d'identità, moduli,
- * contratti…), migliora la leggibilità con i filtri e ottieni un unico PDF da
- * condividere con il foglio nativo (WhatsApp, Mail, …), scaricare o salvare
- * nei Documenti. L'elaborazione avviene tutta sul dispositivo.
+ * contratti…), riconosce e raddrizza il foglio, migliora la leggibilità con i
+ * filtri e produce un unico PDF da condividere con il foglio nativo (WhatsApp,
+ * Mail, …), scaricare o salvare nei Documenti. Il ritaglio, i filtri e il PDF
+ * restano sul dispositivo; solo il riconoscimento AI dei bordi (quando c'è rete)
+ * invia la foto alla funzione AI sicura di AJE.
  */
 export function ScannerSheet({
   open,
@@ -88,7 +105,8 @@ export function ScannerSheet({
       }
       setPages((prev) => [...prev, page])
       try {
-        // Anteprima + riconoscimento bordi: se affidabile, ritaglia e raddrizza subito.
+        // Rilevamento locale dei bordi: veloce, offline e affidabile; ritaglia e
+        // raddrizza subito. Per i casi difficili resta "Trova i bordi con l'AI".
         const preview = await previewScan(file)
         const quad = preview.detectedQuad
         const image = await processScan(file, page.filter, page.rotation, quad)
@@ -418,17 +436,12 @@ function CornerEditor({
     setAiBusy(true)
     setAiError('')
     try {
-      const base64 = preview.dataUrl.split(',')[1] ?? ''
-      const { data, error } = await supabase.functions.invoke('ai-analyze', {
-        body: { mode: 'detect_corners', image_base64: base64, image_mime: 'image/jpeg' },
-      })
-      if (error) throw error
-      const corners = (data as { corners: Quad | null }).corners
+      const corners = await requestAiCorners(preview.dataUrl)
       if (!corners) {
         setAiError('L’AI non ha riconosciuto un documento in questa foto.')
         return
       }
-      setPoints(orderQuad([...corners]))
+      setPoints(corners)
     } catch {
       setAiError('Rilevamento AI non riuscito, riprova tra poco.')
     } finally {
@@ -511,10 +524,11 @@ function CornerEditor({
         className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent-soft text-sm font-semibold text-accent disabled:opacity-60"
       >
         {aiBusy ? <Spinner className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-        Trova i bordi con l'AI
+        {aiBusy ? 'L’AI sta cercando i bordi…' : "Trova i bordi con l'AI"}
       </button>
       <p className="mt-1.5 text-center text-[11px] text-muted">
-        Questo bottone invia la foto alla funzione AI sicura di AJE solo per trovare i bordi.
+        Usalo se il ritaglio automatico sbaglia: invia la foto alla funzione AI sicura di AJE solo
+        per trovare i bordi (può richiedere qualche secondo).
       </p>
       {aiError && <p className="mt-2 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{aiError}</p>}
 

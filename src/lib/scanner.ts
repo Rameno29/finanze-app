@@ -188,7 +188,8 @@ export async function previewScan(file: File): Promise<ScanPreview> {
   const { canvas } = drawToCanvas(source, 1000)
   if ('close' in source) source.close()
   const detectCanvas = document.createElement('canvas')
-  const detectScale = Math.min(1, 420 / Math.max(canvas.width, canvas.height))
+  // Griglia di analisi ridotta: il rilevamento resta rapido anche su telefono.
+  const detectScale = Math.min(1, 340 / Math.max(canvas.width, canvas.height))
   detectCanvas.width = Math.max(1, Math.round(canvas.width * detectScale))
   detectCanvas.height = Math.max(1, Math.round(canvas.height * detectScale))
   const detectCtx = detectCanvas.getContext('2d')

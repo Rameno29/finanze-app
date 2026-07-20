@@ -14,11 +14,14 @@ class FakeImageData {
 ;(globalThis as { ImageData?: unknown }).ImageData ??= FakeImageData
 import {
   boxBlur3,
+  closeMask,
   detectDocumentQuad,
+  edgeAlignment,
   homographyToQuad,
   orderQuad,
   quadArea,
   quadOutputSize,
+  sobelMagnitude,
   warpPerspective,
   type Point,
   type Quad,
@@ -189,6 +192,27 @@ describe('detectDocumentQuad', () => {
     expect(detectDocumentQuad(gray, 80, 60)).toBeNull()
   })
 
+  it('trova l’intero documento anche con un’ombra su un lato', () => {
+    const w = 80, h = 60
+    const gray = new Uint8Array(w * h)
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const inside = x >= 12 && x <= 66 && y >= 9 && y <= 51
+        // Banda destra del foglio in ombra (più scura ma sopra lo sfondo).
+        gray[y * w + x] = inside ? (x >= 54 ? 70 : 210) : 25
+      }
+    }
+    const quad = detectDocumentQuad(gray, w, h)
+    expect(quad).not.toBeNull()
+    const xs = quad!.map((p) => p.x)
+    const ys = quad!.map((p) => p.y)
+    // Il bordo destro deve arrivare al vero bordo del foglio, non fermarsi all’ombra.
+    expect(Math.max(...xs)).toBeGreaterThan(0.78)
+    expect(Math.min(...xs)).toBeLessThan(0.22)
+    expect(Math.max(...ys)).toBeGreaterThan(0.78)
+    expect(Math.min(...ys)).toBeLessThan(0.22)
+  })
+
   it('trova un documento a basso contrasto nonostante il rumore', () => {
     const w = 80, h = 60
     const gray = new Uint8Array(w * h)
@@ -202,6 +226,70 @@ describe('detectDocumentQuad', () => {
     expect(quad).not.toBeNull()
     expect(quad![0].x).toBeCloseTo(14 / 79, 1)
     expect(quad![2].y).toBeCloseTo(50 / 59, 1)
+  })
+})
+
+describe('closeMask', () => {
+  it('riempie un buco isolato (come il testo dentro il foglio)', () => {
+    const w = 9, h = 9
+    const mask = new Uint8Array(w * h).fill(1)
+    mask[4 * w + 4] = 0 // singolo pixel spento
+    const closed = closeMask(mask, w, h, 1)
+    expect(closed[4 * w + 4]).toBe(1)
+  })
+
+  it('lascia invariate maschere piene o vuote', () => {
+    expect(Array.from(closeMask(new Uint8Array(25).fill(1), 5, 5, 1))).toEqual(new Array(25).fill(1))
+    expect(Array.from(closeMask(new Uint8Array(25).fill(0), 5, 5, 1))).toEqual(new Array(25).fill(0))
+  })
+
+  it('ricuce una rientranza sottile sul bordo (come un’ombra)', () => {
+    const w = 11, h = 11
+    const mask = new Uint8Array(w * h)
+    for (let y = 2; y <= 8; y++) for (let x = 2; x <= 8; x++) mask[y * w + x] = 1
+    mask[5 * w + 8] = 0 // tacca di 1px sul bordo destro
+    const closed = closeMask(mask, w, h, 1)
+    expect(closed[5 * w + 8]).toBe(1)
+  })
+})
+
+describe('sobelMagnitude', () => {
+  it('è forte sui bordi e nulla nelle zone piatte', () => {
+    const w = 6, h = 6
+    const gray = new Uint8Array(w * h)
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) gray[y * w + x] = x < 3 ? 0 : 255
+    const mag = sobelMagnitude(gray, w, h)
+    expect(mag[2 * w + 2]).toBeGreaterThan(500) // a cavallo del bordo
+    expect(mag[2 * w + 1]).toBe(0) // zona piatta scura
+    expect(mag[2 * w + 4]).toBe(0) // zona piatta chiara
+  })
+})
+
+describe('edgeAlignment', () => {
+  it('premia il quad che segue i bordi reali del documento', () => {
+    const w = 80, h = 60
+    const gray = new Uint8Array(w * h)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++)
+        gray[y * w + x] = x >= 14 && x <= 66 && y >= 10 && y <= 50 ? 200 : 30
+    const mag = sobelMagnitude(gray, w, h)
+    let maxMag = 1
+    for (let i = 0; i < mag.length; i++) if (mag[i] > maxMag) maxMag = mag[i]
+    const onBorder: Quad = [
+      { x: 14 / 79, y: 10 / 59 },
+      { x: 66 / 79, y: 10 / 59 },
+      { x: 66 / 79, y: 50 / 59 },
+      { x: 14 / 79, y: 50 / 59 },
+    ]
+    const offBorder: Quad = [
+      { x: 0.4, y: 0.4 },
+      { x: 0.6, y: 0.4 },
+      { x: 0.6, y: 0.6 },
+      { x: 0.4, y: 0.6 },
+    ]
+    expect(edgeAlignment(onBorder, mag, w, h, maxMag)).toBeGreaterThan(
+      edgeAlignment(offBorder, mag, w, h, maxMag) + 0.2,
+    )
   })
 })
 
