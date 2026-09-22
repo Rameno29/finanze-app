@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import { CheckCircle2, FileSpreadsheet, TriangleAlert } from 'lucide-react'
 import { Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
-import { supabase } from '../../lib/supabase'
-import { currentUserId } from '../../lib/offline'
+import { authenticatedClient, supabase } from '../../lib/supabase'
+import { sessionScope } from '../../lib/sessionScope'
+import { readAllPages } from '../../lib/pagination'
 import {
   guessMapping,
   markDuplicates,
@@ -48,6 +49,9 @@ export function ImportSheet({
   const [error, setError] = useState('')
   const [importedCount, setImportedCount] = useState<number | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const working = useRef(false)
+  const batch = useRef<Array<Record<string, unknown>> | null>(null)
+  const [retrying, setRetrying] = useState(false)
 
   const entries = useMemo(
     () => (table && mapping ? parseEntries(table, mapping) : []),
@@ -56,6 +60,9 @@ export function ImportSheet({
   const duplicates = useMemo(() => markDuplicates(entries, existing), [entries, existing])
 
   function reset() {
+    if (working.current) return
+    batch.current = null
+    setRetrying(false)
     setTable(null)
     setMapping(null)
     setHistory([])
@@ -69,20 +76,37 @@ export function ImportSheet({
   }
 
   function close() {
+    if (working.current) return
     reset()
     onClose()
   }
 
+  async function importClient(ticket: ReturnType<typeof sessionScope.capture>) {
+    const { data, error: authError } = await supabase.auth.getSession()
+    sessionScope.assert(ticket)
+    if (authError || data.session?.user.id !== ticket.userId || account?.user_id !== ticket.userId) throw new Error('Sessione cambiata.')
+    return authenticatedClient(data.session.access_token)
+  }
+
   /** Movimenti già registrati nell'intervallo di date del file, per i duplicati. */
   async function fetchExisting(entriesList: ImportEntry[]): Promise<ExistingRow[]> {
+    const ticket = sessionScope.capture()
     const dates = entriesList.map((e) => e.date).filter((d): d is string => d !== null).sort()
     if (dates.length === 0) return []
-    const { data } = await supabase
+    const client = await importClient(ticket)
+    return readAllPages<ExistingRow>(async (from, to) => {
+      sessionScope.assert(ticket)
+      const result = await client
       .from('transactions')
       .select('date, amount_cents, kind')
+      .eq('user_id', ticket.userId)
+      .eq('account_id', account!.id)
       .gte('date', dates[0])
       .lte('date', dates[dates.length - 1])
-    return (data as ExistingRow[]) ?? []
+      .order('id').range(from, to)
+      sessionScope.assert(ticket)
+      return result
+    })
   }
 
   function applyEntries(entriesList: ImportEntry[], existingList: ExistingRow[]) {
@@ -93,15 +117,18 @@ export function ImportSheet({
   }
 
   async function handleFile(file: File) {
+    if (working.current) return
     setError('')
     setImportedCount(null)
     if (!navigator.onLine) {
       setError('Per importare un estratto conto serve la connessione a internet.')
       return
     }
-    setBusy(true)
+    working.current = true; setBusy(true)
     try {
+      const ticket = sessionScope.capture()
       const text = await readCsvFile(file)
+      sessionScope.assert(ticket)
       const parsed = parseCsv(text)
       if (parsed.header.length < 2 || parsed.rows.length === 0) {
         setError('File non riconosciuto: serve un CSV con intestazione e almeno una riga.')
@@ -113,15 +140,19 @@ export function ImportSheet({
       }
       const guessed = guessMapping(parsed.header)
       const firstEntries = parseEntries(parsed, guessed)
+      const client = await importClient(ticket)
       const [existingList, historyRes] = await Promise.all([
         fetchExisting(firstEntries),
-        supabase
+        client
           .from('transactions')
           .select('description, category_id, kind')
+          .eq('user_id', ticket.userId)
           .not('category_id', 'is', null)
           .order('created_at', { ascending: false })
           .limit(500),
       ])
+      sessionScope.assert(ticket)
+      if (historyRes.error) throw historyRes.error
       setHistory((historyRes.data as HistoryRow[]) ?? [])
       setTable(parsed)
       setMapping(guessed)
@@ -129,16 +160,19 @@ export function ImportSheet({
     } catch {
       setError('Lettura del file non riuscita, riprova.')
     } finally {
-      setBusy(false)
+      working.current = false; setBusy(false)
     }
   }
 
   async function updateMapping(next: ColumnMapping) {
+    if (!table || working.current || batch.current) return
+    working.current = true; setBusy(true); setError(''); setSelected(new Set())
     setMapping(next)
-    if (!table) return
-    const nextEntries = parseEntries(table, next)
-    // Cambiando colonne può cambiare l'intervallo di date: i duplicati vanno ricontrollati.
-    applyEntries(nextEntries, await fetchExisting(nextEntries))
+    try {
+      const nextEntries = parseEntries(table, next)
+      applyEntries(nextEntries, await fetchExisting(nextEntries))
+    } catch { setError('Verifica dei movimenti non riuscita. Riprova la selezione delle colonne prima di importare.') }
+    finally { working.current = false; setBusy(false) }
   }
 
   function toggleRow(row: number) {
@@ -160,7 +194,7 @@ export function ImportSheet({
   }, [entries, history])
 
   async function handleImport() {
-    if (!account) return
+    if (!account || working.current) return
     if (!navigator.onLine) {
       setError('Per importare un estratto conto serve la connessione a internet.')
       return
@@ -170,11 +204,13 @@ export function ImportSheet({
       setError('Seleziona almeno un movimento da importare.')
       return
     }
-    setBusy(true)
+    working.current = true; setBusy(true)
     setError('')
     try {
-      const userId = await currentUserId()
-      const rows = chosen.map((entry) => ({
+      const ticket = sessionScope.capture()
+      const client = await importClient(ticket)
+      const userId = ticket.userId
+      const rows = batch.current ?? chosen.map((entry) => ({
         id: crypto.randomUUID(),
         user_id: userId,
         amount_cents: entry.amount_cents!,
@@ -192,16 +228,26 @@ export function ImportSheet({
         recurrence: null,
         account_id: account.id,
       }))
-      for (let i = 0; i < rows.length; i += 100) {
-        const { error: dbError } = await supabase.from('transactions').insert(rows.slice(i, i + 100))
-        if (dbError) throw dbError
+      batch.current = rows
+      const requireActive = async () => {
+        const member = await client.from('app_members').select('status').eq('user_id', userId).maybeSingle()
+        sessionScope.assert(ticket)
+        if (member.error || member.data?.status !== 'active') throw new Error('Accesso non abilitato.')
       }
+      await requireActive()
+      // One statement commits all selected rows together. Stable IDs/content on
+      // retry prevent duplicates without overwriting already committed rows.
+      const { error: dbError } = await client.from('transactions').upsert(rows, { onConflict: 'id', ignoreDuplicates: true })
+      sessionScope.assert(ticket)
+      if (dbError) throw dbError
+      await requireActive()
       setImportedCount(rows.length)
       onImported()
     } catch {
-      setError('Import non riuscito. Alcuni movimenti potrebbero essere già stati salvati: controlla l’elenco prima di riprovare.')
+      setRetrying(batch.current !== null)
+      setError('Import non riuscito o risposta non ricevuta. Riprova qui senza duplicare i movimenti: la selezione resta bloccata fino al nuovo tentativo. Se chiudi, ricarica il file per ricontrollare i duplicati.')
     } finally {
-      setBusy(false)
+      working.current = false; setBusy(false)
     }
   }
 
@@ -236,6 +282,7 @@ export function ImportSheet({
             <input
               ref={fileRef}
               type="file"
+              disabled={busy}
               accept=".csv,text/csv,text/plain"
               className="hidden"
               onChange={(e) => {
@@ -258,6 +305,7 @@ export function ImportSheet({
             <Field label="Colonna data">
               <select
                 value={mapping?.date ?? ''}
+                disabled={busy || retrying}
                 onChange={(e) => void updateMapping({ ...mapping!, date: e.target.value === '' ? null : Number(e.target.value) })}
                 className={inputClass}
               >
@@ -270,6 +318,7 @@ export function ImportSheet({
             <Field label="Colonna descrizione">
               <select
                 value={mapping?.description ?? ''}
+                disabled={busy || retrying}
                 onChange={(e) => void updateMapping({ ...mapping!, description: e.target.value === '' ? null : Number(e.target.value) })}
                 className={inputClass}
               >
@@ -283,6 +332,7 @@ export function ImportSheet({
           <Field label="Importo">
             <div className="grid grid-cols-1 gap-2">
               <select
+                disabled={busy || retrying}
                 value={mapping?.amount !== null && mapping?.amount !== undefined ? `a:${mapping.amount}` : mapping?.debit !== null && mapping?.credit !== null ? `dc:${mapping!.debit}:${mapping!.credit}` : ''}
                 onChange={(e) => {
                   const value = e.target.value
@@ -331,7 +381,7 @@ export function ImportSheet({
                   <input
                     type="checkbox"
                     checked={selected.has(entry.row)}
-                    disabled={Boolean(entry.error)}
+                    disabled={Boolean(entry.error) || busy || retrying}
                     onChange={() => toggleRow(entry.row)}
                     aria-label={`Importa riga ${entry.row + 1}`}
                     className="h-5 w-5 shrink-0 accent-[var(--accent)]"
@@ -357,6 +407,7 @@ export function ImportSheet({
                     {!entry.error && entry.kind && (
                       <select
                         value={categoryValue}
+                        disabled={busy || retrying}
                         onChange={(e) =>
                           setCategoryByRow((prev) => new Map(prev).set(entry.row, e.target.value))
                         }
@@ -389,12 +440,13 @@ export function ImportSheet({
             <button
               type="button"
               onClick={reset}
+              disabled={busy || retrying}
               className="flex min-h-[48px] w-full items-center justify-center rounded-xl bg-card-2 font-semibold"
             >
               Altro file
             </button>
             <PrimaryButton onClick={() => void handleImport()} disabled={busy || selected.size === 0}>
-              {busy ? <Spinner className="h-5 w-5 text-white" /> : `Importa ${selected.size}`}
+              {busy ? <Spinner className="h-5 w-5 text-white" /> : retrying ? 'Riprova importazione' : `Importa ${selected.size}`}
             </PrimaryButton>
           </div>
         </div>

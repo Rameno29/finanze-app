@@ -1,5 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
+import { ApiError, requireActive, rateLimit, readJson } from '../_shared/access.ts'
+import { allowedPushEndpoint } from '../_shared/pushEndpoint.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -65,14 +67,18 @@ Deno.serve(async (req: Request) => {
   if (!vapidPublic || !vapidPrivate) return json({ error: 'vapid_mancante' }, 500)
   webpush.setVapidDetails('mailto:bogdanstafie1996@gmail.com', vapidPublic, vapidPrivate)
 
-  const body = await req.json().catch(() => ({}))
+  let body: Record<string, unknown>
+  try { body = await readJson(req, 4096) } catch { return json({ error: 'invalid_input' }, 400) }
 
   // Invia una notifica cifrata, restituisce diagnostica leggibile
   async function push(sub: Sub, payload: string): Promise<{ ok: boolean; status?: number; error?: string }> {
+    if (!allowedPushEndpoint(sub.endpoint)) return { ok: false, error: 'unsupported_push_service' }
     try {
+      await requireActive(admin, sub.user_id)
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         payload,
+        { TTL: 300, timeout: 10_000 },
       )
       return { ok: true }
     } catch (e) {
@@ -80,7 +86,7 @@ Deno.serve(async (req: Request) => {
       if (status === 404 || status === 410) {
         await admin.from('push_subscriptions').delete().eq('id', sub.id)
       }
-      return { ok: false, status, error: (e as Error).message?.slice(0, 200) }
+      return { ok: false, status, error: 'push_failed' }
     }
   }
 
@@ -91,6 +97,8 @@ Deno.serve(async (req: Request) => {
     })
     const { data: userData, error: userErr } = await userClient.auth.getUser()
     if (userErr || !userData.user) return json({ error: 'unauthorized' }, 401)
+    try { await requireActive(admin, userData.user.id); await rateLimit(admin, userData.user.id, 'push', 3) }
+    catch (error) { return json({ error: error instanceof ApiError ? error.message : 'service_unavailable' }, error instanceof ApiError ? error.status : 503) }
 
     const { data: subs } = await admin
       .from('push_subscriptions')
@@ -99,6 +107,7 @@ Deno.serve(async (req: Request) => {
     if (!subs || subs.length === 0) return json({ error: 'nessuna_sottoscrizione' }, 400)
 
     const payload = JSON.stringify({
+      user_id: userData.user.id,
       title: 'AJE · notifica di prova',
       body: 'Perfetto! Le notifiche funzionano 🎉',
       url: '/finanze-app/agenda',
@@ -112,13 +121,16 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'unauthorized' }, 401)
   }
 
-  const { data: subs } = await admin.from('push_subscriptions').select('*')
+  const { data: activeMembers, error: membersError } = await admin.from('app_members').select('user_id').eq('status', 'active')
+  if (membersError) return json({ error: 'service_unavailable' }, 503)
+  const { data: subs, error: subsError } = await admin.from('push_subscriptions').select('*').in('user_id', (activeMembers ?? []).map(row => row.user_id))
+  if (subsError) return json({ error: 'service_unavailable' }, 503)
   if (!subs || subs.length === 0) return json({ due: 0, sent: 0, note: 'nessuna sottoscrizione' })
 
   const [today, hhmm] = romeNow()
   const userIds = [...new Set((subs as Sub[]).map((s) => s.user_id))]
 
-  const { data: tasks } = await admin
+  const { data: tasks, error: tasksError } = await admin
     .from('tasks')
     .select('id, user_id, title, due_date, due_time')
     .eq('done', false)
@@ -126,6 +138,7 @@ Deno.serve(async (req: Request) => {
     .in('user_id', userIds)
     .not('due_date', 'is', null)
     .lte('due_date', today)
+  if (tasksError) return json({ error: 'service_unavailable' }, 503)
 
   const due = (tasks ?? []).filter(
     (t: { due_date: string; due_time: string | null }) =>
@@ -135,25 +148,33 @@ Deno.serve(async (req: Request) => {
   let sent = 0
   const errors: Array<{ status?: number; error?: string }> = []
   for (const t of due) {
+    const { data: claim, error: claimError } = await admin.rpc('claim_task_reminder', {
+      target_task: t.id, expected_date: t.due_date, expected_time: t.due_time, expected_title: t.title,
+    })
+    if (claimError) { errors.push({ error: 'claim_failed' }); continue }
+    if (!claim) continue // Already delivered, changed, suspended or claimed by another cron.
+    let delivered = false
+    try {
     const payload = JSON.stringify({
+      user_id: t.user_id,
       title: 'Promemoria AJE',
       body: t.title + (t.due_time ? ` · ore ${t.due_time.slice(0, 5)}` : ''),
       url: '/finanze-app/agenda',
     })
     const targets = (subs as Sub[]).filter((x) => x.user_id === t.user_id)
     const results = await Promise.all(targets.map((s) => push(s, payload)))
-    const anyOk = results.some((r) => r.ok)
+    delivered = results.some((r) => r.ok)
     sent += results.filter((r) => r.ok).length
     for (const r of results) if (!r.ok) errors.push({ status: r.status, error: r.error })
-    // Marca notificato solo se almeno un invio è riuscito (altrimenti riprova al prossimo giro)
-    if (anyOk) {
-      await admin
-        .from('tasks')
-        .update({ notified: true })
-        .eq('id', t.id)
-        .eq('user_id', t.user_id)
+    } finally {
+      // A stale delivery must not acknowledge a newly edited date/time/title.
+      // Failures release the claim; a crashed process expires after two minutes.
+      const { error: finishError } = await admin.rpc('finish_task_reminder', {
+        target_task: t.id, claim_token: claim, delivered,
+      })
+      if (finishError) errors.push({ error: 'acknowledgement_failed' })
     }
   }
 
-  return json({ due: due.length, sent, errors })
+  return json({ due: due.length, sent, errors }, errors.some(e => e.error === 'claim_failed' || e.error === 'acknowledgement_failed') ? 503 : 200)
 })

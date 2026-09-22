@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { PageHeader } from '../../components/ui'
+import { Link } from 'react-router-dom'
 
 // Accordion esclusivo: aprire una sezione chiude le altre
 const AccordionContext = createContext<{
@@ -143,14 +144,15 @@ export function GuidePage() {
           <P>• <B>Tema</B> — chiaro, scuro o automatico come il sistema.</P>
           <P>• <B>Passkey e Face ID</B> — crea una passkey su questo dispositivo e dalla volta dopo accedi col viso (o l'impronta), senza scrivere la password. La passkey resta sul tuo dispositivo o nel portachiavi iCloud: AJE conserva solo la parte pubblica, e puoi eliminarla quando vuoi. La password continua comunque a funzionare.</P>
           <P>• <B>Account</B> — la tua email e il bottone Esci.</P>
-          <P>• Le funzioni AI sono attive con Google Gemini (piano gratuito): la chiave sta al sicuro sul server, mai sul telefono.</P>
+          <P>• <B>Le mie integrazioni</B> — salva le tue chiavi Gemini e YouTube e i tuoi Client ID Google/Spotify. Le chiavi API sono cifrate sul server e ogni account usa la propria configurazione. Trovi link ufficiali, passaggi e limiti nella <Link to="/impostazioni#integrazioni" className="text-accent underline">guida alle integrazioni</Link>. Non tutte le funzioni sono gratuite per ogni account/provider.</P>
+          <P>• <B>Utenti e inviti</B> — solo il proprietario può generare un invito, copiarne il link, annullarlo o sospendere l’ospite. Il limite iniziale è un ospite. I dati restano separati.</P>
         </Section>
 
         <Section icon={Lightbulb} title="Consigli utili">
           <P>• <B>Installazione</B> — iPhone: Safari → Condividi → "Aggiungi a schermata Home". Android: Chrome → menu ⋮ → "Aggiungi a schermata Home" (o "Installa app").</P>
           <P>• <B>Aggiornamenti</B> — l'app si aggiorna da sola: se non vedi una novità, chiudila e riaprila.</P>
           <P>• <B>Uso offline</B> — dopo aver aperto almeno una volta Finanze o Agenda online, le ultime viste restano disponibili in forma cifrata. Puoi aggiungere o modificare movimenti e attività: la barra in alto indica le operazioni in attesa e le sincronizza in ordine appena torna la connessione. Documenti e funzioni AI richiedono internet.</P>
-          <P>• <B>Privacy</B> — i tuoi dati sono nel tuo database personale, protetti dal tuo account; solo le email autorizzate possono registrarsi.</P>
+          <P>• <B>Privacy</B> — i dati sono protetti dal tuo account in un database con accessi separati; si entra solo con invito. La cifratura delle chiavi è gestita dal server, non end-to-end. I token Google/Spotify vengono rimossi dal dispositivo al cambio account; su un nuovo dispositivo potrebbe servire un nuovo consenso.</P>
           <P>• <B>Foto migliori per l'AI</B> — scontrini e buste paga ben illuminati e dritti si leggono meglio.</P>
         </Section>
       </div>

@@ -2,7 +2,76 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **20 luglio 2026**.
+> Ultimo aggiornamento: **22 settembre 2026**.
+
+## Intervento multiutente — backend distribuito, frontend in pubblicazione
+
+Il branch `codex/multiutente-api-audit` contiene l'esecuzione del piano in
+`docs/superpowers/plans/2026-09-20-multiutente-api-audit.md`. Le sezioni storiche sottostanti
+descrivono la versione pubblicata a luglio, non certificano il rilascio delle nuove modifiche.
+Registro delle prove e limiti: `docs/audit/2026-09-20-audit.md`.
+Consegna e passaggi che richiedono il proprietario: `docs/consegna-multiutente.md`.
+
+- Login solo su invito, recupero password, contrasto e autofill corretti; callback password dedicata.
+- Membership server con proprietario e un posto ospite, inviti dalle Impostazioni e sospensione;
+  RLS restrittive applicano lo stato attivo anche a JWT emessi prima della sospensione.
+- API key Gemini/YouTube personali cifrate AES-256-GCM nel database; la chiave principale
+  deve stare esclusivamente nei secret delle Edge Functions. Non è cifratura end-to-end.
+- Client ID Google/Spotify personali nelle Impostazioni; token OAuth temporanei separati
+  per identità. Rimossi i Client ID condivisi e la chiave YouTube dalla build.
+- AI e YouTube richiedono la credenziale dell'utente; nessun fallback a `app_secrets.GEMINI_API_KEY`.
+  L'endpoint `analyze-payslip` è ritirato (410); resta `ai-analyze` per le buste paga.
+- Nuove funzioni `manage-invites`, `user-credentials`, `youtube-search`; migration additiva
+  `20260920103659_multiuser_credentials_invites.sql`. Bootstrap sul UUID dell'unico account Auth
+  preesistente, con lock e arresto se gli account non sono esattamente uno. La vecchia allowlist
+  non è autorevole: la verifica remota in sola lettura ha rilevato un indirizzo storico diverso.
+- Seconda migration `20260921175220_functional_audit_regressions.sql`: trasferimenti atomici,
+  unicità della conferma documento, ricorrenze con giorno ancorato e recupero arretrati;
+  prenotazioni temporanee dei promemoria per cron concorrenti, accessibili solo al servizio server.
+- Cache offline: creazione atomica delle chiavi, richieste legate al token originale, lock
+  tra schede e stato separato per account. Nessun reload PWA forzato durante i moduli aperti.
+- Una risposta UPDATE senza righe non elimina più le modifiche dalla coda; DELETE vuoti
+  richiedono membership ancora attiva. La cancellazione di trasferimenti sospesi fallisce esplicitamente.
+- Password callback legata alla sessione verificata dal link, anche dopo errore/riprova e cambio
+  account in un'altra scheda. Refresh Spotify e notifiche mantengono l'identità iniziale della richiesta.
+- Scritture dell'identità push ordinate; attivazione senza service worker restituisce un errore
+  invece di attendere indefinitamente. Test di regressione prima e dopo le correzioni.
+- Snapshot delle modifiche offline cifrati anche quando il movimento cambia mese o conto;
+  totali e saldi includono inserimenti/cancellazioni pendenti. Cache totali versionata senza eliminare code.
+- Import CSV: verifica duplicati paginata per conto, errore di lettura bloccante, singolo batch
+  con UUID stabili e riprova senza duplicazioni dopo risposta persa finché il pannello resta aperto.
+- Upload documenti/scanner con identità fissata e riconciliazione per UUID: una risposta persa
+  non cancella più il file già registrato. Gli esiti incerti possono lasciare orfani privati da verificare.
+- Promemoria: claim con scadenza e verifica di data/orario/titolo prima della conferma; errori
+  lettura cron segnalati. Il cambio BCE odierno viene aggiornato dopo un'ora, non congelato nella cache.
+- Revisione finale circoscritta di accessi, RLS/RPC, inviti, credenziali, callback e upload:
+  nessun ulteriore blocco critico/alto confermato dopo le correzioni. Non certifica tutti i moduli
+  né sostituisce il collaudo sul backend e sul dispositivo reale.
+- Diario e azioni confermate dell'assistente vincolati alla sessione iniziale; la coda rifiuta
+  payload di un altro account. Riprova del diario con UUID stabili e selezione congelata, senza
+  duplicare righe già salvate finché il pannello resta aperto.
+- Microfono annullato alla chiusura del modulo, anche durante attesa permesso e coda audio;
+  rilascio delle tracce dopo errore Web Audio, verifica identità prima della trascrizione.
+- Collaudo locale: 142 test Vitest (inclusi SQL/RLS), 20 test Deno, 26 test browser desktop/mobile
+  con backend simulato. Esiti aggiornati e limiti nel registro audit. Lint conserva 5 warning Fast Refresh.
+- Audit del 22 settembre: zero vulnerabilità note nei grafi npm e Deno esaminati. Il controllo Deno
+  aveva trovato 11 segnalazioni su Nodemailer 7.0.10: aggiornato a 10.0.10, composizione invito
+  verificata senza SMTP reale. Non è una garanzia di assenza di vulnerabilità applicative/cloud.
+- Procedura operativa in `docs/release-multiutente.md`; utility di rotazione server
+  `supabase/scripts/rotate-credentials.ts`, predefinita in dry-run, verificata su fixture sintetiche
+  (dry-run/apply/conflitto/chiave mancante) e non eseguita sui dati reali.
+
+Il rilascio è stato autorizzato il 22 settembre; Docker Desktop installato con autorizzazione
+e motore verificato. Backup completo fuori Git e ripristino SQL su PostgreSQL isolato riusciti.
+Entrambe le migrazioni (transazioni esplicite), master key e nove Edge Functions sono distribuiti;
+owner attivo unico, un posto ospite, 20 movimenti e due documenti conservati. Site URL Auth e callback
+corretti per GitHub Pages. Smoke remoto: otto endpoint 401 senza sessione, legacy 410.
+Registro in `docs/release-multiutente.md`; pubblicazione frontend e verifica Pages in corso.
+Restano inserimento delle credenziali personali e collaudo autenticato/iPhone del proprietario.
+SMTP facoltativo: senza configurazione resta la copia del link. Nessun invito o email reale inviato.
+Le impostazioni `verify_jwt=false` delle nuove funzioni non significano accesso libero: gli handler
+verificano il bearer con Supabase Auth e applicano membership e limiti. Il cron usa il proprio secret;
+l'endpoint legacy restituisce soltanto 410. Non distribuire un handler privo di questi controlli.
 
 ---
 
@@ -422,7 +491,6 @@ Serve un file **`.env`** locale (non versionato) con:
 ```
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
-VITE_YOUTUBE_API_KEY=...
 ```
 
 ### Deploy
@@ -557,18 +625,19 @@ supabase/migrations/ → cronologia SQL completa + schema multivaluta
 ```
 
 ### Se qualcosa "non si aggiorna" sul telefono
-Chiudi del tutto l'app (app switcher) o rimuovila dalla Home e reinstallala da Safari. I dati non si
-perdono (sono nel cloud). Con l'auto-reload aggiunto, dovrebbe aggiornarsi da sola.
+Verifica prima che la coda offline sia vuota, salva i moduli aperti e riapri l'app. Il nuovo branch
+rimuove il reload forzato. Non cancellare storage, cache del sito o installazione se ci sono operazioni
+in attesa: i dati non ancora sincronizzati esistono solo sul dispositivo.
 
 ---
 
 ## 11. Cose che il proprietario (Bogdan) deve sapere
 
-- **I dati sono al sicuro** nel database cloud: rimuovere/reinstallare l'app non li cancella.
-- **Costi:** tutto su piani gratuiti. Gemini gratuito potrebbe usare i dati inviati per migliorare i
-  servizi Google (irrilevante per i riassunti; per le buste paga valutare, se si vuole massima privacy,
-  una chiave a pagamento in futuro).
-- **Per far usare l'app a qualcun altro** (famiglia): va aggiunta la sua email alla lista autorizzate.
+- **Dati sincronizzati:** sono nel database cloud; le operazioni offline pendenti non lo sono ancora.
+- **Costi e privacy:** quote e gratuità dipendono dai provider. Valutare le condizioni prima di inviare
+  buste paga o altri dati sensibili; cifrare la chiave salvata non rende private le richieste al provider.
+- **Accesso ospite dopo il nuovo rilascio:** Impostazioni → Utenti e inviti. Un solo posto ospite,
+  dati e chiavi separati. Prima del rilascio rimane la vecchia gestione online descritta nelle sezioni storiche.
 - **Notifiche su iPhone:** funzionano solo con l'app installata sulla Home e permesso concesso.
 
 ---

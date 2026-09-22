@@ -377,20 +377,8 @@ function TransferSheet({
         { ...base, id: crypto.randomUUID(), kind: 'expense', account_id: fromId },
         { ...base, id: crypto.randomUUID(), kind: 'income', account_id: toId },
       ]
-      const saveLeg = (leg: (typeof legs)[number]) =>
-        mutateOffline('transactions', 'insert', leg.id, leg, {
-          ...leg,
-          document_id: null,
-          created_at: new Date().toISOString(),
-        })
-      await saveLeg(legs[0])
-      try {
-        await saveLeg(legs[1])
-      } catch (cause) {
-        // Niente trasferimenti a metà: se la seconda gamba fallisce, rimuovi la prima.
-        await mutateOffline('transactions', 'delete', legs[0].id, {}, null).catch(() => {})
-        throw cause
-      }
+      // One queued operation, one PostgreSQL transaction, idempotent after a lost response.
+      await mutateOffline('transactions', 'transfer', group, { legs }, null)
       onSaved()
       onClose()
     } catch {

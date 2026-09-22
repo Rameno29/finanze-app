@@ -3,7 +3,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Crosshair, Fuel, Navigation, Search } from 'lucide-react'
 import { Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
-import { supabase } from '../../lib/supabase'
+import { invokeFunction } from '../../lib/integrations'
 
 const FUEL_OPTIONS = ['Benzina', 'Gasolio', 'GPL', 'Metano'] as const
 type FuelType = (typeof FUEL_OPTIONS)[number]
@@ -56,7 +56,7 @@ export function FuelPage() {
     setBusy(true)
     setMessage('')
     try {
-      const { data, error } = await supabase.functions.invoke('fuel-prices', {
+      const { data, error } = await invokeFunction('fuel-prices', {
         body: { lat, lon, radius_km: 7, fuel: fuelType },
       })
       if (error) throw error

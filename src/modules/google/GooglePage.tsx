@@ -11,8 +11,8 @@ import {
   Search,
   Sparkles,
 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
-import { GOOGLE_CLIENT_ID } from '../../lib/config'
+import { invokeFunction } from '../../lib/integrations'
+import { Link } from 'react-router-dom'
 import {
   disconnectGoogle,
   getStoredGoogleToken,
@@ -60,7 +60,6 @@ function formatEventStart(e: CalEvent): string {
 }
 
 export function GooglePage() {
-  const configured = GOOGLE_CLIENT_ID !== ''
   const [token, setToken] = useState<string | null>(getStoredGoogleToken())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -82,7 +81,7 @@ export function GooglePage() {
     setWebError('')
     setWebAnswer(null)
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke('ai-analyze', {
+      const { data, error: fnErr } = await invokeFunction('ai-analyze', {
         body: { mode: 'websearch', query: webQuery.trim() },
       })
       if (fnErr) throw fnErr
@@ -91,8 +90,8 @@ export function GooglePage() {
         answer: result.answer,
         sources: (result.sources ?? []).filter((source) => isSafeHttpUrl(source.url)).slice(0, 6),
       })
-    } catch {
-      setWebError('Ricerca non riuscita, riprova tra poco.')
+} catch (cause) {
+      setWebError(cause instanceof Error ? cause.message : 'Ricerca non riuscita, riprova tra poco.')
     } finally {
       setWebSearching(false)
     }
@@ -104,8 +103,8 @@ export function GooglePage() {
     try {
       const t = await requestGoogleToken(true)
       setToken(t)
-    } catch {
-      setError('Collegamento non riuscito. Riprova.')
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Collegamento non riuscito. Riprova.')
     } finally {
       setBusy(false)
     }
@@ -266,16 +265,8 @@ export function GooglePage() {
           </form>
         </Card>
 
-        {!configured ? (
-          <Card>
-            <h2 className="mb-2 font-semibold">Collega il tuo account Google</h2>
-            <p className="text-sm text-muted">
-              Per vedere qui calendario, email e file serve un ultimo passaggio di configurazione
-              (gratuito): la creazione del progetto Google Cloud. Segui la guida che ti ha dato
-              Claude e la funzione si attiverà.
-            </p>
-          </Card>
-        ) : !token ? (
+        <Link to="/impostazioni#integrazioni" className="block text-sm text-accent underline">Configura il tuo progetto Google e la chiave AI: guida nelle Impostazioni</Link>
+        {!token ? (
           <Card>
             <h2 className="mb-2 font-semibold">Collega il tuo account Google</h2>
             <p className="mb-4 text-sm text-muted">

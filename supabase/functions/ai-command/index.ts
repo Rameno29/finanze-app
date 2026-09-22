@@ -1,37 +1,5 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
-
-const APP_ORIGIN = 'https://rameno29.github.io'
-const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
-const rateBuckets = new Map<string, { start: number; count: number }>()
-
-function originAllowed(req: Request): boolean {
-  const origin = req.headers.get('Origin')
-  return !origin || origin === APP_ORIGIN || LOCAL_ORIGIN.test(origin)
-}
-
-function rateLimited(userId: string, max = 30): boolean {
-  const now = Date.now()
-  const bucket = rateBuckets.get(userId)
-  if (!bucket || now - bucket.start >= 60_000) {
-    rateBuckets.set(userId, { start: now, count: 1 })
-    return false
-  }
-  bucket.count += 1
-  return bucket.count > max
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
+import { handler, json as responseJson } from '../_shared/access.ts'
+import { personalKey, providerFetch } from '../_shared/credentials.ts'
 
 function eurToCents(value: unknown): number | null {
   const n = Number(value)
@@ -43,20 +11,14 @@ function isoDate(value: unknown): string | null {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
 }
 
-/** Chiama Gemini con un ritentativo se il servizio è momentaneamente sovraccarico (429/503). */
+/** Nessun retry automatico fatturabile: quota e timeout sono restituiti al chiamante. */
 async function geminiGenerate(apiKey: string, body: unknown): Promise<Response> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await fetch(url, {
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+  return providerFetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify(body),
-    })
-    if (res.ok || (res.status !== 429 && res.status !== 503) || attempt === 1) return res
-    await new Promise((r) => setTimeout(r, 1500))
-  }
-  // irraggiungibile
-  return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  })
 }
 
 const COMMAND_SCHEMA = {
@@ -97,37 +59,11 @@ const COMMAND_SCHEMA = {
   required: ['action'],
 }
 
-Deno.serve(async (req: Request) => {
-  if (!originAllowed(req)) return json({ error: 'origin_not_allowed' }, 403)
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
-  const contentLength = Number(req.headers.get('content-length') ?? 0)
-  if (contentLength > 8_500_000) return json({ error: 'payload_too_large' }, 413)
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const admin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-
-  const authHeader = req.headers.get('Authorization') ?? ''
-  const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-    global: { headers: { Authorization: authHeader } },
-  })
-  const { data: userData, error: userErr } = await userClient.auth.getUser()
-  if (userErr || !userData.user) return json({ error: 'unauthorized' }, 401)
-  const userId = userData.user.id
-  if (rateLimited(userId)) return json({ error: 'rate_limit' }, 429)
-
-  let apiKey = Deno.env.get('GEMINI_API_KEY') ?? ''
-  if (!apiKey) {
-    const { data: secret } = await admin
-      .from('app_secrets')
-      .select('value')
-      .eq('name', 'GEMINI_API_KEY')
-      .maybeSingle()
-    apiKey = secret?.value ?? ''
-  }
-  if (!apiKey) return json({ error: 'missing_api_key' }, 400)
-
-  const { text, audio_base64, audio_mime, transcribe_only } = await req.json().catch(() => ({}))
+export const serve = handler(async ({ admin, user, body, req }) => {
+  const json = (data: unknown, status = 200) => responseJson(req, data, status)
+  const userId = user.id
+  const apiKey = await personalKey(admin, userId, 'gemini')
+  const { text, audio_base64, audio_mime, transcribe_only } = body
   const hasAudio = typeof audio_base64 === 'string' && audio_base64.length > 0
   if (!hasAudio) {
     if (typeof text !== 'string' || !text.trim()) return json({ error: 'testo mancante' }, 400)
@@ -155,10 +91,6 @@ Deno.serve(async (req: Request) => {
         },
       ],
     })
-    if (!tr.ok) {
-      console.error('Gemini transcribe error', tr.status, (await tr.text()).slice(0, 300))
-      return json({ error: 'Trascrizione non riuscita, riprova.' }, 502)
-    }
     const trData = await tr.json()
     const transcript = (trData.candidates?.[0]?.content?.parts ?? [])
       .map((p: { text?: string }) => p.text ?? '')
@@ -183,7 +115,7 @@ Deno.serve(async (req: Request) => {
     `Obiettivi di risparmio esistenti: ${goalList || '(nessuno)'}.\n\n` +
     (hasAudio
       ? `Ascolta l'audio dell'utente (in italiano), trascrivilo mentalmente e determina l'azione richiesta.\n\n`
-      : `Interpreta questa frase dell'utente e determina l'azione: "${text.trim()}"\n\n`) +
+      : `Interpreta questa frase dell'utente e determina l'azione: "${String(text).trim()}"\n\n`) +
     `Esempi: "ho speso 20 euro di pizza" → add_transaction uscita; "mi sono arrivati 500 euro" → add_transaction entrata; ` +
     `"ricordami di pagare il bollo venerdì alle 18" → add_task; "voglio mettere da parte 1000 euro per Natale" → add_goal; ` +
     `"metti 50 euro nelle vacanze" → contribute_goal; "imposta 300 euro di budget per la spesa" → set_budget; ` +
@@ -198,12 +130,6 @@ Deno.serve(async (req: Request) => {
     contents: [{ parts }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: COMMAND_SCHEMA },
   })
-  if (!res.ok) {
-    console.error('Gemini error', res.status, (await res.text()).slice(0, 300))
-    if (res.status === 429 || res.status === 503)
-      return json({ error: 'Assistente occupato, riprova tra qualche secondo.' }, 503)
-    return json({ error: "Interpretazione non riuscita, riprova." }, 502)
-  }
   const data = await res.json()
   const raw = (data.candidates?.[0]?.content?.parts ?? [])
     .map((p: { text?: string }) => p.text ?? '')
@@ -283,4 +209,5 @@ Deno.serve(async (req: Request) => {
   }
 
   return json({ action: 'answer', transcript })
-})
+}, { bodyLimit: 8_500_000, bucket: 'ai' })
+if (import.meta.main) Deno.serve(serve)

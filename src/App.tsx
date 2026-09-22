@@ -9,6 +9,8 @@ import { FullPageSpinner } from './components/ui'
 import { handleSpotifyCallback } from './lib/spotifyAuth'
 import { LoginPage } from './modules/auth/LoginPage'
 import { OfflineBanner } from './components/OfflineBanner'
+import { AuthCallbackPage } from './modules/auth/AuthCallbackPage'
+import { MembershipGate } from './modules/auth/MembershipGate'
 
 const HomePage = lazy(() => import('./modules/home/HomePage').then((m) => ({ default: m.HomePage })))
 const FinancePage = lazy(() => import('./modules/finance/FinancePage').then((m) => ({ default: m.FinancePage })))
@@ -24,21 +26,24 @@ const FuelPage = lazy(() => import('./modules/fuel/FuelPage').then((m) => ({ def
 function Shell() {
   const { session, loading } = useAuth()
   const navigate = useNavigate()
+  const userId = session?.user.id
 
   // Ritorno dal login Spotify (?code=...)
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).has('code')) {
+    const params = new URLSearchParams(window.location.search)
+    if (userId && params.has('code') && params.has('state')) {
       void handleSpotifyCallback().then((ok) => {
         if (ok) navigate('/media', { replace: true })
-      })
+      }).catch(() => { /* collegamento ripetibile dalla pagina Media */ })
     }
-  }, [navigate])
+  }, [navigate, userId])
 
   if (loading) return <FullPageSpinner />
+  if (window.location.pathname.endsWith('/auth/callback')) return <AuthCallbackPage />
   if (!session) return <LoginPage />
 
   return (
-    <div className="min-h-dvh bg-bg">
+    <MembershipGate key={session.user.id} userId={session.user.id}><PlayerProvider><div className="min-h-dvh bg-bg">
       <OfflineBanner userId={session.user.id} />
       <Suspense fallback={<FullPageSpinner />}>
         <Routes>
@@ -57,19 +62,19 @@ function Shell() {
       </Suspense>
       <MiniPlayer />
       <TabBar />
-    </div>
+    </div></PlayerProvider></MembershipGate>
   )
+}
+
+function SessionShell() {
+  return <BrowserRouter basename={import.meta.env.BASE_URL}><Shell /></BrowserRouter>
 }
 
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <PlayerProvider>
-          <BrowserRouter basename={import.meta.env.BASE_URL}>
-            <Shell />
-          </BrowserRouter>
-        </PlayerProvider>
+        <SessionShell />
       </AuthProvider>
     </ThemeProvider>
   )

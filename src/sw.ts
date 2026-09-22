@@ -13,20 +13,24 @@ precacheAndRoute(self.__WB_MANIFEST)
 
 // Notifica push in arrivo dal server (promemoria agenda)
 self.addEventListener('push', (event) => {
-  let data: { title?: string; body?: string; url?: string } = {}
+  let data: { title?: string; body?: string; url?: string; user_id?: string } = {}
   try {
     data = event.data?.json() ?? {}
   } catch {
     data = { body: event.data?.text() ?? '' }
   }
-  event.waitUntil(
-    self.registration.showNotification(data.title ?? 'AJE', {
+  event.waitUntil((async () => {
+    const cache = await caches.open('aje-push-identity-v1')
+    const identity = await cache.match(new URL('/finanze-app/push-identity', self.location.origin).href)
+    const current = await identity?.json().catch(() => null)
+    if (!data.user_id || !current?.userId || data.user_id !== current.userId) return
+    await self.registration.showNotification(data.title ?? 'AJE', {
       body: data.body ?? '',
       icon: '/finanze-app/pwa-192.png',
       badge: '/finanze-app/pwa-192.png',
       data: { url: data.url ?? '/finanze-app/agenda' },
-    }),
-  )
+    })
+  })())
 })
 
 // Tocco sulla notifica: apre (o porta in primo piano) l'app sull'agenda

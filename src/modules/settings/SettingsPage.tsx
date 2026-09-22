@@ -31,6 +31,9 @@ import {
   sendTestNotification,
 } from '../../lib/push'
 import { Card, PageHeader, Spinner } from '../../components/ui'
+import { IntegrationsPanel } from './IntegrationsPanel'
+import { InvitesPanel } from './InvitesPanel'
+import { clearExternalSessions } from '../../lib/sessionScope'
 
 const THEME_OPTIONS: Array<{ value: ThemeSetting; label: string; icon: typeof Sun }> = [
   { value: 'system', label: 'Sistema', icon: Smartphone },
@@ -151,6 +154,8 @@ export function SettingsPage() {
       <PageHeader title="Altro" subtitle="Impostazioni e informazioni" />
 
       <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
+        <InvitesPanel />
+        <IntegrationsPanel />
         <Card className="divide-y divide-line p-0">
           <Link to="/assistente" className="flex min-h-[52px] items-center gap-3 px-4">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent">
@@ -286,9 +291,9 @@ export function SettingsPage() {
             <Sparkles className="h-4 w-4 text-accent" /> Funzioni AI
           </h2>
           <p className="text-sm text-muted">
-            Attive con Google Gemini (piano gratuito): analisi di buste paga, scontrini e
-            documenti, e riassunti dei video YouTube. L’elaborazione avviene su una funzione
-            sicura del server: la chiave non passa mai dal telefono.
+            Analisi di documenti, voce e riassunti usano la tua chiave Gemini personale.
+            Configurala in Le mie integrazioni. La chiave viene inviata al server al salvataggio,
+            cifrata e usata solo per il tuo account; non viene restituita all’app.
           </p>
         </Card>
 
@@ -348,7 +353,7 @@ export function SettingsPage() {
           <h2 className="mb-1 font-semibold">Account</h2>
           <p className="mb-4 text-sm text-muted">{session?.user.email}</p>
           <button
-            onClick={() => void supabase.auth.signOut()}
+            onClick={() => { void (async () => { try { await disablePush() } catch { /* procedi con il logout anche offline */ } clearExternalSessions(); const { error } = await supabase.auth.signOut(); if (error) setPushMsg('Uscita non riuscita. Controlla la connessione e riprova.') })() }}
             className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-line font-semibold text-expense"
           >
             <LogOut className="h-5 w-5" /> Esci
@@ -358,7 +363,7 @@ export function SettingsPage() {
         <p className="pb-4 text-center text-xs text-muted">
           AJE · v1.0
           <br />
-          Prossimi moduli: Agenda, Google, Musica e YouTube
+          Account personali · Accesso su invito
         </p>
       </div>
     </div>

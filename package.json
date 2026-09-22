@@ -8,6 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:edge": "deno test --allow-env --config supabase/functions/deno.json supabase/functions/security_test.ts supabase/functions/reminders_test.ts supabase/functions/rates_test.ts supabase/functions/invite_email_test.ts supabase/scripts/rotate-credentials_test.ts",
+    "check:edge": "deno check --config supabase/functions/deno.json supabase/functions/ai-analyze/index.ts supabase/functions/ai-command/index.ts supabase/functions/manage-invites/index.ts supabase/functions/user-credentials/index.ts supabase/functions/youtube-search/index.ts supabase/functions/ecb-rates/index.ts supabase/functions/fuel-prices/index.ts supabase/functions/send-reminders/index.ts supabase/scripts/rotate-credentials.ts",
     "preview": "vite preview",
     "postbuild": "node -e \"require('fs').copyFileSync('dist/index.html','dist/404.html')\""
   },
@@ -24,11 +27,14 @@
     "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@playwright/test": "^1.63.0",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "fake-indexeddb": "^6.2.5",
     "oxlint": "^1.71.0",
     "sharp": "^0.35.3",
     "typescript": "~6.0.2",

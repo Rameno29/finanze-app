@@ -383,7 +383,26 @@ inspector_port = 8083
 deno_version = 2
 
 [functions.ecb-rates]
-verify_jwt = true
+verify_jwt = false
+
+# Every user endpoint verifies the bearer token through Auth.getUser in shared/access.ts.
+# The cron endpoint checks its own secret; no public bypass of application authorization.
+[functions.ai-analyze]
+verify_jwt = false
+[functions.ai-command]
+verify_jwt = false
+[functions.manage-invites]
+verify_jwt = false
+[functions.user-credentials]
+verify_jwt = false
+[functions.youtube-search]
+verify_jwt = false
+[functions.fuel-prices]
+verify_jwt = false
+[functions.send-reminders]
+verify_jwt = false
+[functions.analyze-payslip]
+verify_jwt = false
 
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"

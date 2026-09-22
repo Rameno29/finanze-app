@@ -1,45 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Bot, Check, Mic, Send, X } from 'lucide-react'
-import { requireUserId, supabase } from '../../lib/supabase'
-import { formatCents, todayISO } from '../../lib/format'
+import { executeIntent, type Intent } from '../../lib/assistantActions'
+import { invokeFunction } from '../../lib/integrations'
+import { formatCents } from '../../lib/format'
 import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
 import { AiText } from '../../components/AiText'
 import { PageHeader, Spinner, inputClass } from '../../components/ui'
-
-interface TransactionData {
-  amount_cents: number
-  kind: 'income' | 'expense'
-  category_name: string | null
-  date: string | null
-  description: string
-  recurrence: string | null
-}
-interface TaskData {
-  title: string
-  due_date: string | null
-  due_time: string | null
-}
-interface GoalData {
-  name: string
-  target_cents: number
-  deadline: string | null
-}
-interface ContributeData {
-  goal_name: string
-  amount_cents: number
-  direction: 'add' | 'remove'
-}
-interface BudgetData {
-  category_name: string
-  monthly_cents: number
-}
-
-type Intent =
-  | { action: 'add_transaction'; say: string; data: TransactionData }
-  | { action: 'add_task'; say: string; data: TaskData }
-  | { action: 'add_goal'; say: string; data: GoalData }
-  | { action: 'contribute_goal'; say: string; data: ContributeData }
-  | { action: 'set_budget'; say: string; data: BudgetData }
 
 interface Message {
   role: 'user' | 'ai'
@@ -109,9 +75,12 @@ export function AssistantPage() {
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const recorderRef = useRef<VoiceRecorder | null>(null)
+  const voiceAbortRef = useRef<AbortController | null>(null)
+  const voiceStartingRef = useRef(false)
   const autoStopRef = useRef<number | null>(null)
 
   useEffect(() => () => {
+    voiceAbortRef.current?.abort()
     if (autoStopRef.current) clearTimeout(autoStopRef.current)
     recorderRef.current?.cancel()
   }, [])
@@ -132,7 +101,7 @@ export function AssistantPage() {
     setInput('')
     setBusy(true)
     try {
-      const { data: cmd, error: cmdErr } = await supabase.functions.invoke('ai-command', {
+      const { data: cmd, error: cmdErr } = await invokeFunction('ai-command', {
         body: { text: q },
       })
       if (cmdErr) throw cmdErr
@@ -152,13 +121,13 @@ export function AssistantPage() {
       }
 
       // Non è un comando: rispondi come assistente sui dati
-      const { data, error } = await supabase.functions.invoke('ai-analyze', {
+      const { data, error } = await invokeFunction('ai-analyze', {
         body: { mode: 'assistant', question: q },
       })
       if (error) throw error
       pushAi((data as { answer: string }).answer)
-    } catch {
-      pushAi('Ops, non sono riuscito a elaborare la richiesta. Riprova tra qualche secondo.')
+} catch (cause) {
+      pushAi(cause instanceof Error ? cause.message : 'Ops, non sono riuscito a elaborare la richiesta. Riprova tra qualche secondo.')
     } finally {
       setBusy(false)
     }
@@ -179,7 +148,7 @@ export function AssistantPage() {
     setTranscribing(true)
     try {
       const audio = await rec.stop()
-      const { data, error } = await supabase.functions.invoke('ai-command', {
+      const { data, error } = await invokeFunction('ai-command', {
         body: { audio_base64: audio.base64, audio_mime: audio.mime, transcribe_only: true },
       })
       if (error) throw error
@@ -190,8 +159,8 @@ export function AssistantPage() {
       } else {
         pushAi('Non ho sentito bene. Riprova avvicinando il microfono e parlando con calma.')
       }
-    } catch {
-      pushAi('Trascrizione non riuscita, riprova tra poco.')
+} catch (cause) {
+      pushAi(cause instanceof Error ? cause.message : 'Trascrizione non riuscita, riprova tra poco.')
     } finally {
       setTranscribing(false)
     }
@@ -202,114 +171,18 @@ export function AssistantPage() {
       void stopRecording()
       return
     }
-    if (!voiceSupported() || busy || transcribing) return
+    if (!voiceSupported() || busy || transcribing || voiceStartingRef.current) return
+    voiceStartingRef.current = true
+    const controller = new AbortController()
+    voiceAbortRef.current = controller
     try {
-      recorderRef.current = await startVoiceRecording()
+      recorderRef.current = await startVoiceRecording(controller.signal)
       setRecording(true)
       autoStopRef.current = window.setTimeout(() => void stopRecording(), 30000)
     } catch {
       setRecording(false)
       pushAi('Non riesco ad accedere al microfono: controlla di aver dato il permesso ad AJE.')
-    }
-  }
-
-  /** Esegue l'azione confermata scrivendo sul database */
-  async function executeIntent(intent: Intent): Promise<string> {
-    const userId = await requireUserId()
-
-    if (intent.action === 'add_transaction') {
-      const d = intent.data
-      let categoryId: string | null = null
-      if (d.category_name) {
-        const { data: cat } = await supabase
-          .from('categories')
-          .select('id')
-          .eq('kind', d.kind)
-          .ilike('name', d.category_name)
-          .maybeSingle()
-        categoryId = cat?.id ?? null
-      }
-      const { error } = await supabase.from('transactions').insert({
-        user_id: userId,
-        amount_cents: d.amount_cents,
-        kind: d.kind,
-        category_id: categoryId,
-        date: d.date ?? todayISO(),
-        description: d.description,
-        recurrence: d.recurrence,
-      })
-      if (error) throw error
-      return `✅ ${d.kind === 'income' ? 'Entrata' : 'Uscita'} di ${formatCents(d.amount_cents)} registrata.`
-    }
-
-    if (intent.action === 'add_task') {
-      const d = intent.data
-      const { error } = await supabase.from('tasks').insert({
-        user_id: userId,
-        title: d.title,
-        due_date: d.due_date,
-        due_time: d.due_time,
-      })
-      if (error) throw error
-      return `✅ Promemoria "${d.title}" aggiunto all'agenda.`
-    }
-
-    if (intent.action === 'add_goal') {
-      const d = intent.data
-      const { error } = await supabase.from('goals').insert({
-        user_id: userId,
-        name: d.name,
-        target_cents: d.target_cents,
-        deadline: d.deadline,
-      })
-      if (error) throw error
-      return `✅ Obiettivo "${d.name}" creato (traguardo ${formatCents(d.target_cents)}).`
-    }
-
-    if (intent.action === 'contribute_goal') {
-      const d = intent.data
-      const { data: goals, error: goalsError } = await supabase.from('goals').select('id, name, saved_cents')
-      if (goalsError) throw goalsError
-      const goal = (goals ?? []).find(
-        (g) =>
-          g.name.toLowerCase() === d.goal_name.toLowerCase() ||
-          g.name.toLowerCase().includes(d.goal_name.toLowerCase()) ||
-          d.goal_name.toLowerCase().includes(g.name.toLowerCase()),
-      )
-      if (!goal) throw new Error(`Obiettivo "${d.goal_name}" non trovato`)
-      const newSaved = Math.max(
-        0,
-        goal.saved_cents + (d.direction === 'remove' ? -d.amount_cents : d.amount_cents),
-      )
-      const { data: updated, error } = await supabase
-        .from('goals')
-        .update({ saved_cents: newSaved })
-        .eq('id', goal.id)
-        .eq('saved_cents', goal.saved_cents)
-        .select('id')
-        .maybeSingle()
-      if (error) throw error
-      if (!updated) throw new Error('l’obiettivo è stato modificato nel frattempo; riprova')
-      return `✅ Obiettivo "${goal.name}" aggiornato: ora ha ${formatCents(newSaved)}.`
-    }
-
-    // set_budget
-    const d = intent.data
-    const { data: cat } = await supabase
-      .from('categories')
-      .select('id, name')
-      .eq('kind', 'expense')
-      .ilike('name', d.category_name)
-      .maybeSingle()
-    if (!cat) throw new Error(`Categoria "${d.category_name}" non trovata`)
-    const { error } = await supabase
-      .from('budgets')
-      .upsert(
-        { user_id: userId, category_id: cat.id, monthly_cents: d.monthly_cents },
-        { onConflict: 'user_id,category_id' },
-      )
-    if (error) throw error
-    return `✅ Budget di ${cat.name} impostato a ${formatCents(d.monthly_cents)} al mese.`
+    } finally { voiceStartingRef.current = false }
   }
 
   async function confirmIntent(index: number, confirmed: boolean) {

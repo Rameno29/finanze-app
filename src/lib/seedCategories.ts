@@ -1,4 +1,5 @@
-import { supabase } from './supabase'
+import { authenticatedClient, supabase } from './supabase'
+import { sessionScope } from './sessionScope'
 
 const DEFAULT_CATEGORIES: Array<{ name: string; kind: 'income' | 'expense'; color: string; icon: string }> = [
   { name: 'Stipendio', kind: 'income', color: '#10b981', icon: 'banknote' },
@@ -23,13 +24,20 @@ export async function ensureDefaultCategories(userId: string): Promise<void> {
   if (seedingFor === userId) return
   seedingFor = userId
   try {
+    const ticket = sessionScope.capture()
+    const { data } = await supabase.auth.getSession()
+    sessionScope.assert(ticket)
+    if (data.session?.user.id !== userId) return
+    const client = authenticatedClient(data.session.access_token)
     for (let attempt = 0; attempt < 2; attempt++) {
-      const { count, error } = await supabase
+      const { count, error } = await client
         .from('categories')
         .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+      sessionScope.assert(ticket)
       if (!error) {
         if ((count ?? 0) > 0) return
-        await supabase
+        await client
           .from('categories')
           .insert(DEFAULT_CATEGORIES.map((c) => ({ ...c, user_id: userId })))
         return

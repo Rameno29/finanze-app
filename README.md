@@ -1,45 +1,53 @@
 # AJE
 
-App personale (PWA) per gestire finanze, documenti e buste paga, ottimizzata per iPhone 16 Pro Max e Android.
-Le icone si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
+PWA in italiano per finanze, agenda, documenti, scanner, assistente AI e integrazioni Google/Spotify/YouTube.
+Frontend React/TypeScript/Vite; backend Supabase con Auth, PostgreSQL/RLS, Storage ed Edge Functions.
 
-**App online:** https://rameno29.github.io/finanze-app/
+[App online](https://rameno29.github.io/finanze-app/) · [Documento di progetto](README_FIRST.md)
 
-## Funzioni (MVP)
+## Versione multiutente in preparazione
 
-- **Finanze**: entrate/uscite con categorie, multi-conto (contanti/banca/carte) con saldi e trasferimenti interni, import estratti conto CSV con anteprima e duplicati, budget mensili con barre di avanzamento, dashboard con grafici (saldo mese, torta per categorie, andamento 6 mesi)
-- **Documenti**: carica la busta paga (PDF o foto) → analisi AI (Claude) estrae netto, lordo, trattenute → conferma → l'entrata "Stipendio" appare nelle finanze; storico stipendi con grafico; ricerca full-text nei documenti analizzati; scanner multi-pagina con filtri e PDF condivisibile
-- **Extra**: diario vocale del giorno (più spese in una dettatura), simulatore what-if con proiezione del patrimonio, mappa dei distributori di carburante più economici (open data MIMIT)
-- **Tema** chiaro/scuro automatico da sistema, forzabile dalle impostazioni
-- Installabile sulla home: Safari → Condividi → "Aggiungi a schermata Home"
+Le modifiche del branch `codex/multiutente-api-audit` **non sono ancora pubblicate**.
+L'accesso previsto è proprietario + un ospite, invitato dalle Impostazioni. Dati e integrazioni
+rimangono personali: non è uno spazio finanziario condiviso.
 
-## Stack
+- Campi di accesso leggibili, recupero password e completamento dell'invito.
+- Chiavi personali Gemini e YouTube salvate cifrate AES-256-GCM sul server; nessun ripiego
+  sulle chiavi del proprietario. Nell'interfaccia si legge solo il suffisso mascherato.
+- Client ID OAuth personali Google/Spotify, con guide e link ufficiali nelle Impostazioni.
+- Finanze manuali, agenda e scanner locale non richiedono chiavi AI.
+- Cache/coda offline cifrate e separate per account. Non cancellare i dati del sito o reinstallare
+  la PWA con operazioni ancora in attesa: quelle non sincronizzate non sono nel cloud.
 
-- Frontend: Vite + React + TypeScript + Tailwind CSS 4 + Recharts + lucide-react (PWA via vite-plugin-pwa)
-- Backend: Supabase (progetto `finanze-organizzazione`, regione eu-central-1) — Auth, Postgres con RLS, Storage, Edge Function `analyze-payslip`
-- Deploy: GitHub Pages via Actions (push su `main` → deploy automatico)
+L'AI usa Gemini, **non Anthropic**. L'endpoint legacy `analyze-payslip` è ritirato nella nuova
+versione; l'analisi passa da `ai-analyze`. Quote gratuite, requisiti e condizioni privacy dipendono
+dal provider: non sono garantiti né illimitati.
 
-## Attivare l'analisi AI delle buste paga
+## Sviluppo e verifiche
 
-1. Crea una chiave API su [console.anthropic.com](https://console.anthropic.com)
-2. Dashboard Supabase → progetto `finanze-organizzazione` → **Edge Functions → Secrets**
-3. Aggiungi il secret `ANTHROPIC_API_KEY` con la tua chiave
+Node.js 22; Deno per le funzioni server (CI: 2.9.6).
 
-Costo tipico: pochi centesimi per busta paga (modello Claude Haiku).
-
-## Sviluppo locale
-
-```bash
-npm install
-npm run dev       # http://localhost:5173/finanze-app/
-npm run build     # produzione in dist/
+```sh
+npm ci
+npm run dev
+npm test
+npm run lint
+npm run check:edge
+npm run test:edge
+npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
 
-La Edge Function è in `supabase/functions/analyze-payslip/` e si ridistribuisce dal connettore Supabase o con la CLI Supabase.
+L'anteprima E2E richiede prima la build. I test usano identità sintetiche, PostgreSQL embedded,
+provider simulati e browser desktop/mobile; non inviano email né consumano chiavi reali.
 
-## Roadmap (moduli futuri)
+La build accetta `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` come configurazione backend
+pubblica. Non inserire API key personali, master key o service-role in variabili `VITE_*`.
 
-- Agenda/organizzazione del tempo + Google Calendar
-- Integrazioni Google (Gmail, Drive, Maps)
-- Musica (Spotify Premium) e mini-player YouTube con riassunti AI
-- Generazione PDF e ricerca web con AI
+## Rilascio
+
+Leggere [registro audit](docs/audit/2026-09-20-audit.md) e
+[procedura di rilascio](docs/release-multiutente.md). Servono backup, secret server, due migrazioni,
+deploy delle funzioni e collaudo autenticato. Il push su `main` pubblica il frontend: non farlo
+prima di aver predisposto il backend. Nessun rilascio automatico è stato eseguito durante l'audit.

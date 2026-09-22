@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Fingerprint } from 'lucide-react'
+import { Eye, EyeOff, Fingerprint } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { passkeyErrorMessage, passkeySupported } from '../../lib/passkeys'
 import { Spinner } from '../../components/ui'
@@ -7,10 +7,11 @@ import { Spinner } from '../../components/ui'
 const CREAM = '#F2EDE4'
 
 const fieldClass =
-  'w-full rounded-xl border border-white/10 bg-black/25 px-4 py-3.5 text-[16px] text-[#F2EDE4] placeholder-white/30 outline-none transition focus:border-[#F2EDE4]/40 focus:bg-black/35'
+  'auth-field w-full rounded-xl border border-white/30 bg-black/25 px-4 py-3.5 text-[16px] text-[#F2EDE4] placeholder-white/65 outline-none transition focus:border-[#F2EDE4]/70 focus:bg-black/35'
 
 export function LoginPage() {
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [mode, setMode] = useState<'login' | 'recovery'>('login')
+  const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -38,24 +39,24 @@ export function LoginPage() {
     setMessage(null)
     try {
       if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password })
         if (error) setMessage({ kind: 'error', text: 'Accesso non riuscito: controlla email e password.' })
       } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: 'https://rameno29.github.io/finanze-app/' },
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+          redirectTo: new URL(`${import.meta.env.BASE_URL}auth/callback`, window.location.origin).href,
         })
         if (error) {
-          setMessage({ kind: 'error', text: error.message })
-        } else if (!data.session) {
+          setMessage({ kind: 'error', text: 'Invio non riuscito. Riprova tra poco o contatta chi ti ha invitato.' })
+        } else {
           setMessage({
             kind: 'info',
-            text: 'Registrazione avvenuta! Controlla la tua email e conferma l’account, poi accedi.',
+            text: 'Se l’account è abilitato, riceverai un’email per reimpostare la password.',
           })
           setMode('login')
         }
       }
+    } catch {
+      setMessage({ kind: 'error', text: 'Connessione non disponibile. Riprova tra poco.' })
     } finally {
       setBusy(false)
     }
@@ -117,21 +118,26 @@ export function LoginPage() {
               placeholder="nome@esempio.it"
             />
           </label>
-          <label className="mb-5 block">
-            <span className="mb-1.5 block text-sm font-medium" style={{ color: `${CREAM}B3` }}>
+          {mode === 'login' && <div className="mb-5 block">
+            <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium" style={{ color: `${CREAM}B3` }}>
               Password
-            </span>
+            </label>
             <input
-              type="password"
+              id="login-password"
+              type={showPassword ? 'text' : 'password'}
               required
               minLength={6}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={fieldClass}
               placeholder="Minimo 6 caratteri"
             />
-          </label>
+            <button type="button" className="mt-2 flex min-h-11 items-center gap-2 text-sm text-[#F2EDE4]" onClick={() => setShowPassword(!showPassword)} aria-pressed={showPassword}>
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPassword ? 'Nascondi password' : 'Mostra password'}
+            </button>
+          </div>}
 
           {message && (
             <p
@@ -156,7 +162,7 @@ export function LoginPage() {
             ) : mode === 'login' ? (
               'Accedi'
             ) : (
-              'Crea account'
+              'Invia link di recupero'
             )}
           </button>
         </form>
@@ -182,12 +188,13 @@ export function LoginPage() {
           className="mt-6 w-full py-2 text-center text-sm font-medium"
           style={{ color: `${CREAM}CC` }}
           onClick={() => {
-            setMode(mode === 'login' ? 'signup' : 'login')
+            setMode(mode === 'login' ? 'recovery' : 'login')
             setMessage(null)
           }}
         >
-          {mode === 'login' ? 'Non hai un account? Registrati' : 'Hai già un account? Accedi'}
+          {mode === 'login' ? 'Password dimenticata?' : 'Torna ad Accedi'}
         </button>
+        <p className="mt-4 text-center text-sm text-[#F2EDE4]/80">AJE è su invito. Per creare il tuo account, apri il link ricevuto dal proprietario.</p>
       </div>
     </div>
   )

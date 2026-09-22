@@ -12,8 +12,9 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
-import { SPOTIFY_CLIENT_ID, YOUTUBE_API_KEY } from '../../lib/config'
+import { invokeFunction } from '../../lib/integrations'
+import { Link } from 'react-router-dom'
+import { callFunction } from '../../lib/integrations'
 import {
   beginSpotifyAuth,
   disconnectSpotify,
@@ -52,7 +53,6 @@ function decodeHtml(s: string): string {
 }
 
 export function MediaPage() {
-  const spotifyConfigured = SPOTIFY_CLIENT_ID !== ''
   const [connected, setConnected] = useState(isSpotifyConnected())
   const [query, setQuery] = useState('')
   const [tracks, setTracks] = useState<SpotifyTrack[] | null>(null)
@@ -77,13 +77,13 @@ export function MediaPage() {
     setSummarizing(true)
     setYtError('')
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke('ai-analyze', {
+      const { data, error: fnErr } = await invokeFunction('ai-analyze', {
         body: { mode: 'youtube', video_url: `https://www.youtube.com/watch?v=${videoId}` },
       })
       if (fnErr) throw fnErr
       setSummary((data as { summary: string }).summary)
-    } catch {
-      setYtError('Riassunto non riuscito: riprova tra poco (alcuni video molto lunghi non sono supportati).')
+} catch (cause) {
+      setYtError(cause instanceof Error ? cause.message : 'Riassunto non riuscito: riprova tra poco (alcuni video molto lunghi non sono supportati).')
     } finally {
       setSummarizing(false)
     }
@@ -114,8 +114,8 @@ export function MediaPage() {
       )
       setTracks(data?.tracks.items ?? [])
       setEmbedTrackId(null)
-    } catch {
-      setNotice('Ricerca non riuscita: prova a ricollegare Spotify.')
+} catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : 'Ricerca non riuscita: prova a ricollegare Spotify.')
       setConnected(isSpotifyConnected())
     } finally {
       setSearching(false)
@@ -143,8 +143,8 @@ export function MediaPage() {
     try {
       await spotifyFetch(now.is_playing ? '/me/player/pause' : '/me/player/play', { method: 'PUT' })
       setTimeout(refreshNow, 500)
-    } catch {
-      setNotice('Comando non riuscito: assicurati che Spotify sia attivo su un dispositivo.')
+} catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : 'Comando non riuscito: assicurati che Spotify sia attivo su un dispositivo.')
     }
   }
 
@@ -152,8 +152,8 @@ export function MediaPage() {
     try {
       await spotifyFetch('/me/player/next', { method: 'POST' })
       setTimeout(refreshNow, 700)
-    } catch {
-      setNotice('Comando non riuscito: assicurati che Spotify sia attivo su un dispositivo.')
+} catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : 'Comando non riuscito: assicurati che Spotify sia attivo su un dispositivo.')
     }
   }
 
@@ -171,19 +171,9 @@ export function MediaPage() {
     }
 
     // Altrimenti cerca (serve la chiave API)
-    if (YOUTUBE_API_KEY === '') {
-      setYtError(
-        'La ricerca si attiva con la chiave YouTube (guida di Claude). Nel frattempo incolla direttamente un link YouTube.',
-      )
-      return
-    }
     setYtSearching(true)
     try {
-      const res = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=8&q=${encodeURIComponent(input)}&key=${YOUTUBE_API_KEY}`,
-      )
-      if (!res.ok) throw new Error(String(res.status))
-      const data = await res.json()
+      const data = await callFunction<{ items: Array<{ id: { videoId: string }; snippet: { title: string; channelTitle: string; thumbnails: { medium?: { url: string } } } }> }>('youtube-search', { query: input })
       setYtResults(
         (data.items ?? []).map(
           (v: {
@@ -197,8 +187,8 @@ export function MediaPage() {
           }),
         ),
       )
-    } catch {
-      setYtError('Ricerca non riuscita: controlla la chiave YouTube o riprova più tardi.')
+    } catch (error) {
+      setYtError(error instanceof Error ? error.message : 'Ricerca non riuscita.')
     } finally {
       setYtSearching(false)
     }
@@ -207,6 +197,7 @@ export function MediaPage() {
   return (
     <div className="pb-28">
       <PageHeader title="Media" subtitle="Musica e video" />
+      <Link to="/impostazioni#integrazioni" className="mx-5 block text-sm text-accent underline">Configura le tue integrazioni e consulta le guide</Link>
 
       <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
         {/* YouTube */}
@@ -296,16 +287,7 @@ export function MediaPage() {
         </Sheet>
 
         {/* Spotify */}
-        {!spotifyConfigured ? (
-          <Card>
-            <h2 className="mb-2 flex items-center gap-2 font-semibold">
-              <Music className="h-4 w-4 text-income" /> Spotify
-            </h2>
-            <p className="text-sm text-muted">
-              Per collegare Spotify serve la configurazione su developer.spotify.com (guida di Claude).
-            </p>
-          </Card>
-        ) : !connected ? (
+        {!connected ? (
           <Card>
             <h2 className="mb-2 flex items-center gap-2 font-semibold">
               <Music className="h-4 w-4 text-income" /> Spotify
@@ -313,7 +295,8 @@ export function MediaPage() {
             <p className="mb-4 text-sm text-muted">
               Cerca brani, ascoltali nel player interno o comanda la riproduzione sull’app Spotify.
             </p>
-            <PrimaryButton onClick={() => void beginSpotifyAuth()}>Collega Spotify</PrimaryButton>
+            {notice && <p role="alert" className="mb-3 text-sm text-expense">{notice}</p>}
+            <PrimaryButton onClick={() => void beginSpotifyAuth().catch(error => setNotice(error instanceof Error ? error.message : 'Collegamento non riuscito.'))}>Collega Spotify</PrimaryButton>
           </Card>
         ) : (
           <Card>

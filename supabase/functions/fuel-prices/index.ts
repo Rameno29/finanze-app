@@ -1,12 +1,10 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { handler, json } from '../_shared/access.ts'
 
 // Prezzi carburante dei distributori italiani dagli open data MIMIT
 // (https://www.mimit.gov.it — aggiornati ogni mattina). I due CSV (~8 MB totali)
 // vengono scaricati e tenuti in cache in memoria per 6 ore; la funzione
 // restituisce solo i distributori nel raggio richiesto, ordinati per prezzo.
 
-const APP_ORIGIN = 'https://rameno29.github.io'
-const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
 const ANAGRAFICA_URL = 'https://www.mimit.gov.it/images/exportCSV/anagrafica_impianti_attivi.csv'
 const PREZZI_URL = 'https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv'
 const FUELS = new Set(['Benzina', 'Gasolio', 'GPL', 'Metano'])
@@ -31,35 +29,6 @@ interface Station {
 }
 
 let cache: { fetchedAt: number; stations: Station[] } | null = null
-const rateBuckets = new Map<string, { start: number; count: number }>()
-
-function cors(req: Request) {
-  const origin = req.headers.get('Origin')
-  return {
-    'Access-Control-Allow-Origin': origin === APP_ORIGIN || (origin && LOCAL_ORIGIN.test(origin)) ? origin : APP_ORIGIN,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Vary': 'Origin',
-  }
-}
-
-function json(req: Request, body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors(req), 'Content-Type': 'application/json', 'Cache-Control': 'private, max-age=600' },
-  })
-}
-
-function rateLimited(userId: string, max = 20): boolean {
-  const now = Date.now()
-  const bucket = rateBuckets.get(userId)
-  if (!bucket || now - bucket.start >= 60_000) {
-    rateBuckets.set(userId, { start: now, count: 1 })
-    return false
-  }
-  bucket.count += 1
-  return bucket.count > max
-}
 
 /** "09/07/2026 21:00:15" -> ISO, oppure null */
 function parseItalianDate(raw: string): string | null {
@@ -137,23 +106,7 @@ async function loadStations(): Promise<Station[]> {
   return stations
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req) })
-  if (req.method !== 'POST') return json(req, { error: 'Metodo non consentito' }, 405)
-  const origin = req.headers.get('Origin')
-  if (origin && origin !== APP_ORIGIN && !LOCAL_ORIGIN.test(origin)) return json(req, { error: 'Origine non consentita' }, 403)
-
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader) return json(req, { error: 'Autenticazione richiesta' }, 401)
-  const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
-    global: { headers: { Authorization: authHeader } },
-  })
-  const { data: authData, error: authError } = await authClient.auth.getUser()
-  if (authError || !authData.user) return json(req, { error: 'Sessione non valida' }, 401)
-  if (rateLimited(authData.user.id)) return json(req, { error: 'Troppe richieste, attendi un minuto' }, 429)
-
-  let body: { lat?: unknown; lon?: unknown; radius_km?: unknown; fuel?: unknown }
-  try { body = await req.json() } catch { return json(req, { error: 'JSON non valido' }, 400) }
+export const serve = handler(async ({ body, req }) => {
   const lat = Number(body.lat)
   const lon = Number(body.lon)
   const fuel = typeof body.fuel === 'string' ? body.fuel : 'Benzina'
@@ -184,8 +137,8 @@ Deno.serve(async (req) => {
       .sort((a, b) => a.price - b.price || a.distance_km - b.distance_km)
       .slice(0, 60)
     return json(req, { fuel, radius_km: radius, stations: results, source: 'MIMIT' })
-  } catch (e) {
-    console.error('fuel-prices error:', e)
+  } catch {
     return json(req, { error: 'Servizio prezzi carburante non disponibile, riprova tra poco.' }, 502)
   }
-})
+}, { bucket: 'fuel-prices', bodyLimit: 4096 })
+if (import.meta.main) Deno.serve(serve)

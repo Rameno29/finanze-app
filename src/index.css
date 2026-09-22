@@ -63,12 +63,22 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-input,
-select,
-textarea,
-button {
-  font: inherit;
-  color: inherit;
+@layer base {
+  input, select, textarea, button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+.auth-field {
+  color-scheme: dark;
+  caret-color: #F2EDE4;
+}
+.auth-field:autofill,
+.auth-field:-webkit-autofill {
+  -webkit-text-fill-color: #F2EDE4;
+  caret-color: #F2EDE4;
+  box-shadow: 0 0 0 1000px #073b33 inset;
 }
 
 /* Evita lo zoom automatico di iOS sui campi input */

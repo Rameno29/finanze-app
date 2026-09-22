@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Moon, Plus, Sparkles } from 'lucide-react'
 import { PageHeader, Card, EmptyState, Spinner, inputClass } from '../../components/ui'
-import { supabase } from '../../lib/supabase'
+import { invokeFunction } from '../../lib/integrations'
 import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
 import { mutateOffline } from '../../lib/offline'
 import { TransactionSheet, type TransactionDraft } from './TransactionSheet'
@@ -37,10 +37,13 @@ export function FinancePage() {
   const [transcribing, setTranscribing] = useState(false)
   const [quickError, setQuickError] = useState('')
   const recorderRef = useRef<VoiceRecorder | null>(null)
+  const voiceAbortRef = useRef<AbortController | null>(null)
+  const voiceStartingRef = useRef(false)
   const autoStopRef = useRef<number | null>(null)
   const quickInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => () => {
+    voiceAbortRef.current?.abort()
     if (autoStopRef.current) clearTimeout(autoStopRef.current)
     recorderRef.current?.cancel()
   }, [])
@@ -81,7 +84,7 @@ export function FinancePage() {
     setParsing(true)
     setQuickError('')
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analyze', {
+      const { data, error } = await invokeFunction('ai-analyze', {
         body: { mode: 'parse_transaction', text: phrase },
       })
       if (error) throw error
@@ -107,7 +110,7 @@ export function FinancePage() {
     setQuickError('')
     try {
       const audio = await rec.stop()
-      const { data, error } = await supabase.functions.invoke('ai-command', {
+      const { data, error } = await invokeFunction('ai-command', {
         body: { audio_base64: audio.base64, audio_mime: audio.mime, transcribe_only: true },
       })
       if (error) throw error
@@ -130,15 +133,18 @@ export function FinancePage() {
       void stopRec()
       return
     }
-    if (!voiceSupported() || parsing || transcribing) return
+    if (!voiceSupported() || parsing || transcribing || voiceStartingRef.current) return
+    voiceStartingRef.current = true
+    const controller = new AbortController()
+    voiceAbortRef.current = controller
     try {
-      recorderRef.current = await startVoiceRecording()
+      recorderRef.current = await startVoiceRecording(controller.signal)
       setListening(true)
       autoStopRef.current = window.setTimeout(() => void stopRec(), 30000)
     } catch {
       setListening(false)
       setQuickError('Non riesco ad accedere al microfono: controlla di aver dato il permesso ad AJE.')
-    }
+    } finally { voiceStartingRef.current = false }
   }
 
   const { categories, reload: reloadCategories } = useCategories()
@@ -175,9 +181,7 @@ export function FinancePage() {
     if (!window.confirm('Eliminare il trasferimento? Verranno rimossi entrambi i movimenti collegati.')) return
     try {
       const legs = transactions.filter((t) => t.transfer_group === transferGroup)
-      for (const leg of legs) {
-        await mutateOffline('transactions', 'delete', leg.id, {}, null)
-      }
+      await mutateOffline('transactions', 'delete-transfer', transferGroup, { ids: legs.map(leg => leg.id) }, null)
       setListError('')
       void reload()
     } catch {

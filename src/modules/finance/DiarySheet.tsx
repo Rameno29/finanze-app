@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Mic, Sparkles } from 'lucide-react'
 import { Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
-import { supabase } from '../../lib/supabase'
+import { invokeFunction } from '../../lib/integrations'
 import { currentUserId, mutateOffline } from '../../lib/offline'
+import { sessionScope } from '../../lib/sessionScope'
 import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
 import { formatCents, todayISO } from '../../lib/format'
 import type { Account, Category, Kind } from '../../types'
@@ -16,6 +17,7 @@ interface DiaryEntry {
 }
 
 interface ProposedRow extends DiaryEntry {
+  id: string
   index: number
   selected: boolean
   category_id: string
@@ -43,11 +45,14 @@ export function DiarySheet({
   const [accountId, setAccountId] = useState('')
   const [parsing, setParsing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [attempted, setAttempted] = useState(false)
   const [listening, setListening] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
   const [error, setError] = useState('')
   const [savedCount, setSavedCount] = useState<number | null>(null)
   const recorderRef = useRef<VoiceRecorder | null>(null)
+  const voiceAbortRef = useRef<AbortController | null>(null)
+  const voiceStartingRef = useRef(false)
   const autoStopRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -57,12 +62,18 @@ export function DiarySheet({
     setAccountId('')
     setError('')
     setSavedCount(null)
+    setAttempted(false)
   }, [open])
 
-  useEffect(() => () => {
-    if (autoStopRef.current) clearTimeout(autoStopRef.current)
-    recorderRef.current?.cancel()
-  }, [])
+  useEffect(() => {
+    if (!open) { setListening(false);setTranscribing(false) }
+    return () => {
+      voiceAbortRef.current?.abort()
+      if (autoStopRef.current) clearTimeout(autoStopRef.current)
+      recorderRef.current?.cancel()
+      recorderRef.current = null
+    }
+  }, [open])
 
   const categoriesByKind = useMemo(
     () => ({
@@ -85,15 +96,15 @@ export function DiarySheet({
     setError('')
     try {
       const audio = await rec.stop()
-      const { data, error: fnError } = await supabase.functions.invoke('ai-command', {
+      const { data, error: fnError } = await invokeFunction('ai-command', {
         body: { audio_base64: audio.base64, audio_mime: audio.mime, transcribe_only: true },
       })
       if (fnError) throw fnError
       const transcript = ((data as { transcript?: string }).transcript ?? '').trim()
       if (transcript) setText((prev) => (prev.trim() ? `${prev.trim()}, ${transcript}` : transcript))
       else setError('Non ho sentito bene: riprova parlando con calma.')
-    } catch {
-      setError('Trascrizione non riuscita, riprova tra poco.')
+} catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Trascrizione non riuscita, riprova tra poco.')
     } finally {
       setTranscribing(false)
     }
@@ -104,25 +115,28 @@ export function DiarySheet({
       void stopRec()
       return
     }
-    if (!voiceSupported() || parsing || transcribing) return
+    if (!voiceSupported() || parsing || transcribing || voiceStartingRef.current) return
+    voiceStartingRef.current = true
+    const controller = new AbortController()
+    voiceAbortRef.current = controller
     try {
-      recorderRef.current = await startVoiceRecording()
+      recorderRef.current = await startVoiceRecording(controller.signal)
       setListening(true)
       // Il diario può essere lungo: stop di sicurezza a 60 secondi.
       autoStopRef.current = window.setTimeout(() => void stopRec(), 60000)
     } catch {
       setListening(false)
       setError('Non riesco ad accedere al microfono: controlla il permesso.')
-    }
+    } finally { voiceStartingRef.current = false }
   }
 
   async function parse() {
     const phrase = text.trim()
-    if (!phrase || parsing) return
+    if (!phrase || parsing || attempted) return
     setParsing(true)
     setError('')
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('ai-analyze', {
+      const { data, error: fnError } = await invokeFunction('ai-analyze', {
         body: { mode: 'parse_transactions', text: phrase },
       })
       if (fnError) throw fnError
@@ -140,11 +154,11 @@ export function DiarySheet({
                 (c) => c.kind === entry.kind && c.name.toLowerCase() === entry.category_name!.toLowerCase(),
               )
             : undefined
-          return { ...entry, index, selected: true, category_id: match?.id ?? '' }
+          return { ...entry, id: crypto.randomUUID(), index, selected: true, category_id: match?.id ?? '' }
         }),
       )
-    } catch {
-      setError('Non sono riuscito a interpretare il diario, riprova.')
+} catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Non sono riuscito a interpretare il diario, riprova.')
     } finally {
       setParsing(false)
     }
@@ -162,11 +176,14 @@ export function DiarySheet({
       return
     }
     setSaving(true)
+    setAttempted(true)
     setError('')
     try {
+      const ticket = sessionScope.capture()
       const userId = await currentUserId()
       for (const row of chosen) {
-        const id = crypto.randomUUID()
+        sessionScope.assert(ticket)
+        const id = row.id
         const record = {
           id,
           user_id: userId,
@@ -190,10 +207,11 @@ export function DiarySheet({
           created_at: new Date().toISOString(),
         })
       }
+      sessionScope.assert(ticket)
       setSavedCount(chosen.length)
       onSaved()
-    } catch {
-      setError('Salvataggio non riuscito: alcuni movimenti potrebbero non essere stati registrati.')
+} catch (cause) {
+      setError(`${cause instanceof Error ? cause.message : 'Salvataggio non riuscito.'} Riprova qui senza duplicare i movimenti già salvati. Se chiudi il diario, controlla i movimenti prima di reinserirli.`)
     } finally {
       setSaving(false)
     }
@@ -228,13 +246,13 @@ export function DiarySheet({
                     ? 'Trascrivo…'
                     : 'Es: caffè 1,20, pranzo con Marco 12 euro, spesa Esselunga 34,50'
               }
-              disabled={listening || transcribing}
+              disabled={listening || transcribing || attempted}
             />
             {voiceSupported() && (
               <button
                 type="button"
                 onClick={() => void toggleMic()}
-                disabled={transcribing || parsing}
+                disabled={transcribing || parsing || attempted}
                 aria-label={listening ? 'Ferma e trascrivi' : 'Detta a voce'}
                 className={`flex h-12 w-12 shrink-0 items-center justify-center self-start rounded-xl transition disabled:opacity-50 ${
                   listening ? 'animate-pulse bg-expense text-white' : 'bg-card-2 text-muted'
@@ -253,7 +271,7 @@ export function DiarySheet({
 
           <PrimaryButton
             onClick={() => void parse()}
-            disabled={parsing || listening || transcribing || !text.trim()}
+            disabled={parsing || listening || transcribing || attempted || !text.trim()}
             className="mt-3"
           >
             {parsing ? (
@@ -276,6 +294,7 @@ export function DiarySheet({
                     <input
                       type="checkbox"
                       checked={row.selected}
+                      disabled={attempted}
                       onChange={(e) => updateRow(row.index, { selected: e.target.checked })}
                       aria-label={`Registra ${row.description || 'movimento'}`}
                       className="h-5 w-5 shrink-0 accent-[var(--accent)]"
@@ -287,6 +306,7 @@ export function DiarySheet({
                       <p className="text-xs text-muted">{row.date ?? todayISO()}</p>
                       <select
                         value={row.category_id}
+                        disabled={attempted}
                         onChange={(e) => updateRow(row.index, { category_id: e.target.value })}
                         className="mt-1 w-full rounded-lg border border-line bg-card-2 px-2 py-1 text-xs"
                       >
@@ -311,6 +331,7 @@ export function DiarySheet({
                 <Field label="Conto (per tutti i movimenti)">
                   <select
                     value={accountId}
+                    disabled={attempted}
                     onChange={(e) => setAccountId(e.target.value)}
                     className={inputClass}
                   >

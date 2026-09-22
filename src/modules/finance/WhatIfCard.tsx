@@ -3,7 +3,7 @@ import { Line, LineChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import { Sparkles, TrendingUp } from 'lucide-react'
 import { Card, Field, Spinner, inputClass } from '../../components/ui'
 import { AiText } from '../../components/AiText'
-import { supabase } from '../../lib/supabase'
+import { invokeFunction } from '../../lib/integrations'
 import { fetchAccountBalances, fetchMonthlyTotals } from '../../lib/data'
 import { averageMonthlyFlows, projectWhatIf } from '../../lib/whatif'
 import { formatCents, parseAmountToCents, todayISO } from '../../lib/format'
@@ -76,7 +76,7 @@ export function WhatIfCard({ accounts }: { accounts: Account[] }) {
     setAiComment('')
     try {
       const scenarioLabel = direction === 'save' ? 'risparmiare in più' : 'spendere in più'
-      const { data, error } = await supabase.functions.invoke('ai-analyze', {
+      const { data, error } = await invokeFunction('ai-analyze', {
         body: {
           mode: 'assistant',
           question:

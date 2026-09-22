@@ -1,37 +1,5 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
-
-const APP_ORIGIN = 'https://rameno29.github.io'
-const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
-const rateBuckets = new Map<string, { start: number; count: number }>()
-
-function originAllowed(req: Request): boolean {
-  const origin = req.headers.get('Origin')
-  return !origin || origin === APP_ORIGIN || LOCAL_ORIGIN.test(origin)
-}
-
-function rateLimited(userId: string, max = 30): boolean {
-  const now = Date.now()
-  const bucket = rateBuckets.get(userId)
-  if (!bucket || now - bucket.start >= 60_000) {
-    rateBuckets.set(userId, { start: now, count: 1 })
-    return false
-  }
-  bucket.count += 1
-  return bucket.count > max
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
+import { ApiError, handler, json as responseJson } from '../_shared/access.ts'
+import { personalKey, providerFetch } from '../_shared/credentials.ts'
 
 function toBase64(bytes: Uint8Array): string {
   let binary = ''
@@ -207,23 +175,12 @@ async function callGeminiFull(
   if (useSearch) {
     body.tools = [{ google_search: {} }]
   }
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`
-  let res: Response | null = null
-  for (let attempt = 0; attempt < 2; attempt++) {
-    res = await fetch(url, {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+  const res = await providerFetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify(body),
-    })
-    if (res.ok || (res.status !== 429 && res.status !== 503) || attempt === 1) break
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-  }
-  if (!res) throw new Error('gemini_unreachable')
-  if (!res.ok) {
-    const errText = await res.text()
-    console.error('Gemini API error:', res.status, errText.slice(0, 500))
-    throw new Error(`gemini_${res.status}`)
-  }
+  })
   const data = await res.json()
   const candidate = data.candidates?.[0]
   const text = (candidate?.content?.parts ?? [])
@@ -253,42 +210,12 @@ async function callGemini(
   return (await callGeminiFull(apiKey, parts, schema)).text
 }
 
-Deno.serve(async (req: Request) => {
-  if (!originAllowed(req)) return json({ error: 'origin_not_allowed' }, 403)
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
-  // 1,5 MB: consente l'immagine base64 del rilevamento bordi (le altre modalità restano piccole).
-  const contentLength = Number(req.headers.get('content-length') ?? 0)
-  if (contentLength > 1_500_000) return json({ error: 'payload_too_large' }, 413)
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const admin = createClient(supabaseUrl, serviceKey)
-
-  // Identifica l'utente dal JWT
-  const authHeader = req.headers.get('Authorization') ?? ''
-  const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-    global: { headers: { Authorization: authHeader } },
-  })
-  const { data: userData, error: userErr } = await userClient.auth.getUser()
-  if (userErr || !userData.user) return json({ error: 'unauthorized' }, 401)
-  const userId = userData.user.id
-  if (rateLimited(userId)) return json({ error: 'rate_limit' }, 429)
-
-  // Chiave Gemini: da env oppure dalla tabella protetta app_secrets
-  let apiKey = Deno.env.get('GEMINI_API_KEY') ?? ''
-  if (!apiKey) {
-    const { data: secret } = await admin
-      .from('app_secrets')
-      .select('value')
-      .eq('name', 'GEMINI_API_KEY')
-      .maybeSingle()
-    apiKey = secret?.value ?? ''
-  }
-  if (!apiKey) return json({ error: 'missing_api_key' }, 400)
-
+export const serve = handler(async ({ admin, user, body, req }) => {
+  const json = (data: unknown, status = 200) => responseJson(req, data, status)
+  const userId = user.id
+  const apiKey = await personalKey(admin, userId, 'gemini')
   const { mode, document_id, video_url, prompt, query, question, text, image_base64, image_mime } =
-    await req.json().catch(() => ({}))
+    body
 
   try {
     // ---- Assistente finanziario: risponde guardando i dati dell'utente ----
@@ -568,6 +495,7 @@ Deno.serve(async (req: Request) => {
       .eq('user_id', userId)
       .single()
     if (docErr || !doc) return json({ error: 'Documento non trovato' }, 404)
+    if (!String(doc.storage_path).startsWith(`${userId}/`)) throw new ApiError('access_denied', 403)
 
     const { data: file, error: dlErr } = await admin.storage
       .from('documents')
@@ -666,17 +594,17 @@ Deno.serve(async (req: Request) => {
         DOCUMENT_SCHEMA,
       )
       const analysis = JSON.parse(out)
-      await admin
+      const { error: saveError } = await admin
         .from('documents')
         .update({ analysis, status: 'analizzato' })
         .eq('id', document_id)
         .eq('user_id', userId)
+      if (saveError) throw new ApiError('service_unavailable', 503)
       return json(analysis)
     }
 
     return json({ error: 'mode non valido' }, 400)
   } catch (e) {
-    console.error('ai-analyze error:', e)
     if (document_id) {
       await admin
         .from('documents')
@@ -684,6 +612,8 @@ Deno.serve(async (req: Request) => {
         .eq('id', document_id)
         .eq('user_id', userId)
     }
-    return json({ error: "L'analisi AI non è riuscita, riprova tra poco." }, 502)
+    if (e instanceof ApiError) throw e
+    return json({ error: 'provider_unavailable' }, 502)
   }
-})
+}, { bodyLimit: 1_500_000, bucket: 'ai' })
+if (import.meta.main) Deno.serve(serve)

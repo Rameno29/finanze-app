@@ -20,7 +20,7 @@ import {
   useTransactions,
 } from '../../lib/data'
 import { MONTH_NAMES, formatCents, monthLabel, todayISO } from '../../lib/format'
-import { supabase } from '../../lib/supabase'
+import { invokeFunction } from '../../lib/integrations'
 import { mutateOffline } from '../../lib/offline'
 import { AiText } from '../../components/AiText'
 import { Sheet } from '../../components/ui'
@@ -78,7 +78,7 @@ export function HomePage() {
   async function loadReport() {
     setReportLoading(true)
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analyze', {
+      const { data, error } = await invokeFunction('ai-analyze', {
         body: {
           mode: 'assistant',
           question:

@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { invokeFunction } from './integrations'
 
 export const SUPPORTED_CURRENCIES = [
   'EUR', 'USD', 'GBP', 'CHF', 'JPY', 'CAD', 'AUD', 'CNY',
@@ -70,7 +70,7 @@ export async function getExchangeRate(currency: CurrencyCode, date: string): Pro
   if (!navigator.onLine && exact) return exact
 
   if (navigator.onLine) {
-    const { data, error } = await supabase.functions.invoke('ecb-rates', {
+    const { data, error } = await invokeFunction('ecb-rates', {
       body: { currency, date },
     })
     if (!error && data) {

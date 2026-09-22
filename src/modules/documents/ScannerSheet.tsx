@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Camera, Check, CloudUpload, Crop, Download, RotateCw, Share2, Sparkles, Trash2 } from 'lucide-react'
 import { PrimaryButton, Sheet, Spinner } from '../../components/ui'
-import { requireUserId, supabase } from '../../lib/supabase'
+import { uploadDocument } from '../../lib/documentUpload'
+import { invokeFunction } from '../../lib/integrations'
 import { todayISO } from '../../lib/format'
 import {
   SCAN_FILTERS,
@@ -34,7 +35,7 @@ interface ScanPage {
 async function requestAiCorners(dataUrl: string): Promise<Quad | null> {
   const base64 = dataUrl.split(',')[1] ?? ''
   if (base64.length < 100) return null
-  const { data, error } = await supabase.functions.invoke('ai-analyze', {
+  const { data, error } = await invokeFunction('ai-analyze', {
     body: { mode: 'detect_corners', image_base64: base64, image_mime: 'image/jpeg' },
   })
   if (error) throw error
@@ -195,21 +196,11 @@ export function ScannerSheet({
     try {
       const file = makePdfFile()
       if (!file) return
-      const userId = await requireUserId()
-      const path = `${userId}/${crypto.randomUUID()}-${file.name}`
-      const { error: uploadError } = await supabase.storage.from('documents').upload(path, file)
-      if (uploadError) throw uploadError
-      const { error: insertError } = await supabase
-        .from('documents')
-        .insert({ user_id: userId, doc_type: 'altro', storage_path: path, file_name: file.name })
-      if (insertError) {
-        await supabase.storage.from('documents').remove([path])
-        throw insertError
-      }
+      await uploadDocument(file, 'altro')
       setNotice('Salvato nei Documenti. L’analisi AI parte solo se la avvii tu con "Analizza".')
       onSavedToDocuments()
-    } catch {
-      setError('Salvataggio non riuscito, riprova.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Salvataggio non riuscito, riprova.')
     } finally {
       setSavingCloud(false)
     }

@@ -16,7 +16,9 @@ import {
 } from 'lucide-react'
 import { downloadPdf, type GeneratedDoc } from '../../lib/pdf'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { requireUserId, supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
+import { uploadDocument } from '../../lib/documentUpload'
+import { invokeFunction } from '../../lib/integrations'
 import { MONTH_NAMES, formatCents } from '../../lib/format'
 import { Card, EmptyState, PageHeader, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import { PayslipConfirmSheet } from './PayslipConfirmSheet'
@@ -97,11 +99,11 @@ export function DocumentsPage() {
     try {
       const body: Record<string, string> = { mode: 'generate', prompt: pdfPrompt.trim() }
       if (pdfVideo.trim()) body.video_url = pdfVideo.trim()
-      const { data, error: fnErr } = await supabase.functions.invoke('ai-analyze', { body })
+      const { data, error: fnErr } = await invokeFunction('ai-analyze', { body })
       if (fnErr) throw fnErr
       setGeneratedDoc(data as GeneratedDoc)
-    } catch {
-      setError('Generazione non riuscita: riprova (se hai indicato un video, controlla il link).')
+} catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Generazione non riuscita: riprova (se hai indicato un video, controlla il link).')
     } finally {
       setGenerating(false)
     }
@@ -143,26 +145,12 @@ export function DocumentsPage() {
       return
     }
     setUploadingType(docType)
-    let uploadedPath: string | null = null
     try {
-      const userId = await requireUserId()
-      const path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, '_')}`
-      const { error: upErr } = await supabase.storage.from('documents').upload(path, file)
-      if (upErr) throw upErr
-      uploadedPath = path
-      const { data: doc, error: insErr } = await supabase
-        .from('documents')
-        .insert({ user_id: userId, doc_type: docType, storage_path: path, file_name: file.name })
-        .select()
-        .single()
-      if (insErr) throw insErr
-      // Da qui il file è referenziato dal DB: non va più rimosso come orfano.
-      uploadedPath = null
+      const doc = await uploadDocument(file, docType)
       await reload()
-      await analyze(doc as DocumentRow)
-    } catch {
-      if (uploadedPath) await supabase.storage.from('documents').remove([uploadedPath])
-      setError('Caricamento non riuscito, riprova.')
+      await analyze(doc)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Caricamento non riuscito, riprova.')
     } finally {
       setUploadingType(null)
       if (fileRef.current) fileRef.current.value = ''
@@ -173,7 +161,7 @@ export function DocumentsPage() {
     setError('')
     setAnalyzingId(doc.id)
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke('ai-analyze', {
+      const { data, error: fnErr } = await invokeFunction('ai-analyze', {
         body: { mode: TYPE_META[doc.doc_type].mode, document_id: doc.id },
       })
       if (fnErr) {
@@ -194,8 +182,8 @@ export function DocumentsPage() {
         setExplainData(data as DocAnalysis)
         await reload()
       }
-    } catch {
-      setError('Analisi non riuscita, riprova tra poco.')
+} catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Analisi non riuscita, riprova tra poco.')
       await reload()
     } finally {
       setAnalyzingId(null)

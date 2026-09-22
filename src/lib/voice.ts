@@ -4,6 +4,8 @@
  * Evita i problemi di formato di MediaRecorder su iOS (mp4) e Android (webm).
  */
 
+import { sessionScope } from './sessionScope'
+
 type AudioCtor = typeof AudioContext
 
 export function voiceSupported(): boolean {
@@ -68,17 +70,39 @@ function encodeWav(samples: Float32Array, sampleRate: number): string {
   return btoa(binary)
 }
 
-export async function startVoiceRecording(): Promise<VoiceRecorder> {
+export async function startVoiceRecording(signal?: AbortSignal): Promise<VoiceRecorder> {
+  const ticket = sessionScope.capture()
+  let stopped = false
+  const assertActive = () => {
+    sessionScope.assert(ticket)
+    if (stopped || signal?.aborted) throw new Error('Registrazione annullata.')
+  }
+  assertActive()
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  let ctx: AudioContext | undefined
+  const nodes: AudioNode[] = []
+  const cleanup = () => {
+    if (stopped) return
+    stopped = true
+    signal?.removeEventListener('abort', cleanup)
+    for (const node of nodes) { try { node.disconnect() } catch { /* already disconnected */ } }
+    stream.getTracks().forEach(t => t.stop())
+    if (ctx) void ctx.close().catch(() => {})
+  }
+  signal?.addEventListener('abort', cleanup, { once: true })
+  try {
+  assertActive()
   const w = window as unknown as { AudioContext?: AudioCtor; webkitAudioContext?: AudioCtor }
   const Ctx = (w.AudioContext ?? w.webkitAudioContext)!
-  const ctx = new Ctx()
+  ctx = new Ctx()
   if (ctx.state === 'suspended') await ctx.resume()
+  assertActive()
 
   const source = ctx.createMediaStreamSource(stream)
+  nodes.push(source)
   const processor = ctx.createScriptProcessor(4096, 1, 1)
+  nodes.push(processor)
   const chunks: Float32Array[] = []
-  let stopped = false
 
   processor.onaudioprocess = (e) => {
     if (stopped) return
@@ -87,6 +111,7 @@ export async function startVoiceRecording(): Promise<VoiceRecorder> {
 
   // Gain a 0 per non riprodurre l'audio in loopback pur mantenendo attivo il processor
   const silent = ctx.createGain()
+  nodes.push(silent)
   silent.gain.value = 0
   source.connect(processor)
   processor.connect(silent)
@@ -94,19 +119,8 @@ export async function startVoiceRecording(): Promise<VoiceRecorder> {
 
   const sampleRate = ctx.sampleRate
 
-  const cleanup = () => {
-    stopped = true
-    try {
-      processor.disconnect()
-      source.disconnect()
-      silent.disconnect()
-    } catch { /* già scollegati */ }
-    stream.getTracks().forEach((t) => t.stop())
-    void ctx.close()
-  }
-
   const finalize = () => {
-    stopped = true
+    assertActive()
     const total = chunks.reduce((n, c) => n + c.length, 0)
     const merged = new Float32Array(total)
     let pos = 0
@@ -117,16 +131,19 @@ export async function startVoiceRecording(): Promise<VoiceRecorder> {
     const durationMs = Math.round((total / sampleRate) * 1000)
     const down = downsample(merged, sampleRate)
     const base64 = encodeWav(down, OUT_RATE)
-    cleanup()
     return { base64, mime: 'audio/wav' as const, durationMs }
   }
 
+  let result: ReturnType<VoiceRecorder['stop']> | undefined
   return {
     // Aspetta un attimo prima di chiudere: cattura la fine della frase anche se parli veloce
     stop: () =>
-      new Promise((resolve) => {
-        window.setTimeout(() => resolve(finalize()), TAIL_MS)
+      result ??= new Promise((resolve, reject) => {
+        window.setTimeout(() => {
+          try { resolve(finalize()) } catch (cause) { reject(cause) } finally { cleanup() }
+        }, TAIL_MS)
       }),
     cancel: cleanup,
   }
+  } catch (cause) { cleanup();throw cause }
 }
