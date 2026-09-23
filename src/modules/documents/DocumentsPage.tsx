@@ -9,7 +9,6 @@ import {
   FilePlus2,
   FileText,
   ReceiptText,
-  ScanLine,
   Search,
   Sparkles,
   X,
@@ -24,7 +23,6 @@ import { Card, EmptyState, PageHeader, PrimaryButton, Sheet, Spinner, inputClass
 import { PayslipConfirmSheet } from './PayslipConfirmSheet'
 import { ReceiptConfirmSheet } from './ReceiptConfirmSheet'
 import { ExplainSheet } from './ExplainSheet'
-import { ScannerSheet } from './ScannerSheet'
 import type { DocAnalysis, DocumentRow, Payslip, PayslipAnalysis, ReceiptAnalysis } from '../../types'
 
 type DocType = DocumentRow['doc_type']
@@ -53,7 +51,6 @@ export function DocumentsPage() {
   const [explainData, setExplainData] = useState<DocAnalysis | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const pendingType = useRef<DocType>('busta_paga')
-  const [scannerOpen, setScannerOpen] = useState(false)
 
   // Ricerca nei documenti (Full Text Search Postgres, filtrata dalla RLS)
   const [searchTerm, setSearchTerm] = useState('')
@@ -238,22 +235,6 @@ export function DocumentsPage() {
             </button>
           ))}
         </div>
-
-        {/* Scanner: più pagine → un PDF condivisibile */}
-        <button
-          onClick={() => setScannerOpen(true)}
-          className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4 text-left shadow-sm"
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-            <ScanLine className="h-5 w-5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold">Scanner documenti</span>
-            <span className="block text-sm text-muted">
-              Fotografa più pagine, applica i filtri e condividi un PDF
-            </span>
-          </span>
-        </button>
 
         <Card>
           <h2 className="mb-2 flex items-center gap-2 font-semibold">
@@ -440,12 +421,6 @@ export function DocumentsPage() {
         }}
       />
       <ExplainSheet analysis={explainData} onClose={() => setExplainData(null)} />
-      <ScannerSheet
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onSavedToDocuments={() => void reload()}
-      />
-
       {/* Anteprima del documento generato */}
       <Sheet
         open={generatedDoc !== null}

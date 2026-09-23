@@ -12,6 +12,8 @@ Il branch isolato `codex/rifocalizzazione-pdf` alleggerisce la navigazione elimi
 Media e Google, Spotify, il player e i rispettivi flussi OAuth. Conserva Agenda, Carburanti,
 Documenti e la generazione di PDF da link YouTube incollato. Le credenziali obsolete già presenti
 non vengono cancellate automaticamente: le Impostazioni ne consentono la rimozione volontaria.
+Anche lo scanner multipagina e i suoi filtri vengono rimossi; il caricamento normale di foto e PDF
+resta nella pagina Documenti.
 Questa sezione descrive lavoro locale e non lo stato pubblicato dell'app.
 
 ## Intervento multiutente — pubblicato, collaudo personale da completare

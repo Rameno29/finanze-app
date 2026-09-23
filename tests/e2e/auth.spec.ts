@@ -123,6 +123,17 @@ test('navigazione focalizzata conserva agenda documenti e carburanti', async ({p
   await page.getByRole('link', {name: 'Documenti', exact: true}).click()
   await expect(page.getByRole('button', {name: /Busta paga/})).toBeVisible()
 })
+
+test('documenti conserva caricamento e creazione PDF senza scanner', async ({page}) => {
+  await mockBackend(page)
+  await page.goto('impostazioni')
+  await login(page)
+  await page.getByRole('link', {name: 'Documenti', exact: true}).click()
+  await expect(page.getByRole('button', {name: /Busta paga/})).toBeVisible()
+  await expect(page.getByRole('button', {name: /Scontrino/})).toBeVisible()
+  await expect(page.getByRole('heading', {name: 'Crea un documento PDF'})).toBeVisible()
+  await expect(page.getByRole('button', {name: /Scanner documenti/})).toHaveCount(0)
+})
 test('leaving the assistant while microphone permission is pending cancels a late grant',async({page})=>{
   await mockBackend(page)
   await page.addInitScript(()=>{
