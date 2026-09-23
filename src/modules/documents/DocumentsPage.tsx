@@ -5,24 +5,22 @@ import {
   CircleAlert,
   CircleCheck,
   Clock,
-  Download,
-  FilePlus2,
   FileText,
   ReceiptText,
   Search,
   Sparkles,
   X,
 } from 'lucide-react'
-import { downloadPdf, type GeneratedDoc } from '../../lib/pdf'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { uploadDocument } from '../../lib/documentUpload'
 import { invokeFunction } from '../../lib/integrations'
 import { MONTH_NAMES, formatCents } from '../../lib/format'
-import { Card, EmptyState, PageHeader, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
+import { Card, EmptyState, PageHeader, Spinner, inputClass } from '../../components/ui'
 import { PayslipConfirmSheet } from './PayslipConfirmSheet'
 import { ReceiptConfirmSheet } from './ReceiptConfirmSheet'
 import { ExplainSheet } from './ExplainSheet'
+import { GeneratePdfCard } from './GeneratePdfCard'
 import type { DocAnalysis, DocumentRow, Payslip, PayslipAnalysis, ReceiptAnalysis } from '../../types'
 
 type DocType = DocumentRow['doc_type']
@@ -82,29 +80,6 @@ export function DocumentsPage() {
       clearTimeout(timer)
     }
   }, [searchTerm])
-
-  // Generazione PDF con AI
-  const [pdfPrompt, setPdfPrompt] = useState('')
-  const [pdfVideo, setPdfVideo] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [generatedDoc, setGeneratedDoc] = useState<GeneratedDoc | null>(null)
-
-  async function generatePdf() {
-    if (!pdfPrompt.trim()) return
-    setError('')
-    setGenerating(true)
-    try {
-      const body: Record<string, string> = { mode: 'generate', prompt: pdfPrompt.trim() }
-      if (pdfVideo.trim()) body.video_url = pdfVideo.trim()
-      const { data, error: fnErr } = await invokeFunction('ai-analyze', { body })
-      if (fnErr) throw fnErr
-      setGeneratedDoc(data as GeneratedDoc)
-} catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Generazione non riuscita: riprova (se hai indicato un video, controlla il link).')
-    } finally {
-      setGenerating(false)
-    }
-  }
 
   const reload = useCallback(async () => {
     const [docsRes, payslipsRes] = await Promise.all([
@@ -236,39 +211,7 @@ export function DocumentsPage() {
           ))}
         </div>
 
-        <Card>
-          <h2 className="mb-2 flex items-center gap-2 font-semibold">
-            <FilePlus2 className="h-4 w-4 text-accent" /> Crea un documento PDF
-          </h2>
-          <p className="mb-3 text-sm text-muted">
-            Descrivi cosa ti serve (una guida, una lettera, un programma, appunti…) e l’AI lo
-            scrive per te. Puoi anche partire dal contenuto di un video YouTube.
-          </p>
-          <textarea
-            value={pdfPrompt}
-            onChange={(e) => setPdfPrompt(e.target.value)}
-            maxLength={2000}
-            className={`${inputClass} mb-2 min-h-[80px] resize-none`}
-            placeholder="Es. una guida passo-passo per cambiare residenza a Milano"
-          />
-          <input
-            value={pdfVideo}
-            onChange={(e) => setPdfVideo(e.target.value)}
-            className={`${inputClass} mb-3`}
-            placeholder="Link YouTube (facoltativo)"
-          />
-          <PrimaryButton onClick={generatePdf} disabled={generating || !pdfPrompt.trim()}>
-            {generating ? (
-              <>
-                <Spinner className="h-5 w-5 text-white" /> L'AI sta scrivendo…
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-5 w-5" /> Genera documento
-              </>
-            )}
-          </PrimaryButton>
-        </Card>
+        <GeneratePdfCard documents={documents} onSaved={reload} />
 
         {/* Ricerca nei documenti analizzati */}
         {documents.length > 0 && (
@@ -421,42 +364,6 @@ export function DocumentsPage() {
         }}
       />
       <ExplainSheet analysis={explainData} onClose={() => setExplainData(null)} />
-      {/* Anteprima del documento generato */}
-      <Sheet
-        open={generatedDoc !== null}
-        onClose={() => setGeneratedDoc(null)}
-        title={generatedDoc?.title ?? ''}
-      >
-        {generatedDoc && (
-          <>
-            <PrimaryButton onClick={() => downloadPdf(generatedDoc)} className="mb-5">
-              <Download className="h-5 w-5" /> Scarica PDF
-            </PrimaryButton>
-            <div className="space-y-4 pb-4">
-              {generatedDoc.sections.map((s, i) => (
-                <section key={i}>
-                  <h3 className="mb-1.5 font-semibold">{s.heading}</h3>
-                  <div className="space-y-1.5 text-sm leading-relaxed text-muted">
-                    {s.body.split('\n').map((line, j) => {
-                      const t = line.trim()
-                      if (!t) return null
-                      if (t.startsWith('- ') || t.startsWith('* ')) {
-                        return (
-                          <p key={j} className="flex gap-2">
-                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                            <span>{t.slice(2)}</span>
-                          </p>
-                        )
-                      }
-                      return <p key={j}>{t}</p>
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
-          </>
-        )}
-      </Sheet>
     </div>
   )
 }

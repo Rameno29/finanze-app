@@ -16,6 +16,9 @@ Anche lo scanner multipagina e i suoi filtri vengono rimossi; il caricamento nor
 resta nella pagina Documenti.
 Il contratto server della generazione PDF in sviluppo distingue testo, link YouTube e documenti
 privati; respinge link non validi, verifica la proprietà del file e valida il risultato AI.
+L'interfaccia locale offre le tre fonti alternative e i formati sintesi/appunti/schema, consente
+di correggere titolo e sezioni in anteprima, impagina anche paragrafi lunghi su più pagine e salva
+il PDF nell'archivio solo dopo un'azione esplicita; il download usa lo stesso renderer del salvataggio.
 Questa sezione descrive lavoro locale e non lo stato pubblicato dell'app.
 
 ## Intervento multiutente — pubblicato, collaudo personale da completare
