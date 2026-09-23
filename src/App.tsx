@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { TabBar } from './components/TabBar'
@@ -20,9 +20,10 @@ const FuelPage = lazy(() => import('./modules/fuel/FuelPage').then((m) => ({ def
 
 function Shell() {
   const { session, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) return <FullPageSpinner />
-  if (window.location.pathname.endsWith('/auth/callback')) return <AuthCallbackPage />
+  if (location.pathname === '/auth/callback') return <AuthCallbackPage />
   if (!session) return <LoginPage />
 
   return (

@@ -15,7 +15,7 @@ const master = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array
 const response = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
 const request = (user: string, body: unknown) => new Request('https://app.test/function', { method: 'POST', headers: { Authorization: `Bearer ${user}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-async function fixture(run: (state: { sent: string[]; missing: boolean; suspended: boolean; quota: boolean; saved: Record<string, unknown>[]; geminiOutput: string; geminiRequests: Record<string, unknown>[]; storageDownloads: number; documentUpdates: number }) => Promise<void>) {
+async function fixture(run: (state: { sent: string[]; missing: boolean; suspended: boolean; quota: boolean; videoUnavailable: boolean; saved: Record<string, unknown>[]; geminiOutput: string; geminiRequests: Record<string, unknown>[]; storageDownloads: number; documentUpdates: number }) => Promise<void>) {
   const previousFetch = globalThis.fetch
   const env = ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','CREDENTIAL_MASTER_KEYS','GEMINI_API_KEY','CREDENTIAL_KEY_VERSION']
   const previousEnv = env.map(key => Deno.env.get(key))
@@ -24,7 +24,7 @@ async function fixture(run: (state: { sent: string[]; missing: boolean; suspende
   Deno.env.set('CREDENTIAL_MASTER_KEYS', JSON.stringify({v1: master}))
   Deno.env.set('CREDENTIAL_KEY_VERSION','v1')
   Deno.env.set('GEMINI_API_KEY', 'FORBIDDEN_GLOBAL_KEY')
-  const state = { sent: [] as string[], missing: false, suspended: false, quota: false, saved: [] as Record<string, unknown>[], geminiOutput: '{"action":"answer"}', geminiRequests: [] as Record<string, unknown>[], storageDownloads: 0, documentUpdates: 0 }
+  const state = { sent: [] as string[], missing: false, suspended: false, quota: false, videoUnavailable: false, saved: [] as Record<string, unknown>[], geminiOutput: '{"action":"answer"}', geminiRequests: [] as Record<string, unknown>[], storageDownloads: 0, documentUpdates: 0 }
   const encrypted = new Map<string, unknown>()
   for (const user of [A,B]) for (const provider of ['gemini','youtube']) encrypted.set(`${user}:${provider}`, await sealCredential(`personal-${user}-${provider}`,user,provider,'v1',master))
   globalThis.fetch = async (input, init) => {
@@ -69,6 +69,7 @@ async function fixture(run: (state: { sent: string[]; missing: boolean; suspende
       if(state.quota) return response({error:{errors:[{reason:'quotaExceeded'}]}},403)
       if(url.hostname === 'www.googleapis.com') return response({items:[]})
       state.geminiRequests.push(await req.json())
+      if(state.videoUnavailable) return response({error:{message:'The YouTube video is not available'}},400)
       return response({candidates:[{content:{parts:[{text:state.geminiOutput}]}}]})
     }
     throw new Error('Unexpected external network')
@@ -79,20 +80,20 @@ async function fixture(run: (state: { sent: string[]; missing: boolean; suspende
   }
 }
 
-Deno.test('real handlers send only the requesting user key to AI and YouTube, ignoring spoofed user_id', () => fixture(async state => {
+Deno.test('real AI handlers send only the requesting user Gemini key, ignoring spoofed user_id', () => fixture(async state => {
   for (const uid of [A,B]) {
-    assert.equal((await youtube(request(uid,{query:'example',user_id:A}))).status,200)
-    assert.equal((await analyze(request(uid,{mode:'youtube',video_url:'https://youtube.com/watch?v=abcdefghijk',user_id:A}))).status,200)
+    assert.equal((await analyze(request(uid,{mode:'assistant',question:'Come risparmiare?',user_id:A}))).status,200)
     assert.equal((await command(request(uid,{text:'ciao',user_id:A}))).status,200)
   }
-  assert.deepEqual(state.sent,[`personal-${A}-youtube`,`personal-${A}-gemini`,`personal-${A}-gemini`,`personal-${B}-youtube`,`personal-${B}-gemini`,`personal-${B}-gemini`])
+  assert.deepEqual(state.sent,[`personal-${A}-gemini`,`personal-${A}-gemini`,`personal-${B}-gemini`,`personal-${B}-gemini`])
 }))
 Deno.test('missing key, suspended and anonymous sessions never call a provider; retired endpoint is inert', () => fixture(async state => {
   state.missing=true
-  for (const fn of [youtube,analyze,command]) assert.equal((await fn(request(B,{query:'x',text:'x',mode:'youtube'}))).status,428)
+  for (const fn of [analyze,command]) assert.equal((await fn(request(B,{question:'x',text:'x',mode:'assistant'}))).status,428)
   state.missing=false; state.suspended=true
-  assert.equal((await youtube(request(B,{query:'x'}))).status,403)
-  assert.equal((await youtube(request('anonymous',{query:'x'}))).status,401)
+  assert.equal((await analyze(request(B,{mode:'assistant',question:'x'}))).status,403)
+  assert.equal((await analyze(request('anonymous',{mode:'assistant',question:'x'}))).status,401)
+  assert.equal((await youtube(request(B,{query:'x'}))).status,410)
   assert.equal(legacy(request(B,{})).status,410)
   assert.equal(state.sent.length,0)
 }))
@@ -109,11 +110,6 @@ Deno.test('credential save binds identity, encrypts and returns only acknowledge
 Deno.test('guest cannot invoke owner administration even with forged actor', () => fixture(async state => {
   for (const action of ['list','create','cancel','suspend']) assert.equal((await invites(request(B,{action,actor:A,email:'x@example.test',user_id:A}))).status,403)
   assert.equal(state.sent.length,0)
-}))
-Deno.test('YouTube quotaExceeded is actionable without exposing provider response', () => fixture(async state => {
-  state.quota=true
-  const result=await youtube(request(B,{query:'x'}))
-  assert.equal(result.status,429); assert.deepEqual(await result.json(),{error:'provider_quota'})
 }))
 Deno.test('body limit is enforced on streamed bytes without Content-Length', async () => {
   const req=new Request('https://app.test',{method:'POST',body:new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('{"value":"'+'x'.repeat(50)+'"}'));c.close()}})})
@@ -179,4 +175,23 @@ Deno.test('PDF generation reports provider quota', () => fixture(async state => 
   const result = await analyze(request(A,{mode:'generate',source:'youtube',video_url:'https://www.youtube.com/watch?v=abcdefghijk'}))
   assert.equal(result.status,429)
   assert.deepEqual(await result.json(),{error:'provider_quota'})
+}))
+
+Deno.test('unavailable video is a clear error, never a generated PDF', () => fixture(async state => {
+  state.videoUnavailable=true
+  const result=await analyze(request(A,{mode:'generate',source:'youtube',video_url:'https://www.youtube.com/watch?v=abcdefghijk'}))
+  assert.equal(result.status,422)
+  assert.deepEqual(await result.json(),{error:'video_unavailable'})
+}))
+
+Deno.test('retired Media, web search and scanner modes do not contact Gemini', () => fixture(async state => {
+  for (const body of [
+    {mode:'youtube',video_url:'https://www.youtube.com/watch?v=abcdefghijk'},
+    {mode:'websearch',query:'Come risparmiare?'},
+    {mode:'detect_corners',image_base64:'a'.repeat(200),image_mime:'image/jpeg'},
+  ]) {
+    const result=await analyze(request(A,body))
+    assert.equal(result.status,400)
+  }
+  assert.equal(state.geminiRequests.length,0)
 }))

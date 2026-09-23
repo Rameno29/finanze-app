@@ -395,8 +395,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.user-credentials]
 verify_jwt = false
-[functions.youtube-search]
-verify_jwt = false
 [functions.fuel-prices]
 verify_jwt = false
 [functions.send-reminders]

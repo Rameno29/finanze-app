@@ -19,6 +19,11 @@ privati; respinge link non validi, verifica la proprietà del file e valida il r
 L'interfaccia locale offre le tre fonti alternative e i formati sintesi/appunti/schema, consente
 di correggere titolo e sezioni in anteprima, impagina anche paragrafi lunghi su più pagine e salva
 il PDF nell'archivio solo dopo un'azione esplicita; il download usa lo stesso renderer del salvataggio.
+I vecchi modi server `youtube`, `websearch` e `detect_corners` sono inattivi nel branch;
+`youtube-search` è sostituito da una risposta 410 da distribuire soltanto dopo il frontend nuovo.
+Le righe più sotto che citano Media, Google, scanner e relative chiavi sono cronologia del vecchio rilascio.
+Nel collaudo completo è stato corretto anche il rientro dall'invito: dopo la password,
+la schermata segue ora la route `/impostazioni` senza restare sul callback.
 Questa sezione descrive lavoro locale e non lo stato pubblicato dell'app.
 
 ## Intervento multiutente — pubblicato, collaudo personale da completare
@@ -637,10 +642,10 @@ VITE_SUPABASE_ANON_KEY=...
 ```
 src/
   lib/            → supabase, config, voice, push, pdf, export, import CSV, dati, cambi BCE, offline cifrato
-  context/        → Auth, Tema, Player YouTube
-  components/     → UI condivisa, TabBar, MiniPlayer, AiText
-  modules/        → home, finance, agenda, documents, google, media, assistant, settings, guide, auth
-supabase/functions/ → ai-analyze, ai-command, send-reminders, analyze-payslip, ecb-rates (codice Deno)
+  context/        → Auth, Tema
+  components/     → UI condivisa, TabBar, AiText
+  modules/        → home, finance, agenda, documents, assistant, settings, guide, auth
+supabase/functions/ → ai-analyze, ai-command, send-reminders, ecb-rates e tombstone legacy (codice Deno)
 supabase/migrations/ → cronologia SQL completa + schema multivaluta
 .github/workflows/  → deploy.yml (GitHub Pages), keep-alive.yml (Supabase)
 ```

@@ -4,6 +4,7 @@ import { createPdfBlob, validateGeneratedDoc } from './pdf'
 describe('PDF export', () => {
   it('rejects empty sections before generating a plausible but blank PDF', () => {
     expect(() => validateGeneratedDoc({ title: 'Titolo', sections: [{ heading: 'Sezione', body: '  ' }] })).toThrow()
+    expect(() => validateGeneratedDoc({ title: 'Titolo', sections: [{ heading: 'Sezione', body: 'Testo' }], source: { kind: 'youtube' } })).toThrow()
   })
 
   it('paginates a single very long paragraph and includes source metadata', async () => {

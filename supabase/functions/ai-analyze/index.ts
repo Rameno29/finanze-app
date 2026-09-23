@@ -107,38 +107,6 @@ const PARSE_TXS_SCHEMA = {
   required: ['transactions'],
 }
 
-const CORNERS_SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    found: { type: 'BOOLEAN', description: 'true solo se nella foto c’è un documento/foglio riconoscibile' },
-    top_left: {
-      type: 'OBJECT',
-      properties: { x: { type: 'INTEGER' }, y: { type: 'INTEGER' } },
-      required: ['x', 'y'],
-      description: 'Angolo in alto a sinistra del documento',
-    },
-    top_right: {
-      type: 'OBJECT',
-      properties: { x: { type: 'INTEGER' }, y: { type: 'INTEGER' } },
-      required: ['x', 'y'],
-      description: 'Angolo in alto a destra del documento',
-    },
-    bottom_right: {
-      type: 'OBJECT',
-      properties: { x: { type: 'INTEGER' }, y: { type: 'INTEGER' } },
-      required: ['x', 'y'],
-      description: 'Angolo in basso a destra del documento',
-    },
-    bottom_left: {
-      type: 'OBJECT',
-      properties: { x: { type: 'INTEGER' }, y: { type: 'INTEGER' } },
-      required: ['x', 'y'],
-      description: 'Angolo in basso a sinistra del documento',
-    },
-  },
-  required: ['found', 'top_left', 'top_right', 'bottom_right', 'bottom_left'],
-}
-
 const DOCUMENT_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -167,14 +135,10 @@ async function callGeminiFull(
   apiKey: string,
   parts: unknown[],
   schema: unknown | null,
-  useSearch = false,
 ): Promise<GeminiResult> {
   const body: Record<string, unknown> = { contents: [{ parts }] }
   if (schema) {
     body.generationConfig = { responseMimeType: 'application/json', responseSchema: schema }
-  }
-  if (useSearch) {
-    body.tools = [{ google_search: {} }]
   }
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
   const res = await providerFetch(url, {
@@ -187,7 +151,7 @@ async function callGeminiFull(
   const text = (candidate?.content?.parts ?? [])
     .map((p: { text?: string }) => p.text ?? '')
     .join('')
-  if (!text) throw new Error('gemini_empty')
+  if (!text) throw new ApiError('invalid_response', 502)
   const sources = ((candidate?.groundingMetadata?.groundingChunks ?? []) as Array<{
     web?: { uri?: string; title?: string }
   }>)
@@ -214,9 +178,10 @@ async function callGemini(
 export const serve = handler(async ({ admin, user, body, req }) => {
   const json = (data: unknown, status = 200) => responseJson(req, data, status)
   const userId = user.id
-  const apiKey = await personalKey(admin, userId, 'gemini')
-  const { mode, document_id, video_url, query, question, text, image_base64, image_mime } =
+  const { mode, document_id, question, text } =
     body
+  if (['youtube', 'websearch', 'detect_corners'].includes(String(mode))) throw new ApiError('invalid_input')
+  const apiKey = await personalKey(admin, userId, 'gemini')
 
   async function loadOwnedDocument(id: string) {
     const { data: doc, error: docErr } = await admin.from('documents').select('*').eq('id', id).eq('user_id', userId).single()
@@ -399,66 +364,6 @@ export const serve = handler(async ({ admin, user, body, req }) => {
       return json({ transactions: list })
     }
 
-    // ---- Scanner: l'AI individua i 4 angoli del documento nella foto ----
-    if (mode === 'detect_corners') {
-      if (typeof image_base64 !== 'string' || image_base64.length < 100 || image_base64.length > 1_400_000) {
-        return json({ error: 'immagine mancante o troppo grande' }, 400)
-      }
-      if (image_mime !== 'image/jpeg' && image_mime !== 'image/png' && image_mime !== 'image/webp') {
-        return json({ error: 'formato immagine non valido' }, 400)
-      }
-      const out = await callGemini(
-        apiKey,
-        [
-          { inline_data: { mime_type: image_mime, data: image_base64 } },
-          {
-            text:
-              'Questa foto contiene un documento (foglio, carta d’identità, modulo, contratto…). ' +
-              'Individua con precisione i 4 angoli del documento — dove i bordi del foglio si incontrano, ' +
-              'anche se la foto è storta, in prospettiva o l’angolo è poco contrastato. ' +
-              'Coordinate intere da 0 a 1000: (0,0) è l’angolo in alto a sinistra dell’IMMAGINE, ' +
-              '(1000,1000) quello in basso a destra. Se nella foto non c’è nessun documento, found=false.',
-          },
-        ],
-        CORNERS_SCHEMA,
-      )
-      const input = JSON.parse(out) as {
-        found?: boolean
-        top_left?: { x?: number; y?: number }
-        top_right?: { x?: number; y?: number }
-        bottom_right?: { x?: number; y?: number }
-        bottom_left?: { x?: number; y?: number }
-      }
-      const norm = (p?: { x?: number; y?: number }) => {
-        const x = Number(p?.x)
-        const y = Number(p?.y)
-        if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1000 || y < 0 || y > 1000) return null
-        return { x: x / 1000, y: y / 1000 }
-      }
-      const corners = [input.top_left, input.top_right, input.bottom_right, input.bottom_left].map(norm)
-      if (input.found === false || corners.some((c) => c === null)) return json({ corners: null })
-      return json({ corners })
-    }
-
-    // ---- Ricerca web con AI ----
-    if (mode === 'websearch') {
-      if (typeof query !== 'string' || !query.trim()) return json({ error: 'query mancante' }, 400)
-      if (query.length > 500) return json({ error: 'Domanda troppo lunga (max 500 caratteri)' }, 400)
-      const result = await callGeminiFull(
-        apiKey,
-        [
-          {
-            text:
-              `Cerca sul web e rispondi in ITALIANO a questa domanda in modo chiaro e completo ma conciso. ` +
-              `Se utile usa elenchi puntati (righe che iniziano con "- "). Domanda: ${query.trim()}`,
-          },
-        ],
-        null,
-        true,
-      )
-      return json({ answer: result.text, sources: result.sources.slice(0, 6) })
-    }
-
     // ---- Generazione documento (da testo e/o video YouTube) ----
     if (mode === 'generate') {
       const input = parseGenerateRequest(body)
@@ -485,31 +390,6 @@ export const serve = handler(async ({ admin, user, body, req }) => {
       })
       const text2 = await callGemini(apiKey, parts, GENERATE_SCHEMA)
       return json(parseGeneratedDocument(text2, source))
-    }
-
-    // ---- Riassunto video YouTube (nessun file) ----
-    if (mode === 'youtube') {
-      if (
-        typeof video_url !== 'string' ||
-        video_url.length > 200 ||
-        !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(video_url)
-      ) {
-        return json({ error: 'video_url non valido' }, 400)
-      }
-      const summary = await callGemini(
-        apiKey,
-        [
-          { file_data: { file_uri: video_url } },
-          {
-            text:
-              'Guarda questo video e scrivi un riassunto in ITALIANO, chiaro e ben organizzato. ' +
-              'Struttura: una frase iniziale su di cosa parla il video, poi i punti principali come elenco puntato (usa "- " a inizio riga), ' +
-              'e infine eventuali conclusioni o consigli pratici. Sii fedele al contenuto, non inventare.',
-          },
-        ],
-        null,
-      )
-      return json({ summary })
     }
 
     // ---- Modalità con documento ----

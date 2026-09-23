@@ -11,6 +11,7 @@ const messages: Record<string, string> = {
   credential_service_unavailable: 'Il servizio delle chiavi deve essere configurato dal proprietario.',
   invalid_credential: 'Chiave non valida o servizio non abilitato nel tuo progetto.',
   invalid_video_url: 'Inserisci un link YouTube valido a un video pubblico.',
+  video_unavailable: 'Il video YouTube non è pubblico o non è accessibile a Gemini. Non ho creato il PDF.',
   invalid_response: 'Il documento generato è incompleto. Riprova o cambia le istruzioni.',
   document_not_found: 'Il documento selezionato non è disponibile nel tuo account.',
   document_unavailable: 'Non riesco a leggere il documento selezionato. Riprova.',

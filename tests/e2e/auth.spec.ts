@@ -46,7 +46,7 @@ async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean;
         {amount_cents:100,kind:'expense',category_name:null,date:'2026-09-22',description:'Caffe'},
         {amount_cents:200,kind:'expense',category_name:null,date:'2026-09-22',description:'Pranzo'},
       ]})
-      if(options.pdfGeneration && name==='ai-analyze' && body.mode==='generate') return send({title:'Titolo AI',sections:[{heading:'Capitolo',body:'Testo originale'}],source: body.source==='youtube'?{kind:'youtube',url:body.video_url}:body.source==='document'?{kind:'document',file_name:'fonte.pdf'}:{kind:'text'}})
+      if(options.pdfGeneration && name==='ai-analyze' && body.mode==='generate') return send({title:'Titolo AI',sections:[{heading:'Capitolo',body:'Testo originale'}],source: body.source==='youtube'?{kind:'youtube',url:'https://www.youtube.com/watch?v=abcdefghijk'}:body.source==='document'?{kind:'document',file_name:'fonte.pdf'}:{kind:'text'}})
       if(name==='manage-invites') {
         if(body.action==='accept') return send({ok:true})
         if(body.action==='status') return send({role:id===owner?'owner':'member'})

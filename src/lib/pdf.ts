@@ -25,6 +25,11 @@ export function validateGeneratedDoc(value: unknown): GeneratedDoc {
   if (sections.reduce((length, section) => length + section.body.length, 0) > 50000) throw new Error('Il documento è troppo lungo.')
   const source = doc.source
   if (source !== undefined && (!source || typeof source !== 'object' || !['text', 'youtube', 'document'].includes((source as PdfSource).kind))) throw new Error('Fonte del documento non valida.')
+  if (source && typeof source === 'object') {
+    const detail = source as Record<string, unknown>
+    if (detail.kind === 'youtube' && (typeof detail.url !== 'string' || !/^https:\/\/(www\.)?youtube\.com\/watch\?v=[A-Za-z0-9_-]{11}$/.test(detail.url))) throw new Error('Fonte video non valida.')
+    if (detail.kind === 'document' && (typeof detail.file_name !== 'string' || !detail.file_name.trim())) throw new Error('Fonte documento non valida.')
+  }
   return { title: doc.title.trim(), sections, source: source as PdfSource | undefined }
 }
 
