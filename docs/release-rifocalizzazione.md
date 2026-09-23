@@ -26,4 +26,7 @@
 - Server compatibile `a134b3e`: `ai-analyze` distribuita come versione 11, `ACTIVE`, `verify_jwt=false` con autenticazione nello handler; richiesta anonima alla funzione rifiutata con 401. Vecchie modalità mantenute temporaneamente.
 - Frontend `f3713d9`: push su `main`, workflow [35856141050](https://github.com/Rameno29/finanze-app/actions/runs/35856141050) completato con successo, inclusi 113 test Vitest, 30 Deno, 36 browser desktop/mobile, build e deploy Pages.
 - Pagina live HTTP 200; asset principale `index-CiQaw7rA.js` identico alla build locale. Browser reale su viewport 390×844: login su invito e campi email/password leggibili con valori sintetici, console senza errori. Nessuna credenziale reale inserita né login tentato.
-- `youtube-search` remoto e vecchi modi `ai-analyze`: ritiro non ancora eseguito; attesa conferma dei dispositivi aggiornati. Nessun dato o secret personale eliminato.
+- Su successivo «prosegui» del proprietario è stato completato il ritiro server, interpretato come via libera dopo il gate della nuova PWA. Non è stata eseguita una verifica diretta su ogni dispositivo fisico.
+- `ai-analyze` finale distribuita come versione 12 `ACTIVE` (`verify_jwt=false`, autenticazione nello handler): POST anonima 401. I vecchi modi `youtube`, `websearch` e `detect_corners` sono respinti dal codice finale.
+- `youtube-search` tombstone distribuita come versione 2 `ACTIVE`: POST anonima 410. Il record remoto resta presente; nessun dato o secret personale eliminato.
+- Verifica prima del ritiro: 113 Vitest, 30 Deno, check Deno, build e lint riusciti (tre avvisi Fast Refresh preesistenti). Non è stata eseguita una chiamata Gemini live con chiave privata.

@@ -4,7 +4,7 @@
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
 > Ultimo aggiornamento: **23 settembre 2026**.
 
-## Rifocalizzazione pubblicata — ritiro server legacy in attesa
+## Rifocalizzazione pubblicata — ritiro server legacy completato
 
 La proposta approvata è in `docs/superpowers/specs/2026-09-23-rifocalizzazione-aje-design.md`;
 il piano tecnico è in `docs/superpowers/plans/2026-09-23-rifocalizzazione-pdf.md`.
@@ -14,16 +14,16 @@ Documenti e la generazione di PDF da link YouTube incollato. Le credenziali obso
 non vengono cancellate automaticamente: le Impostazioni ne consentono la rimozione volontaria.
 Anche lo scanner multipagina e i suoi filtri vengono rimossi; il caricamento normale di foto e PDF
 resta nella pagina Documenti.
-Il contratto server della generazione PDF in sviluppo distingue testo, link YouTube e documenti
+Il contratto server della generazione PDF distingue testo, link YouTube e documenti
 privati; respinge link non validi, verifica la proprietà del file e valida il risultato AI.
 L'interfaccia locale offre le tre fonti alternative e i formati sintesi/appunti/schema, consente
 di correggere titolo e sezioni in anteprima, impagina anche paragrafi lunghi su più pagine e salva
 il PDF nell'archivio solo dopo un'azione esplicita; il download usa lo stesso renderer del salvataggio.
-Il frontend aggiornato è online su GitHub Pages; il server `ai-analyze` v11 è temporaneamente
-compatibile con la vecchia PWA e controlla l'effettivo consumo di token video. I vecchi modi
-server `youtube`, `websearch` e `detect_corners` e la tombstone 410 di `youtube-search` sono
-pronti nel codice finale ma saranno distribuiti solo dopo conferma che i dispositivi usano la
-nuova PWA. Non sono state cancellate chiavi o righe personali.
+Il frontend aggiornato è online su GitHub Pages. Il server `ai-analyze` v12 controlla
+l'effettivo consumo di token video e respinge i vecchi modi `youtube`, `websearch` e
+`detect_corners`; `youtube-search` v2 restituisce 410. Il ritiro server è stato distribuito
+dopo il passaggio temporaneo tramite `ai-analyze` v11 compatibile con la vecchia PWA.
+Non sono state cancellate chiavi o righe personali.
 Le righe più sotto che citano Media, Google, scanner e relative chiavi sono cronologia del vecchio rilascio.
 Nel collaudo completo è stato corretto anche il rientro dall'invito: dopo la password,
 la schermata segue ora la route `/impostazioni` senza restare sul callback.
