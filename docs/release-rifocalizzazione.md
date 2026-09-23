@@ -10,7 +10,7 @@
 
 ## Ordine senza interruzione delle PWA esistenti
 
-1. Distribuire **solo `ai-analyze`** dalla revisione compatibile `00f89ed`, che aggiunge il nuovo contratto PDF ma conserva temporaneamente le vecchie modalità Media/Google/scanner. Specificare `--project-ref boucbthrnddmnzcowafy --no-verify-jwt`. Verificare la versione `ACTIVE`, accesso anonimo 401 e test locali del contratto.
+1. Distribuire **solo `ai-analyze`** dal branch locale compatibile `codex/rifocalizzazione-staged-server` (commit `a134b3e`), che aggiunge il nuovo contratto PDF e il controllo dei token video ma conserva temporaneamente le vecchie modalità Media/Google/scanner. Specificare `--project-ref boucbthrnddmnzcowafy --no-verify-jwt`. Verificare la versione `ACTIVE`, accesso anonimo 401 e test locali del contratto.
 2. Pubblicare la build completa del branch rifocalizzato tramite fast-forward di `main` e push; attendere il workflow GitHub Pages e verificare HTML/chunk online, navigazione e PDF con backend simulato. La vecchia PWA resta compatibile con il server durante la propagazione.
 3. Solo quando i dispositivi in uso hanno caricato la nuova PWA e non ci sono richieste delle vecchie modalità, distribuire `ai-analyze` finale e la tombstone `youtube-search` (410). Non eliminare il record della funzione remota né i secret degli utenti. Verificare `ACTIVE`, 401 per richieste anonime a `ai-analyze`, 410 per `youtube-search`, e che `generate` con le tre fonti continui a funzionare. Se tale conferma manca, lasciare la versione compatibile fino al controllo successivo.
 
