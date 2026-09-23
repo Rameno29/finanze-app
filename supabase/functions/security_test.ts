@@ -15,7 +15,7 @@ const master = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array
 const response = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
 const request = (user: string, body: unknown) => new Request('https://app.test/function', { method: 'POST', headers: { Authorization: `Bearer ${user}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-async function fixture(run: (state: { sent: string[]; missing: boolean; suspended: boolean; quota: boolean; saved: Record<string, unknown>[]; geminiOutput: string; geminiRequests: Record<string, unknown>[]; storageDownloads: number; documentUpdates: number }) => Promise<void>) {
+async function fixture(run: (state: { sent: string[]; missing: boolean; suspended: boolean; quota: boolean; videoProcessed: boolean; saved: Record<string, unknown>[]; geminiOutput: string; geminiRequests: Record<string, unknown>[]; storageDownloads: number; documentUpdates: number }) => Promise<void>) {
   const previousFetch = globalThis.fetch
   const env = ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','CREDENTIAL_MASTER_KEYS','GEMINI_API_KEY','CREDENTIAL_KEY_VERSION']
   const previousEnv = env.map(key => Deno.env.get(key))
@@ -24,7 +24,7 @@ async function fixture(run: (state: { sent: string[]; missing: boolean; suspende
   Deno.env.set('CREDENTIAL_MASTER_KEYS', JSON.stringify({v1: master}))
   Deno.env.set('CREDENTIAL_KEY_VERSION','v1')
   Deno.env.set('GEMINI_API_KEY', 'FORBIDDEN_GLOBAL_KEY')
-  const state = { sent: [] as string[], missing: false, suspended: false, quota: false, saved: [] as Record<string, unknown>[], geminiOutput: '{"action":"answer"}', geminiRequests: [] as Record<string, unknown>[], storageDownloads: 0, documentUpdates: 0 }
+  const state = { sent: [] as string[], missing: false, suspended: false, quota: false, videoProcessed: true, saved: [] as Record<string, unknown>[], geminiOutput: '{"action":"answer"}', geminiRequests: [] as Record<string, unknown>[], storageDownloads: 0, documentUpdates: 0 }
   const encrypted = new Map<string, unknown>()
   for (const user of [A,B]) for (const provider of ['gemini','youtube']) encrypted.set(`${user}:${provider}`, await sealCredential(`personal-${user}-${provider}`,user,provider,'v1',master))
   globalThis.fetch = async (input, init) => {
@@ -68,8 +68,10 @@ async function fixture(run: (state: { sent: string[]; missing: boolean; suspende
       state.sent.push(key)
       if(state.quota) return response({error:{errors:[{reason:'quotaExceeded'}]}},403)
       if(url.hostname === 'www.googleapis.com') return response({items:[]})
-      state.geminiRequests.push(await req.json())
-      return response({candidates:[{content:{parts:[{text:state.geminiOutput}]}}]})
+      const geminiRequest = await req.json()
+      state.geminiRequests.push(geminiRequest)
+      const isVideo = geminiRequest.contents?.[0]?.parts?.some((part: {file_data?: {file_uri?: string}}) => part.file_data?.file_uri?.includes('youtube.com'))
+      return response({candidates:[{content:{parts:[{text:state.geminiOutput}]}}],usageMetadata:{promptTokensDetails:isVideo && state.videoProcessed ? [{modality:'TEXT',tokenCount:50},{modality:'VIDEO',tokenCount:600}] : [{modality:'TEXT',tokenCount:50}]}})
     }
     throw new Error('Unexpected external network')
   }
@@ -179,4 +181,12 @@ Deno.test('PDF generation reports provider quota', () => fixture(async state => 
   const result = await analyze(request(A,{mode:'generate',source:'youtube',video_url:'https://www.youtube.com/watch?v=abcdefghijk'}))
   assert.equal(result.status,429)
   assert.deepEqual(await result.json(),{error:'provider_quota'})
+}))
+
+Deno.test('compatibility server refuses HTTP 200 that did not process the video', () => fixture(async state => {
+  state.videoProcessed=false
+  state.geminiOutput='{"title":"Appunti","sections":[{"heading":"Capitolo","body":"Testo"}]}'
+  const result=await analyze(request(A,{mode:'generate',source:'youtube',video_url:'https://www.youtube.com/watch?v=abcdefghijk'}))
+  assert.equal(result.status,422)
+  assert.deepEqual(await result.json(),{error:'video_unverified'})
 }))

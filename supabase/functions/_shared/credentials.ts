@@ -38,7 +38,13 @@ export async function providerFetch(url: string, init: RequestInit): Promise<Res
     const reasons = errorBody?.error?.errors
     if (Array.isArray(reasons) && reasons.some(item => ['quotaExceeded','dailyLimitExceeded','rateLimitExceeded'].includes(item?.reason))) throw new ApiError('provider_quota', 429)
   }
-  if (response.status === 401 || response.status === 403 || response.status === 400) throw new ApiError('invalid_credential', 400)
+  if (response.status === 400) {
+    const body = await response.json().catch(() => null)
+    const message = String(body?.error?.message ?? '').toLowerCase()
+    if (/(video|youtube)/.test(message) && /(not available|unavailable|not found|private|inaccessible|cannot access)/.test(message)) throw new ApiError('video_unavailable', 422)
+    throw new ApiError('invalid_credential', 400)
+  }
+  if (response.status === 401 || response.status === 403) throw new ApiError('invalid_credential', 400)
   if (!response.ok) throw new ApiError('provider_unavailable', 502)
   return response
 }
