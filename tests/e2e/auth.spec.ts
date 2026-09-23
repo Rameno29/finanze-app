@@ -108,6 +108,21 @@ async function login(page:Page,email='owner@example.test') {
   await page.getByRole('button',{name:'Accedi',exact:true}).click()
   await expect(page.getByRole('heading',{name:'Le mie integrazioni'})).toBeVisible()
 }
+
+test('navigazione focalizzata conserva agenda documenti e carburanti', async ({page}) => {
+  await mockBackend(page)
+  await page.goto('impostazioni')
+  await login(page)
+  await expect(page.getByRole('link', {name: /Carburanti/})).toBeVisible()
+  await expect(page.getByRole('heading', {name: /Gemini/})).toBeVisible()
+  await expect(page.locator('a[href$="/media"]')).toHaveCount(0)
+  await expect(page.locator('a[href$="/google"]')).toHaveCount(0)
+  await expect(page.getByRole('heading', {name: /Spotify/})).toHaveCount(0)
+  await page.getByRole('link', {name: 'Agenda', exact: true}).click()
+  await expect(page.getByRole('button', {name: 'Calendario'})).toBeVisible()
+  await page.getByRole('link', {name: 'Documenti', exact: true}).click()
+  await expect(page.getByRole('button', {name: /Busta paga/})).toBeVisible()
+})
 test('leaving the assistant while microphone permission is pending cancels a late grant',async({page})=>{
   await mockBackend(page)
   await page.addInitScript(()=>{

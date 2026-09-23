@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { Card, inputClass } from '../../components/ui'
 import { callFunction, type IntegrationStatus, type Provider } from '../../lib/integrations'
 import { integrationGuides } from '../../lib/integrationGuides'
-import { disconnectGoogle } from '../../lib/googleAuth'
-import { disconnectSpotify } from '../../lib/spotifyAuth'
+const legacyNames: Record<Exclude<Provider, 'gemini'>, string> = {
+  youtube: 'Chiave YouTube per la vecchia ricerca',
+  google: 'Client ID Google',
+  spotify: 'Client ID Spotify',
+}
 
 export function IntegrationsPanel() {
   const [items, setItems] = useState<IntegrationStatus[]>([])
@@ -18,8 +21,6 @@ export function IntegrationsPanel() {
     try {
       await callFunction('user-credentials', { action, provider, value: values[provider] ?? '' })
       if (action !== 'verify') {
-        if (provider === 'google') disconnectGoogle()
-        if (provider === 'spotify') disconnectSpotify()
       }
       setValues(previous => ({ ...previous, [provider]: '' }))
       await reload()
@@ -33,27 +34,34 @@ export function IntegrationsPanel() {
     {message && <p role="status" className="rounded-xl bg-card-2 p-3 text-sm">{message}</p>}
     {integrationGuides.map(guide => {
       const status = items.find(item => item.provider === guide.provider)
-      const oauth = guide.provider === 'google' || guide.provider === 'spotify'
       return <Card key={guide.provider}>
         <h3 className="font-semibold">{guide.title}</h3>
         <p className="my-2 text-sm text-muted">{guide.description}</p>
-        <p className="text-sm">{status ? oauth ? 'Client ID configurato' : `Chiave salvata · ••••${status.suffix}` : 'Da configurare'}</p>
+        <p className="text-sm">{status ? `Chiave salvata · ••••${status.suffix}` : 'Da configurare'}</p>
         <details className="my-3 text-sm"><summary className="cursor-pointer font-semibold text-accent">Come ottenere la tua configurazione</summary>
           <ol className="ml-5 mt-3 list-decimal space-y-2">{guide.steps.map(step => <li key={step}>{step}</li>)}</ol>
           <a className="mt-3 block text-accent underline" href={guide.link} target="_blank" rel="noopener noreferrer">Apri il pannello ufficiale</a>
           <a className="mt-2 block text-accent underline" href={guide.docs} target="_blank" rel="noopener noreferrer">Requisiti, limiti e documentazione</a>
           <p className="mt-3 text-muted">{guide.note}</p>
         </details>
-        <label className="block text-sm">{oauth ? 'Client ID personale' : 'Nuova chiave personale'}
-          <input className={inputClass} type={oauth ? 'text' : 'password'} autoComplete="off" spellCheck={false} value={values[guide.provider] ?? ''} onChange={e => setValues(previous => ({ ...previous, [guide.provider]: e.target.value }))} />
+        <label className="block text-sm">Nuova chiave personale
+          <input className={inputClass} type="password" autoComplete="off" spellCheck={false} value={values[guide.provider] ?? ''} onChange={e => setValues(previous => ({ ...previous, [guide.provider]: e.target.value }))} />
         </label>
         <div className="mt-3 flex flex-wrap gap-2">
           <button disabled={busy !== null || !values[guide.provider]?.trim()} onClick={() => void run(guide.provider, 'save')} className="min-h-11 rounded-xl bg-accent px-4 text-white disabled:opacity-50">{busy === guide.provider ? 'Attendi…' : 'Salva'}</button>
           {status && <button disabled={busy !== null} onClick={() => void run(guide.provider, 'delete')} className="min-h-11 rounded-xl border border-line px-4 text-expense">Rimuovi</button>}
-          {status && !oauth && <button disabled={busy !== null} onClick={() => void run(guide.provider, 'verify')} className="min-h-11 rounded-xl border border-line px-4">Verifica</button>}
+          {status && <button disabled={busy !== null} onClick={() => void run(guide.provider, 'verify')} className="min-h-11 rounded-xl border border-line px-4">Verifica</button>}
         </div>
-        {!oauth && <p className="mt-2 text-xs text-muted">La verifica effettua una richiesta al provider e può consumare una piccola quota.</p>}
+        <p className="mt-2 text-xs text-muted">La verifica effettua una richiesta al provider e può consumare una piccola quota.</p>
       </Card>
     })}
+    {items.filter(item => item.provider !== 'gemini').length > 0 && <Card>
+      <h3 className="font-semibold">Configurazioni di funzioni precedenti</h3>
+      <p className="my-2 text-sm text-muted">Queste configurazioni non sono più usate dall’app. Rimangono salvate finché non scegli di rimuoverle.</p>
+      {items.filter(item => item.provider !== 'gemini').map(item => <div key={item.provider} className="flex items-center justify-between gap-3 py-2">
+        <span className="text-sm">{legacyNames[item.provider as Exclude<Provider, 'gemini'>]}</span>
+        <button disabled={busy !== null} onClick={() => void run(item.provider, 'delete')} className="min-h-11 rounded-xl border border-line px-3 text-expense">Rimuovi</button>
+      </div>)}
+    </Card>}
   </section>
 }

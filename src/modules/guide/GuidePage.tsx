@@ -4,10 +4,8 @@ import {
   CalendarDays,
   ChevronDown,
   FileText,
-  Globe,
   Home,
   Lightbulb,
-  Music,
   Settings,
   Wallet,
   type LucideIcon,
@@ -122,21 +120,6 @@ export function GuidePage() {
           <P>• <B>Documento</B> — carica qualsiasi cosa (contratto, bolletta, lettera, referto): ricevi riassunto, punti chiave e una spiegazione in parole semplici, che resta salvata (ritocca il documento per rileggerla).</P>
           <P><B>Cerca nei documenti</B> — la barra di ricerca sopra l'elenco trova i documenti per parole contenute nel nome del file o nell'analisi AI (titolo, riassunto, spiegazione, punti chiave): scrivi ad esempio "bolletta luce" e vedi solo i documenti pertinenti.</P>
           <P><B>Crea un documento PDF</B> — descrivi cosa ti serve (una guida, una lettera, un programma) e volendo incolla un link YouTube: l'AI scrive il documento, tu lo vedi in anteprima e scarichi il PDF.</P>
-          <P><B>Scanner documenti</B> — fotografa carta d'identità, moduli o contratti, anche su più pagine: AJE <B>riconosce da solo i bordi del foglio, lo ritaglia e lo raddrizza</B> come una vera scansione (anche se la foto è storta o in prospettiva). Appena scatti, AJE <B>riconosce i bordi del foglio e lo raddrizza da solo</B> sul telefono (veloce e senza internet). Col bottone dei bordi puoi <B>trascinare i 4 angoli</B> a mano — tenendo premuto compare una <B>lente d'ingrandimento</B> per la massima precisione — e, se il ritaglio automatico dovesse sbagliare su una foto difficile, usare <B>"Trova i bordi con l'AI"</B> (invia la foto alla funzione AI sicura del server; ritaglio, filtri e PDF restano sul telefono). Per ogni pagina scegli il filtro (Migliorato, Grigio, B/N o Originale), ruoti o elimini, poi <B>Condividi PDF</B> apre il foglio di iOS per mandarlo su WhatsApp, Mail o dove vuoi. Puoi anche scaricarlo o salvarlo nei Documenti. Le foto restano sul telefono: niente viene inviato a nessun server finché non scegli tu.</P>
-        </Section>
-
-        <Section icon={Globe} title="Google">
-          <P>Si apre da <B>Altro → Google</B>.</P>
-          <P>• <B>Ricerca web con AI</B> — fai una domanda: l'AI cerca su Google, legge i risultati e risponde in italiano citando le fonti.</P>
-          <P>• <B>Maps</B> — cerca un posto e si apre in Google Maps.</P>
-          <P>• <B>Calendar, Gmail, Drive</B> — dopo "Collega Google" vedi i prossimi eventi, le email non lette e i file recenti; tocca un elemento per aprirlo nell'app ufficiale. AJE legge soltanto: non modifica né invia nulla.</P>
-        </Section>
-
-        <Section icon={Music} title="Media">
-          <P>Si apre da <B>Altro → Media</B>.</P>
-          <P>• <B>YouTube</B> — cerca un video per parole o incolla un link: parte nel <B>mini-player</B> che resta visibile mentre giri per l'app. Con l'icona <B>Picture-in-Picture</B> del player il video continua in una finestrella anche fuori da AJE. Il bottone <B>Riassumi</B> fa guardare il video all'AI e ti dà il riassunto scritto.</P>
-          <P>• <B>Spotify</B> — dopo "Collega Spotify": cerca un brano e toccalo per il <B>player interno</B>, oppure usa il bottone verde per avviarlo sull'app Spotify e comandarlo da AJE (play/pausa/salta).</P>
-          <P>⚠️ <B>Limiti di iPhone</B> (imposti da Apple, non aggirabili): con lo schermo bloccato l'audio di YouTube si ferma; per la musica completa in sottofondo usa il bottone verde di Spotify.</P>
         </Section>
 
         <Section icon={Settings} title="Altro (impostazioni)">
@@ -144,7 +127,7 @@ export function GuidePage() {
           <P>• <B>Tema</B> — chiaro, scuro o automatico come il sistema.</P>
           <P>• <B>Passkey e Face ID</B> — crea una passkey su questo dispositivo e dalla volta dopo accedi col viso (o l'impronta), senza scrivere la password. La passkey resta sul tuo dispositivo o nel portachiavi iCloud: AJE conserva solo la parte pubblica, e puoi eliminarla quando vuoi. La password continua comunque a funzionare.</P>
           <P>• <B>Account</B> — la tua email e il bottone Esci.</P>
-          <P>• <B>Le mie integrazioni</B> — salva le tue chiavi Gemini e YouTube e i tuoi Client ID Google/Spotify. Le chiavi API sono cifrate sul server e ogni account usa la propria configurazione. Trovi link ufficiali, passaggi e limiti nella <Link to="/impostazioni#integrazioni" className="text-accent underline">guida alle integrazioni</Link>. Non tutte le funzioni sono gratuite per ogni account/provider.</P>
+          <P>• <B>Le mie integrazioni</B> — salva la tua chiave Gemini personale per le funzioni AI. La chiave è cifrata sul server e ogni account usa la propria configurazione. Trovi link ufficiali, passaggi e limiti nella <Link to="/impostazioni#integrazioni" className="text-accent underline">guida alle integrazioni</Link>. Le vecchie configurazioni possono essere rimosse volontariamente.</P>
           <P>• <B>Utenti e inviti</B> — solo il proprietario può generare un invito, copiarne il link, annullarlo o sospendere l’ospite. Il limite iniziale è un ospite. I dati restano separati.</P>
         </Section>
 
@@ -152,7 +135,7 @@ export function GuidePage() {
           <P>• <B>Installazione</B> — iPhone: Safari → Condividi → "Aggiungi a schermata Home". Android: Chrome → menu ⋮ → "Aggiungi a schermata Home" (o "Installa app").</P>
           <P>• <B>Aggiornamenti</B> — l'app si aggiorna da sola: se non vedi una novità, chiudila e riaprila.</P>
           <P>• <B>Uso offline</B> — dopo aver aperto almeno una volta Finanze o Agenda online, le ultime viste restano disponibili in forma cifrata. Puoi aggiungere o modificare movimenti e attività: la barra in alto indica le operazioni in attesa e le sincronizza in ordine appena torna la connessione. Documenti e funzioni AI richiedono internet.</P>
-          <P>• <B>Privacy</B> — i dati sono protetti dal tuo account in un database con accessi separati; si entra solo con invito. La cifratura delle chiavi è gestita dal server, non end-to-end. I token Google/Spotify vengono rimossi dal dispositivo al cambio account; su un nuovo dispositivo potrebbe servire un nuovo consenso.</P>
+          <P>• <B>Privacy</B> — i dati sono protetti dal tuo account in un database con accessi separati; si entra solo con invito. La cifratura delle chiavi è gestita dal server, non end-to-end.</P>
           <P>• <B>Foto migliori per l'AI</B> — scontrini e buste paga ben illuminati e dritti si leggono meglio.</P>
         </Section>
       </div>

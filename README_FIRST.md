@@ -4,6 +4,16 @@
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
 > Ultimo aggiornamento: **23 settembre 2026**.
 
+## Rifocalizzazione in sviluppo — non pubblicata
+
+La proposta approvata è in `docs/superpowers/specs/2026-09-23-rifocalizzazione-aje-design.md`;
+il piano tecnico è in `docs/superpowers/plans/2026-09-23-rifocalizzazione-pdf.md`.
+Il branch isolato `codex/rifocalizzazione-pdf` alleggerisce la navigazione eliminando le pagine
+Media e Google, Spotify, il player e i rispettivi flussi OAuth. Conserva Agenda, Carburanti,
+Documenti e la generazione di PDF da link YouTube incollato. Le credenziali obsolete già presenti
+non vengono cancellate automaticamente: le Impostazioni ne consentono la rimozione volontaria.
+Questa sezione descrive lavoro locale e non lo stato pubblicato dell'app.
+
 ## Intervento multiutente — pubblicato, collaudo personale da completare
 
 Il branch `codex/multiutente-api-audit` contiene l'esecuzione del piano in

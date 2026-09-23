@@ -41,10 +41,3 @@ export async function invokeFunction<T = any>(name: string, options: { body: Rec
   try { return { data: await callFunction<T>(name, options.body), error: null } }
   catch (error) { return { data: null, error: error instanceof Error ? error : new Error('Operazione non riuscita.') } }
 }
-
-export async function getOAuthClientId(provider: 'google' | 'spotify'): Promise<string> {
-  const result = await callFunction<{ integrations: IntegrationStatus[] }>('user-credentials', { action: 'list' })
-  const value = result.integrations.find(item => item.provider === provider)?.client_id
-  if (!value) throw new Error('Configura il tuo Client ID in Impostazioni → Le mie integrazioni.')
-  return value
-}

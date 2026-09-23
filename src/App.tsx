@@ -1,12 +1,9 @@
-import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
-import { PlayerProvider } from './context/PlayerContext'
 import { TabBar } from './components/TabBar'
-import { MiniPlayer } from './components/MiniPlayer'
 import { FullPageSpinner } from './components/ui'
-import { handleSpotifyCallback } from './lib/spotifyAuth'
 import { LoginPage } from './modules/auth/LoginPage'
 import { OfflineBanner } from './components/OfflineBanner'
 import { AuthCallbackPage } from './modules/auth/AuthCallbackPage'
@@ -17,33 +14,19 @@ const FinancePage = lazy(() => import('./modules/finance/FinancePage').then((m) 
 const AgendaPage = lazy(() => import('./modules/agenda/AgendaPage').then((m) => ({ default: m.AgendaPage })))
 const DocumentsPage = lazy(() => import('./modules/documents/DocumentsPage').then((m) => ({ default: m.DocumentsPage })))
 const SettingsPage = lazy(() => import('./modules/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
-const GooglePage = lazy(() => import('./modules/google/GooglePage').then((m) => ({ default: m.GooglePage })))
-const MediaPage = lazy(() => import('./modules/media/MediaPage').then((m) => ({ default: m.MediaPage })))
 const GuidePage = lazy(() => import('./modules/guide/GuidePage').then((m) => ({ default: m.GuidePage })))
 const AssistantPage = lazy(() => import('./modules/assistant/AssistantPage').then((m) => ({ default: m.AssistantPage })))
 const FuelPage = lazy(() => import('./modules/fuel/FuelPage').then((m) => ({ default: m.FuelPage })))
 
 function Shell() {
   const { session, loading } = useAuth()
-  const navigate = useNavigate()
-  const userId = session?.user.id
-
-  // Ritorno dal login Spotify (?code=...)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (userId && params.has('code') && params.has('state')) {
-      void handleSpotifyCallback().then((ok) => {
-        if (ok) navigate('/media', { replace: true })
-      }).catch(() => { /* collegamento ripetibile dalla pagina Media */ })
-    }
-  }, [navigate, userId])
 
   if (loading) return <FullPageSpinner />
   if (window.location.pathname.endsWith('/auth/callback')) return <AuthCallbackPage />
   if (!session) return <LoginPage />
 
   return (
-    <MembershipGate key={session.user.id} userId={session.user.id}><PlayerProvider><div className="min-h-dvh bg-bg">
+    <MembershipGate key={session.user.id} userId={session.user.id}><div className="min-h-dvh bg-bg">
       <OfflineBanner userId={session.user.id} />
       <Suspense fallback={<FullPageSpinner />}>
         <Routes>
@@ -52,17 +35,14 @@ function Shell() {
           <Route path="/agenda" element={<AgendaPage />} />
           <Route path="/documenti" element={<DocumentsPage />} />
           <Route path="/impostazioni" element={<SettingsPage />} />
-          <Route path="/google" element={<GooglePage />} />
-          <Route path="/media" element={<MediaPage />} />
           <Route path="/guida" element={<GuidePage />} />
           <Route path="/assistente" element={<AssistantPage />} />
           <Route path="/carburanti" element={<FuelPage />} />
           <Route path="*" element={<HomePage />} />
         </Routes>
       </Suspense>
-      <MiniPlayer />
       <TabBar />
-    </div></PlayerProvider></MembershipGate>
+    </div></MembershipGate>
   )
 }
 
