@@ -14,6 +14,8 @@ Documenti e la generazione di PDF da link YouTube incollato. Le credenziali obso
 non vengono cancellate automaticamente: le Impostazioni ne consentono la rimozione volontaria.
 Anche lo scanner multipagina e i suoi filtri vengono rimossi; il caricamento normale di foto e PDF
 resta nella pagina Documenti.
+Il contratto server della generazione PDF in sviluppo distingue testo, link YouTube e documenti
+privati; respinge link non validi, verifica la proprietà del file e valida il risultato AI.
 Questa sezione descrive lavoro locale e non lo stato pubblicato dell'app.
 
 ## Intervento multiutente — pubblicato, collaudo personale da completare

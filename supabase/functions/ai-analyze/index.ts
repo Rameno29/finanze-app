@@ -1,5 +1,6 @@
 import { ApiError, handler, json as responseJson } from '../_shared/access.ts'
 import { personalKey, providerFetch } from '../_shared/credentials.ts'
+import { parseGenerateRequest, parseGeneratedDocument } from '../_shared/generate.ts'
 
 function toBase64(bytes: Uint8Array): string {
   let binary = ''
@@ -214,8 +215,28 @@ export const serve = handler(async ({ admin, user, body, req }) => {
   const json = (data: unknown, status = 200) => responseJson(req, data, status)
   const userId = user.id
   const apiKey = await personalKey(admin, userId, 'gemini')
-  const { mode, document_id, video_url, prompt, query, question, text, image_base64, image_mime } =
+  const { mode, document_id, video_url, query, question, text, image_base64, image_mime } =
     body
+
+  async function loadOwnedDocument(id: string) {
+    const { data: doc, error: docErr } = await admin.from('documents').select('*').eq('id', id).eq('user_id', userId).single()
+    if (docErr || !doc) throw new ApiError('document_not_found', 404)
+    if (!String(doc.storage_path).startsWith(`${userId}/`)) throw new ApiError('access_denied', 403)
+    const { data: file, error: dlErr } = await admin.storage.from('documents').download(doc.storage_path)
+    if (dlErr || !file) throw new ApiError('document_unavailable', 502)
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    if (bytes.length > 20 * 1024 * 1024) throw new ApiError('document_too_large', 400)
+    const name = String(doc.file_name).toLowerCase()
+    const declaredType = file.type.toLowerCase()
+    const mimeType = ['application/pdf', 'image/png', 'image/webp', 'image/jpeg'].includes(declaredType)
+      ? declaredType
+      : name.endsWith('.pdf') ? 'application/pdf'
+        : name.endsWith('.png') ? 'image/png'
+          : name.endsWith('.webp') ? 'image/webp'
+            : name.endsWith('.jpg') || name.endsWith('.jpeg') ? 'image/jpeg' : ''
+    if (!mimeType) throw new ApiError('document_unsupported', 400)
+    return { doc, fileBlock: { inline_data: { mime_type: mimeType, data: toBase64(bytes) } } }
+  }
 
   try {
     // ---- Assistente finanziario: risponde guardando i dati dell'utente ----
@@ -440,25 +461,30 @@ export const serve = handler(async ({ admin, user, body, req }) => {
 
     // ---- Generazione documento (da testo e/o video YouTube) ----
     if (mode === 'generate') {
-      if (typeof prompt !== 'string' || !prompt.trim()) return json({ error: 'prompt mancante' }, 400)
-      if (prompt.length > 2000) return json({ error: 'Richiesta troppo lunga (max 2000 caratteri)' }, 400)
+      const input = parseGenerateRequest(body)
       const parts: unknown[] = []
-      if (
-        typeof video_url === 'string' &&
-        video_url.length <= 200 &&
-        /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(video_url)
-      ) {
-        parts.push({ file_data: { file_uri: video_url } })
+      let source: { kind: 'text' } | { kind: 'youtube'; url: string } | { kind: 'document'; file_name: string } = {kind:'text'}
+      if (input.source === 'youtube') {
+        source = { kind: 'youtube', url: input.videoUrl! }
+        parts.push({ file_data: { file_uri: input.videoUrl } })
+      } else if (input.source === 'document') {
+        const {doc, fileBlock} = await loadOwnedDocument(input.documentId!)
+        source = {kind:'document', file_name: String(doc.file_name)}
+        parts.push(fileBlock)
       }
+      const formatInstruction = input.format === 'sintesi' ? 'Fai una sintesi breve e accurata.'
+        : input.format === 'schema' ? 'Organizza i contenuti in uno schema per argomenti con punti essenziali.'
+          : 'Scrivi appunti dettagliati, ordinati in sezioni.'
       parts.push({
         text:
-          'Crea un documento in ITALIANO, professionale e ben organizzato, in base a questa richiesta' +
-          (parts.length > 0 ? ' e al contenuto del video allegato' : '') +
-          `: ${prompt.trim()}\n\n` +
-          'Suddividi il contenuto in sezioni con titoli chiari. Sii completo ma senza riempitivi.',
+          `Crea un documento in ITALIANO. ${formatInstruction} ` +
+          (input.source === 'youtube' ? 'Usa il contenuto del video fornito; se non è accessibile non inventarlo. ' :
+            input.source === 'document' ? 'Usa il contenuto del documento fornito e non inventare fatti mancanti. ' : '') +
+          (input.prompt ? `Istruzioni aggiuntive: ${input.prompt}\n\n` : '') +
+          'Suddividi il contenuto in sezioni con titoli chiari. Sii fedele alla fonte e senza riempitivi.',
       })
       const text2 = await callGemini(apiKey, parts, GENERATE_SCHEMA)
-      return json(JSON.parse(text2))
+      return json(parseGeneratedDocument(text2, source))
     }
 
     // ---- Riassunto video YouTube (nessun file) ----
@@ -488,38 +514,7 @@ export const serve = handler(async ({ admin, user, body, req }) => {
 
     // ---- Modalità con documento ----
     if (!document_id) return json({ error: 'document_id mancante' }, 400)
-    const { data: doc, error: docErr } = await admin
-      .from('documents')
-      .select('*')
-      .eq('id', document_id)
-      .eq('user_id', userId)
-      .single()
-    if (docErr || !doc) return json({ error: 'Documento non trovato' }, 404)
-    if (!String(doc.storage_path).startsWith(`${userId}/`)) throw new ApiError('access_denied', 403)
-
-    const { data: file, error: dlErr } = await admin.storage
-      .from('documents')
-      .download(doc.storage_path)
-    if (dlErr || !file) return json({ error: 'Download del file non riuscito' }, 500)
-
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    if (bytes.length > 20 * 1024 * 1024) return json({ error: 'File troppo grande (max 20 MB)' }, 400)
-
-    const name = doc.file_name.toLowerCase()
-    const declaredType = file.type.toLowerCase()
-    const mimeType = ['application/pdf', 'image/png', 'image/webp', 'image/jpeg'].includes(declaredType)
-      ? declaredType
-      : name.endsWith('.pdf')
-        ? 'application/pdf'
-        : name.endsWith('.png')
-          ? 'image/png'
-          : name.endsWith('.webp')
-            ? 'image/webp'
-            : name.endsWith('.jpg') || name.endsWith('.jpeg')
-              ? 'image/jpeg'
-              : ''
-    if (!mimeType) return json({ error: 'Formato file non supportato' }, 400)
-    const fileBlock = { inline_data: { mime_type: mimeType, data: toBase64(bytes) } }
+    const {fileBlock} = await loadOwnedDocument(String(document_id))
 
     if (mode === 'payslip') {
       const out = await callGemini(
@@ -605,7 +600,7 @@ export const serve = handler(async ({ admin, user, body, req }) => {
 
     return json({ error: 'mode non valido' }, 400)
   } catch (e) {
-    if (document_id) {
+    if (document_id && ['payslip','receipt','document'].includes(String(mode))) {
       await admin
         .from('documents')
         .update({ status: 'errore' })

@@ -10,11 +10,12 @@ import { readJson } from './_shared/access.ts'
 
 const A = '11111111-1111-4111-8111-111111111111'
 const B = '22222222-2222-4222-8222-222222222222'
+const OWN_DOCUMENT = '33333333-3333-4333-8333-333333333333'
 const master = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
 const response = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
 const request = (user: string, body: unknown) => new Request('https://app.test/function', { method: 'POST', headers: { Authorization: `Bearer ${user}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-async function fixture(run: (state: { sent: string[]; missing: boolean; suspended: boolean; quota: boolean; saved: Record<string, unknown>[] }) => Promise<void>) {
+async function fixture(run: (state: { sent: string[]; missing: boolean; suspended: boolean; quota: boolean; saved: Record<string, unknown>[]; geminiOutput: string; geminiRequests: Record<string, unknown>[]; storageDownloads: number; documentUpdates: number }) => Promise<void>) {
   const previousFetch = globalThis.fetch
   const env = ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','CREDENTIAL_MASTER_KEYS','GEMINI_API_KEY','CREDENTIAL_KEY_VERSION']
   const previousEnv = env.map(key => Deno.env.get(key))
@@ -23,7 +24,7 @@ async function fixture(run: (state: { sent: string[]; missing: boolean; suspende
   Deno.env.set('CREDENTIAL_MASTER_KEYS', JSON.stringify({v1: master}))
   Deno.env.set('CREDENTIAL_KEY_VERSION','v1')
   Deno.env.set('GEMINI_API_KEY', 'FORBIDDEN_GLOBAL_KEY')
-  const state = { sent: [] as string[], missing: false, suspended: false, quota: false, saved: [] as Record<string, unknown>[] }
+  const state = { sent: [] as string[], missing: false, suspended: false, quota: false, saved: [] as Record<string, unknown>[], geminiOutput: '{"action":"answer"}', geminiRequests: [] as Record<string, unknown>[], storageDownloads: 0, documentUpdates: 0 }
   const encrypted = new Map<string, unknown>()
   for (const user of [A,B]) for (const provider of ['gemini','youtube']) encrypted.set(`${user}:${provider}`, await sealCredential(`personal-${user}-${provider}`,user,provider,'v1',master))
   globalThis.fetch = async (input, init) => {
@@ -46,6 +47,18 @@ async function fixture(run: (state: { sent: string[]; missing: boolean; suspende
         if (url.searchParams.get('select')?.startsWith('provider,')) return response([{provider:'gemini',suffix:'mini',updated_at:'2026-09-20'}])
         return response(state.missing ? [] : [encrypted.get(`${uid}:${provider}`)])
       }
+      if (url.pathname.endsWith('/documents')) {
+        if (req.method === 'PATCH') { state.documentUpdates++; return response([]) }
+        const uid = url.searchParams.get('user_id')?.slice(3)
+        const docId = url.searchParams.get('id')?.slice(3)
+        return uid === A && docId === OWN_DOCUMENT
+          ? response({id: OWN_DOCUMENT, user_id: A, file_name: 'appunti.pdf', storage_path: `${A}/appunti.pdf`})
+          : response({message: 'not found'}, 406)
+      }
+      if (url.pathname.includes('/storage/v1/object/documents/')) {
+        state.storageDownloads++
+        return new Response('%PDF-1.4 fixture', {headers: {'Content-Type': 'application/pdf'}})
+      }
       if (['categories','goals'].some(table => url.pathname.endsWith('/'+table))) return response([])
       throw new Error('Unexpected DB request: '+url.pathname)
     }
@@ -54,7 +67,9 @@ async function fixture(run: (state: { sent: string[]; missing: boolean; suspende
       assert(!url.searchParams.has('key')); assert.notEqual(key,'FORBIDDEN_GLOBAL_KEY')
       state.sent.push(key)
       if(state.quota) return response({error:{errors:[{reason:'quotaExceeded'}]}},403)
-      return url.hostname === 'www.googleapis.com' ? response({items:[]}) : response({candidates:[{content:{parts:[{text:'{"action":"answer"}'}]}}]})
+      if(url.hostname === 'www.googleapis.com') return response({items:[]})
+      state.geminiRequests.push(await req.json())
+      return response({candidates:[{content:{parts:[{text:state.geminiOutput}]}}]})
     }
     throw new Error('Unexpected external network')
   }
@@ -104,3 +119,64 @@ Deno.test('body limit is enforced on streamed bytes without Content-Length', asy
   const req=new Request('https://app.test',{method:'POST',body:new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('{"value":"'+'x'.repeat(50)+'"}'));c.close()}})})
   await assert.rejects(readJson(req,20),/payload_too_large/)
 })
+
+Deno.test('PDF generation rejects an invalid YouTube link instead of silently using only the prompt', () => fixture(async state => {
+  const result = await analyze(request(A,{mode:'generate',source:'youtube',video_url:'https://youtube.com.evil.test/watch?v=abcdefghijk',prompt:'Appunti'}))
+  assert.equal(result.status,400)
+  assert.equal(state.geminiRequests.length,0)
+}))
+
+Deno.test('PDF generation accepts a public YouTube URL and identifies the source', () => fixture(async state => {
+  state.geminiOutput='{"title":"Appunti","sections":[{"heading":"Punti chiave","body":"Risparmio e budget"}]}'
+  const result = await analyze(request(A,{mode:'generate',source:'youtube',video_url:'https://youtu.be/abcdefghijk',format:'appunti'}))
+  assert.equal(result.status,200)
+  const document = await result.json()
+  assert.equal(document.source.kind,'youtube')
+  assert.equal(document.source.url,'https://www.youtube.com/watch?v=abcdefghijk')
+  assert.equal(document.sections[0].heading,'Punti chiave')
+  assert.equal(state.sent.at(-1),`personal-${A}-gemini`)
+}))
+
+Deno.test('PDF generation rejects malformed AI output', () => fixture(async state => {
+  state.geminiOutput='{"title":"Appunti","sections":[]}'
+  const result = await analyze(request(A,{mode:'generate',source:'text',prompt:'Un testo di prova'}))
+  assert.equal(result.status,502)
+}))
+
+Deno.test('PDF generation cannot access another account document', () => fixture(async state => {
+  const result = await analyze(request(B,{mode:'generate',source:'document',document_id:OWN_DOCUMENT,prompt:'Riassumi'}))
+  assert.equal(result.status,404)
+  assert.equal(state.storageDownloads,0)
+  assert.equal(state.geminiRequests.length,0)
+}))
+
+Deno.test('PDF generation uses only the owner document as source', () => fixture(async state => {
+  state.geminiOutput='{"title":"Appunti","sections":[{"heading":"Sintesi","body":"Un testo"}]}'
+  const result = await analyze(request(A,{mode:'generate',source:'document',document_id:OWN_DOCUMENT,format:'sintesi'}))
+  assert.equal(result.status,200)
+  assert.equal((await result.json()).source.file_name,'appunti.pdf')
+  assert.equal(state.storageDownloads,1)
+  const parts = (state.geminiRequests[0].contents as Array<{parts: Array<Record<string, unknown>>}>)[0].parts
+  assert.equal((parts[0].inline_data as {mime_type:string}).mime_type,'application/pdf')
+}))
+
+Deno.test('old PDF text request remains compatible during PWA rollout', () => fixture(async state => {
+  state.geminiOutput='{"title":"Guida","sections":[{"heading":"Passo uno","body":"Descrizione"}]}'
+  const result = await analyze(request(A,{mode:'generate',prompt:'Scrivi una guida'}))
+  assert.equal(result.status,200)
+  assert.deepEqual((await result.json()).source,{kind:'text'})
+}))
+
+Deno.test('failed PDF from a saved document does not mark the original as failed', () => fixture(async state => {
+  state.geminiOutput='{"title":"Guida","sections":[]}'
+  const result = await analyze(request(A,{mode:'generate',source:'document',document_id:OWN_DOCUMENT}))
+  assert.equal(result.status,502)
+  assert.equal(state.documentUpdates,0)
+}))
+
+Deno.test('PDF generation reports provider quota', () => fixture(async state => {
+  state.quota=true
+  const result = await analyze(request(A,{mode:'generate',source:'youtube',video_url:'https://www.youtube.com/watch?v=abcdefghijk'}))
+  assert.equal(result.status,429)
+  assert.deepEqual(await result.json(),{error:'provider_quota'})
+}))
