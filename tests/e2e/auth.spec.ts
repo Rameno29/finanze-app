@@ -7,7 +7,9 @@ function session(id: string) {
   const token = [Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),Buffer.from(JSON.stringify({sub:id,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url'),'synthetic-test-signature'].join('.')
   return {access_token:token,refresh_token:`refresh-${id}`,token_type:'bearer',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,user:{id,aud:'authenticated',role:'authenticated',email:id===owner?'owner@example.test':'guest@example.test',app_metadata:{provider:'email'},user_metadata:{},identities:[],created_at:new Date().toISOString()}}
 }
-async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean; csvFailure?: boolean; csvHistory?: boolean; csvReadFailure?: boolean; uploadLostResponse?: boolean; diaryFailure?: boolean; pdfGeneration?: boolean } = {}) {
+async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean; csvFailure?: boolean; csvHistory?: boolean; csvReadFailure?: boolean; uploadLostResponse?: boolean; diaryFailure?: boolean; pdfGeneration?: boolean; pdfHold?: boolean } = {}) {
+  let releasePdf=()=>{}
+  const pdfGate=new Promise<void>(resolve=>{ releasePdf=resolve })
   let diaryPosts=0
   const documents = new Map<string, Record<string,unknown>>()
   if (options.pdfGeneration) documents.set('33333333-3333-4333-8333-333333333333', {id:'33333333-3333-4333-8333-333333333333',user_id:owner,doc_type:'altro',file_name:'fonte.pdf',storage_path:`${owner}/fonte.pdf`,status:'caricato',created_at:'2026-09-22'})
@@ -46,7 +48,10 @@ async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean;
         {amount_cents:100,kind:'expense',category_name:null,date:'2026-09-22',description:'Caffe'},
         {amount_cents:200,kind:'expense',category_name:null,date:'2026-09-22',description:'Pranzo'},
       ]})
-      if(options.pdfGeneration && name==='ai-analyze' && body.mode==='generate') return send({title:'Titolo AI',sections:[{heading:'Capitolo',body:'Testo originale'}],source: body.source==='youtube'?{kind:'youtube',url:'https://www.youtube.com/watch?v=abcdefghijk'}:body.source==='document'?{kind:'document',file_name:'fonte.pdf'}:{kind:'text'}})
+      if(options.pdfGeneration && name==='ai-analyze' && body.mode==='generate') {
+        if(options.pdfHold) await pdfGate
+        return send({title:'Titolo AI',sections:[{heading:'Capitolo',body:'Testo originale'}],source: body.source==='youtube'?{kind:'youtube',url:'https://www.youtube.com/watch?v=abcdefghijk'}:body.source==='document'?{kind:'document',file_name:'fonte.pdf'}:{kind:'text'}})
+      }
       if(name==='manage-invites') {
         if(body.action==='accept') return send({ok:true})
         if(body.action==='status') return send({role:id===owner?'owner':'member'})
@@ -104,7 +109,7 @@ async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean;
     if(url.pathname.includes('/rest/v1/')) return send([])
     return send({})
   })
-  return {secrets,calls,transactions,documents,files}
+  return {secrets,calls,transactions,documents,files,releasePdf}
 }
 
 test('document upload preserves a committed file when the database response is lost',async({page})=>{
@@ -190,6 +195,18 @@ test('PDF text and saved document send distinct sources and do not save by thems
   expect(requests[1]).toMatchObject({source:'document',document_id:'33333333-3333-4333-8333-333333333333'})
   expect(requests[1].video_url).toBeUndefined()
   expect(documents.size).toBe(1)
+})
+
+test('late PDF result is discarded after changing source', async ({page}) => {
+  const {releasePdf,calls}=await mockBackend(page,{pdfGeneration:true,pdfHold:true})
+  await page.goto('impostazioni'); await login(page); await page.goto('documenti')
+  await page.getByLabel('Testo o istruzioni').fill('Budget personale')
+  await page.getByRole('button',{name:'Genera documento'}).click()
+  await expect.poll(()=>calls.some(call=>call.name==='ai-analyze' && call.body.mode==='generate')).toBe(true)
+  await page.getByLabel('Fonte',{exact:true}).selectOption('document')
+  releasePdf()
+  await expect(page.getByRole('button',{name:'Genera documento'})).toBeEnabled()
+  await expect(page.getByRole('heading',{name:'Anteprima PDF'})).toHaveCount(0)
 })
 test('leaving the assistant while microphone permission is pending cancels a late grant',async({page})=>{
   await mockBackend(page)

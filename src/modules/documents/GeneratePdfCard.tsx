@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Download, FilePlus2, Sparkles } from 'lucide-react'
 import { Card, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import { invokeFunction } from '../../lib/integrations'
@@ -20,12 +20,19 @@ export function GeneratePdfCard({ documents, onSaved }: { documents: DocumentRow
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null)
+  const generationId = useRef(0)
 
-  function changeSource(next: Source) {
-    setSource(next)
+  function changeInput(update: () => void) {
+    generationId.current += 1
+    update()
+    setGenerating(false)
     setGenerated(null)
     setSaved(false)
     setError('')
+  }
+
+  function changeSource(next: Source) {
+    changeInput(() => setSource(next))
   }
 
   async function generate() {
@@ -42,18 +49,21 @@ export function GeneratePdfCard({ documents, onSaved }: { documents: DocumentRow
       if (!documentId) { setError('Scegli un documento del tuo archivio.'); return }
       body.document_id = documentId
     }
+    const requestId = ++generationId.current
     setGenerating(true)
     try {
       const { data, error: functionError } = await invokeFunction<GeneratedDoc>('ai-analyze', { body })
+      if (requestId !== generationId.current) return
       if (functionError) throw functionError
       setGenerated(validateGeneratedDoc(data))
     } catch (cause) {
+      if (requestId !== generationId.current) return
       const detail = cause instanceof Error ? cause.message : 'Generazione non riuscita.'
       setError(source === 'youtube' && detail.startsWith('Chiave non valida')
         ? 'La chiave Gemini potrebbe non essere valida oppure il video non è accessibile. Controlla entrambi e riprova.'
         : detail)
     } finally {
-      setGenerating(false)
+      if (requestId === generationId.current) setGenerating(false)
     }
   }
 
@@ -104,12 +114,12 @@ export function GeneratePdfCard({ documents, onSaved }: { documents: DocumentRow
       <select id="pdf-source" value={source} onChange={event => changeSource(event.target.value as Source)} className={`${inputClass} mb-3`}>
         <option value="text">Testo e istruzioni</option><option value="youtube">Video YouTube pubblico</option><option value="document">Documento caricato</option>
       </select>
-      {source === 'youtube' && <><label className="mb-2 block text-sm font-medium" htmlFor="pdf-video">Link YouTube</label><input id="pdf-video" type="url" value={videoUrl} onChange={event => setVideoUrl(event.target.value)} className={`${inputClass} mb-3`} placeholder="https://www.youtube.com/watch?v=…" /></>}
-      {source === 'document' && <><label className="mb-2 block text-sm font-medium" htmlFor="pdf-document">Documento dell’archivio</label><select id="pdf-document" value={documentId} onChange={event => setDocumentId(event.target.value)} className={`${inputClass} mb-3`}><option value="">Seleziona un documento</option>{documents.map(doc => <option key={doc.id} value={doc.id}>{doc.file_name}</option>)}</select></>}
+      {source === 'youtube' && <><label className="mb-2 block text-sm font-medium" htmlFor="pdf-video">Link YouTube</label><input id="pdf-video" type="url" value={videoUrl} onChange={event => changeInput(() => setVideoUrl(event.target.value))} className={`${inputClass} mb-3`} placeholder="https://www.youtube.com/watch?v=…" /></>}
+      {source === 'document' && <><label className="mb-2 block text-sm font-medium" htmlFor="pdf-document">Documento dell’archivio</label><select id="pdf-document" value={documentId} onChange={event => changeInput(() => setDocumentId(event.target.value))} className={`${inputClass} mb-3`}><option value="">Seleziona un documento</option>{documents.map(doc => <option key={doc.id} value={doc.id}>{doc.file_name}</option>)}</select></>}
       <label className="mb-2 block text-sm font-medium" htmlFor="pdf-format">Formato</label>
-      <select id="pdf-format" value={format} onChange={event => setFormat(event.target.value as Format)} className={`${inputClass} mb-3`}><option value="sintesi">Sintesi</option><option value="appunti">Appunti</option><option value="schema">Schema</option></select>
+      <select id="pdf-format" value={format} onChange={event => changeInput(() => setFormat(event.target.value as Format))} className={`${inputClass} mb-3`}><option value="sintesi">Sintesi</option><option value="appunti">Appunti</option><option value="schema">Schema</option></select>
       <label className="mb-2 block text-sm font-medium" htmlFor="pdf-prompt">{source === 'text' ? 'Testo o istruzioni' : 'Istruzioni aggiuntive (facoltative)'}</label>
-      <textarea id="pdf-prompt" value={prompt} onChange={event => setPrompt(event.target.value)} maxLength={2000} className={`${inputClass} mb-3 min-h-[90px] resize-y`} placeholder={source === 'text' ? 'Es. Spiega come organizzare un budget mensile…' : 'Es. Evidenzia i concetti finanziari principali'} />
+      <textarea id="pdf-prompt" value={prompt} onChange={event => changeInput(() => setPrompt(event.target.value))} maxLength={2000} className={`${inputClass} mb-3 min-h-[90px] resize-y`} placeholder={source === 'text' ? 'Es. Spiega come organizzare un budget mensile…' : 'Es. Evidenzia i concetti finanziari principali'} />
       <PrimaryButton onClick={() => void generate()} disabled={generating}>
         {generating ? <><Spinner className="h-5 w-5 text-white" /> L’AI sta scrivendo…</> : <><Sparkles className="h-5 w-5" /> Genera documento</>}
       </PrimaryButton>

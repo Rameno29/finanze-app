@@ -129,6 +129,7 @@ const DOCUMENT_SCHEMA = {
 interface GeminiResult {
   text: string
   sources: Array<{ title: string; url: string }>
+  promptModalities: Array<{ modality: string; tokenCount: number }>
 }
 
 async function callGeminiFull(
@@ -164,7 +165,10 @@ async function callGeminiFull(
       }
     })
     .map((c) => ({ title: c.web!.title ?? c.web!.uri!, url: c.web!.uri! }))
-  return { text, sources }
+  const promptModalities = Array.isArray(data.usageMetadata?.promptTokensDetails)
+    ? data.usageMetadata.promptTokensDetails.map((item: { modality?: string; tokenCount?: number }) => ({ modality: String(item.modality ?? ''), tokenCount: Number(item.tokenCount ?? 0) }))
+    : []
+  return { text, sources, promptModalities }
 }
 
 async function callGemini(
@@ -388,8 +392,9 @@ export const serve = handler(async ({ admin, user, body, req }) => {
           (input.prompt ? `Istruzioni aggiuntive: ${input.prompt}\n\n` : '') +
           'Suddividi il contenuto in sezioni con titoli chiari. Sii fedele alla fonte e senza riempitivi.',
       })
-      const text2 = await callGemini(apiKey, parts, GENERATE_SCHEMA)
-      return json(parseGeneratedDocument(text2, source))
+      const result = await callGeminiFull(apiKey, parts, GENERATE_SCHEMA)
+      if (input.source === 'youtube' && !result.promptModalities.some(item => ['VIDEO', 'AUDIO', 'IMAGE'].includes(item.modality) && item.tokenCount > 0)) throw new ApiError('video_unverified', 422)
+      return json(parseGeneratedDocument(result.text, source))
     }
 
     // ---- Modalità con documento ----
