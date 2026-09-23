@@ -5,10 +5,10 @@ Frontend React/TypeScript/Vite; backend Supabase con Auth, PostgreSQL/RLS, Stora
 
 [App online](https://rameno29.github.io/finanze-app/) · [Documento di progetto](README_FIRST.md)
 
-## Versione multiutente in preparazione
+## Versione multiutente pubblicata
 
-Le modifiche del branch `codex/multiutente-api-audit` **non sono ancora pubblicate**.
-L'accesso previsto è proprietario + un ospite, invitato dalle Impostazioni. Dati e integrazioni
+Versione `175ccf6` pubblicata il 22 settembre 2026 su Supabase e GitHub Pages; controlli finali
+documentati il 23 settembre. Accesso proprietario + un ospite, invitato dalle Impostazioni. Dati e integrazioni
 rimangono personali: non è uno spazio finanziario condiviso.
 
 - Campi di accesso leggibili, recupero password e completamento dell'invito.
@@ -50,4 +50,6 @@ pubblica. Non inserire API key personali, master key o service-role in variabili
 Leggere [registro audit](docs/audit/2026-09-20-audit.md) e
 [procedura di rilascio](docs/release-multiutente.md). Servono backup, secret server, due migrazioni,
 deploy delle funzioni e collaudo autenticato. Il push su `main` pubblica il frontend: non farlo
-prima di aver predisposto il backend. Nessun rilascio automatico è stato eseguito durante l'audit.
+prima di aver predisposto il backend. Il rilascio autorizzato è riuscito:
+[workflow verificato](https://github.com/Rameno29/finanze-app/actions/runs/35781348797).
+Restano al proprietario inserimento delle proprie chiavi, invito alla persona scelta e collaudo iPhone/OAuth/push.

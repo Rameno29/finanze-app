@@ -38,3 +38,4 @@ Client Oauth AJE.txt
 output/
 test-results/
 playwright-report/
+.playwright-cli/

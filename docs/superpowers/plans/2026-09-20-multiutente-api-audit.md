@@ -1,7 +1,7 @@
 # AJE — Piano per accessi su invito, API personali e audit
 
-Data: 20 settembre 2026. Stato aggiornato il 22 settembre: piano approvato ed eseguito localmente;
-rilascio e collaudo reale da autorizzare. Il documento da solo non autorizza modifiche cloud.
+Data: 20 settembre 2026. Stato aggiornato il 23 settembre: piano approvato, implementazione e
+rilascio tecnico autorizzato eseguiti. Resta il collaudo personale iPhone/provider.
 
 **Obiettivo:** rendere AJE utilizzabile dal proprietario e da una seconda persona, con dati separati, inviti dalle Impostazioni, credenziali personali cifrate e correzione dei difetti verificati in tutti i moduli esistenti.
 
@@ -14,15 +14,15 @@ rilascio e collaudo reale da autorizzare. Il documento da solo non autorizza mod
 ### Stato di esecuzione — 22 settembre 2026
 
 Piano approvato e implementazione locale conclusa nelle prosecuzioni di questa attività. Login, inviti,
-membership, credenziali personali, guide, isolamento e correzioni principali sono nel branch locale.
+membership, credenziali personali, guide, isolamento e correzioni principali sono pubblicati in `175ccf6`.
 Le checklist sotto restano la specifica originale: una casella non spuntata non prova che il codice
 sia assente, né i test locali provano che il rilascio sia concluso. Il dettaglio verificato e i casi
 ancora da completare sono nel [registro audit](../../audit/2026-09-20-audit.md).
 Le istruzioni di backup/deploy/ripristino sono in [rilascio](../../release-multiutente.md).
-Audit locale e revisione finale circoscritta conclusi, con limiti espliciti nel registro. Nessuna
-pubblicazione remota eseguita; collaudo con servizi/dispositivo reali ancora da effettuare.
+Audit locale e revisione finale circoscritta conclusi, con limiti espliciti nel registro. Backend e
+frontend pubblicati; backup ripristinato in isolamento. Collaudo personale dei servizi/dispositivo ancora aperto.
 Le fasi 1–5 sono implementate e verificate localmente; la fase 6 ha prodotto le correzioni e la
-matrice di copertura; la fase 7 è conclusa per test/documentazione/preparazione, non per il rilascio.
+matrice di copertura; fase 7 conclusa per test/documentazione/rilascio tecnico, non per l'accettazione personale.
 
 Confermati dall'utente:
 

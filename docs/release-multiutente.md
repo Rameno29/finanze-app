@@ -1,7 +1,7 @@
 # Rilascio multiutente AJE — procedura autorizzata
 
-Aggiornata il 22 settembre 2026. Rilascio autorizzato dal proprietario; backup verificato,
-secret, migrazioni e funzioni Supabase distribuiti. Pubblicazione frontend in corso.
+Aggiornata il 23 settembre 2026. Rilascio autorizzato dal proprietario: backup verificato,
+secret, migrazioni, funzioni Supabase e frontend distribuiti il 22 settembre.
 Il registro [audit](audit/2026-09-20-audit.md) elenca anche i collaudi ancora aperti: questa guida
 non li considera superati e non autorizza da sola la pubblicazione.
 
@@ -32,6 +32,17 @@ non li considera superati e non autorizza da sola la pubblicazione.
   trasferimenti sbilanciati o riferimenti ad account/categorie/documenti di altri utenti.
 - Ripetuti 142 test Vitest, 20 test Deno e 26 E2E simulati: tutti superati; typecheck e build riusciti.
   Deno 2.9.6 richiamato tramite `npx --package deno -c ...` perché non presente nel PATH della shell.
+- Frontend `175ccf606503e4a52588c4f49b78afd31922ab5d` su main: build e deploy del
+  [workflow 35781348797](https://github.com/Rameno29/finanze-app/actions/runs/35781348797) riusciti.
+  Il workflow ha ripetuto lint, test, typecheck, build e browser prima della pubblicazione.
+- Browser nuovo sulla pagina live: registrazione pubblica assente, campi leggibili con valori sintetici,
+  mostra/nascondi password, viewport desktop e mobile scuro; console senza errori. Nessun form inviato.
+  Screenshot locali in `output/playwright/release-login-*.png` (fuori Git).
+- Backup operatore in `C:/Users/stafi.000/AJE-private-backups/release-2026-09-22`, accesso NTFS
+  limitato all'account Windows e SYSTEM, istruzioni `RESTORE-NOTES.md` e manifest SHA-256.
+  Non caricare i backup in Git: includono dati personali e segreti precedenti al rilascio.
+- Rilascio tecnico concluso; accettazione personale ancora aperta per account, provider reali,
+  invito al destinatario scelto, SMTP opzionale e iPhone fisico. Nessuna chiave globale revocata.
 
 ## 1. Prima della finestra di rilascio
 

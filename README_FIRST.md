@@ -2,9 +2,9 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **22 settembre 2026**.
+> Ultimo aggiornamento: **23 settembre 2026**.
 
-## Intervento multiutente — backend distribuito, frontend in pubblicazione
+## Intervento multiutente — pubblicato, collaudo personale da completare
 
 Il branch `codex/multiutente-api-audit` contiene l'esecuzione del piano in
 `docs/superpowers/plans/2026-09-20-multiutente-api-audit.md`. Le sezioni storiche sottostanti
@@ -66,7 +66,11 @@ e motore verificato. Backup completo fuori Git e ripristino SQL su PostgreSQL is
 Entrambe le migrazioni (transazioni esplicite), master key e nove Edge Functions sono distribuiti;
 owner attivo unico, un posto ospite, 20 movimenti e due documenti conservati. Site URL Auth e callback
 corretti per GitHub Pages. Smoke remoto: otto endpoint 401 senza sessione, legacy 410.
-Registro in `docs/release-multiutente.md`; pubblicazione frontend e verifica Pages in corso.
+Frontend `175ccf6` pubblicato su Pages: workflow `35781348797` riuscito il 22 settembre.
+Verifica live in browser nuovo: login solo su invito, email/password leggibili, mostra/nascondi
+password e recupero presenti; viewport desktop/mobile scuro e console senza errori.
+Le skill Supabase/verifica hanno guidato backup e controllo del ripristino; Playwright il controllo live.
+Registro completo in `docs/release-multiutente.md`.
 Restano inserimento delle credenziali personali e collaudo autenticato/iPhone del proprietario.
 SMTP facoltativo: senza configurazione resta la copia del link. Nessun invito o email reale inviato.
 Le impostazioni `verify_jwt=false` delle nuove funzioni non significano accesso libero: gli handler
@@ -637,7 +641,7 @@ in attesa: i dati non ancora sincronizzati esistono solo sul dispositivo.
 - **Costi e privacy:** quote e gratuità dipendono dai provider. Valutare le condizioni prima di inviare
   buste paga o altri dati sensibili; cifrare la chiave salvata non rende private le richieste al provider.
 - **Accesso ospite dopo il nuovo rilascio:** Impostazioni → Utenti e inviti. Un solo posto ospite,
-  dati e chiavi separati. Prima del rilascio rimane la vecchia gestione online descritta nelle sezioni storiche.
+  dati e chiavi separati. Versione pubblicata; usare il link copiabile (SMTP inviti non configurato).
 - **Notifiche su iPhone:** funzionano solo con l'app installata sulla Home e permesso concesso.
 
 ---
