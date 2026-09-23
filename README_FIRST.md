@@ -22,6 +22,8 @@ ridondanti di alcune pagine sono stati alleggeriti. Restano le istruzioni operat
 d'errore e gli avvisi di sicurezza. La modifica non cambia autenticazione o dati.
 Il logo del login desktop è stato abbassato di 16 px per dargli più respiro dal bordo superiore;
 la posizione nella fascia mobile non cambia.
+I test browser verificano il contrasto reale dei campi nei temi chiaro e scuro e distinguono
+i collegamenti nelle Impostazioni da quelli del menu desktop.
 
 ## Rifocalizzazione pubblicata — ritiro server legacy completato
 

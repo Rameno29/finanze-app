@@ -132,13 +132,17 @@ test('navigazione focalizzata conserva agenda documenti e carburanti', async ({p
   await mockBackend(page)
   await page.goto('impostazioni')
   await login(page)
-  await expect(page.getByRole('link', {name: /Carburanti/})).toBeVisible()
+  await expect(page.locator('.settings-layout').getByRole('link', {name: 'Carburanti', exact: true})).toBeVisible()
   await expect(page.getByRole('heading', {name: /Gemini/})).toBeVisible()
   await expect(page.locator('a[href$="/media"]')).toHaveCount(0)
   await expect(page.locator('a[href$="/google"]')).toHaveCount(0)
   await expect(page.getByRole('heading', {name: /Spotify/})).toHaveCount(0)
   await page.getByRole('link', {name: 'Agenda', exact: true}).click()
-  await expect(page.getByRole('button', {name: 'Calendario'})).toBeVisible()
+  if (test.info().project.name === 'desktop') {
+    await expect(page.getByRole('heading', {name: 'Calendario'})).toBeVisible()
+  } else {
+    await expect(page.getByRole('button', {name: 'Calendario'})).toBeVisible()
+  }
   await page.getByRole('link', {name: 'Documenti', exact: true}).click()
   await expect(page.getByRole('button', {name: /Busta paga/})).toBeVisible()
 })
@@ -224,28 +228,32 @@ test('leaving the assistant while microphone permission is pending cancels a lat
     }})
   })
   await page.goto('impostazioni');await login(page)
-  await page.locator('a[href$="/assistente"]').click()
+  await page.locator('.settings-layout').getByRole('link',{name:'Assistente',exact:true}).click()
   await page.getByRole('button',{name:'Parla',exact:true}).click()
   await expect.poll(()=>page.evaluate(()=>(window as any).voiceTest.requested)).toBe(true)
-  await page.getByRole('link',{name:'Altro',exact:true}).click()
+  if (test.info().project.name === 'desktop') {
+    await page.getByRole('navigation',{name:'Navigazione desktop'}).getByRole('link',{name:'Impostazioni'}).click()
+  } else {
+    await page.getByRole('navigation',{name:'Navigazione principale'}).getByRole('link',{name:'Altro'}).click()
+  }
   await page.evaluate(()=>(window as any).voiceTest.grant())
   await expect.poll(()=>page.evaluate(()=>(window as any).voiceTest.stopped)).toBe(1)
 })
-for(const theme of ['light','dark'] as const) test(`login input text, focus and password visibility in ${theme}`, async ({page}) => {
+for(const theme of ['light','dark'] as const) test(`login input contrast, focus and password visibility in ${theme}`, async ({page}) => {
   await mockBackend(page)
   await page.emulateMedia({colorScheme:theme})
   await page.goto('impostazioni')
   const email=page.getByLabel('Email',{exact:true}), password=page.getByLabel('Password',{exact:true})
   await email.fill('reader@example.test'); await password.fill('bad-password')
   for(const input of [email,password]) {
-    const color=await input.evaluate(el=>getComputedStyle(el).color)
-    expect(color).toBe('rgb(242, 237, 228)')
-    // Cream has >4.5:1 contrast even against the lightest opaque gradient stop.
     const ratio=await input.evaluate(el=>{
       const lum=(rgb:number[])=>rgb.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0)
-      const rgb=getComputedStyle(el).color.match(/\d+/g)!.map(Number)
-      return (lum(rgb)+.05)/(lum([13,107,86])+.05)
+      const style=getComputedStyle(el)
+      const foreground=lum(style.color.match(/\d+/g)!.map(Number))
+      const background=lum(style.backgroundColor.match(/\d+/g)!.map(Number))
+      return (Math.max(foreground,background)+.05)/(Math.min(foreground,background)+.05)
     }); expect(ratio).toBeGreaterThanOrEqual(4.5)
+    await input.focus(); await expect(input).toBeFocused()
   }
   await page.getByRole('button',{name:'Mostra password'}).click(); await expect(password).toHaveAttribute('type','text')
   await page.getByRole('button',{name:'Accedi',exact:true}).click()
