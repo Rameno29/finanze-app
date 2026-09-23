@@ -19,3 +19,11 @@
 - Gli account, la chiave Gemini reale, i PDF di documenti personali, i video specifici e l'iPhone fisico vanno provati dal proprietario. Non presentare test simulati come prova end-to-end con dati reali.
 - Per i video la risposta Gemini deve contenere conteggi di token non testuali (`VIDEO`, `AUDIO` o `IMAGE`) nell'input. L'assenza di tali metadati blocca il PDF: è una scelta prudente che può rifiutare un video pubblico se il provider cambia risposta.
 - Annotare qui commit, versioni Edge, workflow e prove live solo dopo averli osservati.
+
+## Registro osservato
+
+- Proprietario: coda offline vuota confermata prima del rilascio.
+- Server compatibile `a134b3e`: `ai-analyze` distribuita come versione 11, `ACTIVE`, `verify_jwt=false` con autenticazione nello handler; richiesta anonima alla funzione rifiutata con 401. Vecchie modalità mantenute temporaneamente.
+- Frontend `f3713d9`: push su `main`, workflow [35856141050](https://github.com/Rameno29/finanze-app/actions/runs/35856141050) completato con successo, inclusi 113 test Vitest, 30 Deno, 36 browser desktop/mobile, build e deploy Pages.
+- Pagina live HTTP 200; asset principale `index-CiQaw7rA.js` identico alla build locale. Browser reale su viewport 390×844: login su invito e campi email/password leggibili con valori sintetici, console senza errori. Nessuna credenziale reale inserita né login tentato.
+- `youtube-search` remoto e vecchi modi `ai-analyze`: ritiro non ancora eseguito; attesa conferma dei dispositivi aggiornati. Nessun dato o secret personale eliminato.

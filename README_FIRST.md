@@ -4,11 +4,11 @@
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
 > Ultimo aggiornamento: **23 settembre 2026**.
 
-## Rifocalizzazione in sviluppo — non pubblicata
+## Rifocalizzazione pubblicata — ritiro server legacy in attesa
 
 La proposta approvata è in `docs/superpowers/specs/2026-09-23-rifocalizzazione-aje-design.md`;
 il piano tecnico è in `docs/superpowers/plans/2026-09-23-rifocalizzazione-pdf.md`.
-Il branch isolato `codex/rifocalizzazione-pdf` alleggerisce la navigazione eliminando le pagine
+Il rilascio `f3713d9` alleggerisce la navigazione eliminando le pagine
 Media e Google, Spotify, il player e i rispettivi flussi OAuth. Conserva Agenda, Carburanti,
 Documenti e la generazione di PDF da link YouTube incollato. Le credenziali obsolete già presenti
 non vengono cancellate automaticamente: le Impostazioni ne consentono la rimozione volontaria.
@@ -19,12 +19,17 @@ privati; respinge link non validi, verifica la proprietà del file e valida il r
 L'interfaccia locale offre le tre fonti alternative e i formati sintesi/appunti/schema, consente
 di correggere titolo e sezioni in anteprima, impagina anche paragrafi lunghi su più pagine e salva
 il PDF nell'archivio solo dopo un'azione esplicita; il download usa lo stesso renderer del salvataggio.
-I vecchi modi server `youtube`, `websearch` e `detect_corners` sono inattivi nel branch;
-`youtube-search` è sostituito da una risposta 410 da distribuire soltanto dopo il frontend nuovo.
+Il frontend aggiornato è online su GitHub Pages; il server `ai-analyze` v11 è temporaneamente
+compatibile con la vecchia PWA e controlla l'effettivo consumo di token video. I vecchi modi
+server `youtube`, `websearch` e `detect_corners` e la tombstone 410 di `youtube-search` sono
+pronti nel codice finale ma saranno distribuiti solo dopo conferma che i dispositivi usano la
+nuova PWA. Non sono state cancellate chiavi o righe personali.
 Le righe più sotto che citano Media, Google, scanner e relative chiavi sono cronologia del vecchio rilascio.
 Nel collaudo completo è stato corretto anche il rientro dall'invito: dopo la password,
 la schermata segue ora la route `/impostazioni` senza restare sul callback.
-Questa sezione descrive lavoro locale e non lo stato pubblicato dell'app.
+Workflow Pages `35856141050` riuscito il 23 settembre; hash dell'asset principale online uguale
+alla build locale. Smoke live della pagina login su mobile: campi leggibili, nessun errore console.
+Le funzioni autenticate e i PDF con chiavi reali richiedono ancora il collaudo personale.
 
 ## Intervento multiutente — pubblicato, collaudo personale da completare
 
