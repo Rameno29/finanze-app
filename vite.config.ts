@@ -48,7 +48,7 @@ export default defineConfig({
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,webp,webmanifest}'],
       },
-      includeAssets: ['favicon-v2.png', 'apple-touch-icon-v2.png'],
+      includeAssets: ['favicon-v3.png', 'apple-touch-icon-v3.png'],
       manifest: {
         name: 'AJE',
         short_name: 'AJE',
@@ -59,9 +59,9 @@ export default defineConfig({
         background_color: '#03372f',
         theme_color: '#03372f',
         icons: [
-          { src: 'pwa-192-v2.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512-v2.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-maskable-512-v2.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'pwa-192-v3.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512-v3.png', sizes: '512x512', type: 'image/png' },
+          { src: 'pwa-maskable-512-v3.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
     }),

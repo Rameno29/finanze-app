@@ -26,8 +26,8 @@ self.addEventListener('push', (event) => {
     if (!data.user_id || !current?.userId || data.user_id !== current.userId) return
     await self.registration.showNotification(data.title ?? 'AJE', {
       body: data.body ?? '',
-      icon: '/finanze-app/pwa-192-v2.png',
-      badge: '/finanze-app/pwa-192-v2.png',
+      icon: '/finanze-app/pwa-192-v3.png',
+      badge: '/finanze-app/pwa-192-v3.png',
       data: { url: data.url ?? '/finanze-app/agenda' },
     })
   })())

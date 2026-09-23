@@ -141,7 +141,7 @@ export function HomePage() {
       <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur-lg">
         <div className="page-content flex items-center gap-3 py-3">
           <img
-            src={`${import.meta.env.BASE_URL}aje-icon-v2.webp`}
+            src={`${import.meta.env.BASE_URL}aje-icon-v3.webp`}
             alt=""
             className="h-10 w-10 rounded-xl shadow-sm"
           />

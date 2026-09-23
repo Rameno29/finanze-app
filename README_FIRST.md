@@ -4,6 +4,15 @@
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
 > Ultimo aggiornamento: **23 settembre 2026**.
 
+## Icona deluxe AJE v3
+
+La prima delle tre proposte visive approvate è ora l'icona dell'app: stesso volto sereno e foglia
+centrale, palette verde petrolio e avorio, finitura a smalto satinato con rilievo discreto.
+La sorgente resta in `scripts/aje-brand-mark-v3-source.png` e si rigenera con
+`node scripts/generate-app-icon-v3.mjs`. I file v3 per PWA, iOS, favicon e icona della Home
+usano nomi versionati per evitare che i dispositivi mantengano la precedente immagine in cache.
+Il wordmark AJE e il logo del login restano invariati; le icone v2 sono conservate per confronto.
+
 ## Marchio AJE v2 — interfaccia aggiornata
 
 Il logo originale con il volto sereno e la foglia centrale è stato ridisegnato in forma più pulita;
