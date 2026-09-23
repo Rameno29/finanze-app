@@ -18,13 +18,18 @@ export const serve = handler(async ({ admin, user, body }) => {
   if (body.action === 'status') return { role: member.role }
   await requireActive(admin, user.id, true)
   if (body.action === 'list') {
-    const [invites, members, settings] = await Promise.all([
-      admin.from('app_invites').select('id,email,status,expires_at,user_id').order('created_at', { ascending: false }).limit(100),
-      admin.from('app_members').select('user_id,role,status'),
-      admin.from('app_settings').select('guest_limit').single(),
-    ])
-    dbError(invites.error ?? members.error ?? settings.error)
-    return { invites: invites.data, members: members.data, guest_limit: settings.data?.guest_limit }
+    const page = body.page ?? 0
+    if (typeof page !== 'number' || !Number.isSafeInteger(page) || page < 0 || page > 40_000_000) throw new ApiError('invalid_input')
+    const pageSize = 50
+    const offset = page * pageSize
+    const invites = await admin.from('app_invites').select('id,email,status,expires_at,user_id')
+      .order('created_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + pageSize)
+    dbError(invites.error)
+    const visible = (invites.data ?? []).slice(0, pageSize)
+    const userIds = [...new Set(visible.map(invite => invite.user_id).filter((id): id is string => !!id))]
+    const members = userIds.length ? await admin.from('app_members').select('user_id,role,status').in('user_id', userIds) : null
+    dbError(members?.error ?? null)
+    return { invites: visible, members: members?.data ?? [], has_more: (invites.data?.length ?? 0) > pageSize }
   }
   if (body.action === 'cancel') {
     if (typeof body.invite_id !== 'string') throw new ApiError('invalid_input')

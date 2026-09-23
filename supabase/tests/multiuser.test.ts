@@ -31,6 +31,9 @@ beforeAll(async () => {
   await db.exec(readFileSync(`supabase/migrations/${migration}`, 'utf8'))
   const audit = readdirSync('supabase/migrations').find(x => x.endsWith('_functional_audit_regressions.sql'))!
   await db.exec(readFileSync(`supabase/migrations/${audit}`, 'utf8'))
+  const unlimited = readdirSync('supabase/migrations').find(x => x.endsWith('_unlimited_invites_auth_lookup.sql'))!
+  const sql = readFileSync(`supabase/migrations/${unlimited}`, 'utf8')
+  if (sql.trim()) await db.exec(sql)
 }, 30000)
 afterAll(async () => { await db?.close() })
 
@@ -76,9 +79,14 @@ describe.sequential('multiuser migration executed in PostgreSQL', () => {
     const result = await db.query('select user_id, role from public.app_members')
     expect(result.rows).toEqual([{user_id:owner,role:'owner'}])
   })
-  it('reserves exactly one guest seat and denies a second invitation', async () => {
-    await db.query('select public.reserve_app_invite($1,$2)',[owner,'Guest@Example.test'])
-    await expect(db.query('select public.reserve_app_invite($1,$2)',[owner,'third@example.test'])).rejects.toThrow('capacity_reached')
+  it('reserves multiple invitations as service_role without broad Auth access', async () => {
+    await db.exec('set role service_role')
+    try {
+      await expect(db.query('select id from auth.users')).rejects.toMatchObject({code:'42501'})
+      await db.query('select public.reserve_app_invite($1,$2)',[owner,'Guest@Example.test'])
+      await db.query('select public.reserve_app_invite($1,$2)',[owner,'third@example.test'])
+    } finally { await db.exec('reset role') }
+    expect((await db.query('select email from public.app_invites order by email')).rows).toEqual([{email:'guest@example.test'},{email:'third@example.test'}])
   })
   it('blocks signup without an unexpired invitation', async () => {
     await expect(db.exec("insert into auth.users values (gen_random_uuid(),'stranger@example.test',now())")).rejects.toThrow()
@@ -120,15 +128,17 @@ describe.sequential('multiuser migration executed in PostgreSQL', () => {
   })
   it('accepts a valid reinvitation once and suspends atomically with pending proofs revoked', async () => {
     await db.query('select public.reserve_app_invite($1,$2)', [owner,'guest@example.test'])
-    const invite = (await db.query<{id:string}>('select id from public.app_invites')).rows[0]
+    const invite = (await db.query<{id:string}>("select id from public.app_invites where email='guest@example.test'")).rows[0]
     await db.query('update public.app_invites set user_id=$1,proof_hash=$2 where id=$3',[guest,'fresh-proof',invite.id])
-    await db.query('select public.accept_app_invite($1,$2,$3)',[guest,invite.id,'fresh-proof'])
+    await db.exec('set role service_role')
+    try { await db.query('select public.accept_app_invite($1,$2,$3)',[guest,invite.id,'fresh-proof']) }
+    finally { await db.exec('reset role') }
     expect((await db.query<{status:string}>('select status from public.app_members where user_id=$1',[guest])).rows[0].status).toBe('active')
     await expect(db.query('select public.accept_app_invite($1,$2,$3)',[guest,invite.id,'fresh-proof'])).rejects.toThrow('invalid_invite')
     await expect(db.query('select public.suspend_app_member($1,$2)',[guest,owner])).rejects.toThrow('access_denied')
     await db.query('select public.suspend_app_member($1,$2)',[owner,guest])
     expect((await db.query<{status:string}>('select status from public.app_members where user_id=$1',[guest])).rows[0].status).toBe('suspended')
-    expect((await db.query('select proof_hash from public.app_invites')).rows).toEqual([{proof_hash:null}])
+    expect((await db.query("select proof_hash from public.app_invites where email='guest@example.test'")).rows).toEqual([{proof_hash:null}])
   })
   it('bounds concurrent server calls with expiring leases and denies client bypass', async () => {
     const ids: string[] = []
@@ -196,5 +206,12 @@ describe.sequential('multiuser migration executed in PostgreSQL', () => {
     await db.exec(`set role authenticated; set request.jwt.claim.sub = '${guest}';`)
     try { expect((await db.query('select name from storage.objects')).rows).toEqual([]) }
     finally { await db.exec('reset role') }
+  })
+  it('does not impose an application guest limit above twenty people', async () => {
+    await db.exec('set role service_role')
+    try {
+      for (let i=0;i<21;i++) await db.query('select public.reserve_app_invite($1,$2)',[owner,`unlimited-${i}@example.test`])
+    } finally { await db.exec('reset role') }
+    expect((await db.query("select count(*)::integer as count from public.app_invites where email like 'unlimited-%@example.test'")).rows).toEqual([{count:21}])
   })
 })

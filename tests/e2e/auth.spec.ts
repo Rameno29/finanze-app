@@ -7,7 +7,7 @@ function session(id: string) {
   const token = [Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),Buffer.from(JSON.stringify({sub:id,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url'),'synthetic-test-signature'].join('.')
   return {access_token:token,refresh_token:`refresh-${id}`,token_type:'bearer',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,user:{id,aud:'authenticated',role:'authenticated',email:id===owner?'owner@example.test':'guest@example.test',app_metadata:{provider:'email'},user_metadata:{},identities:[],created_at:new Date().toISOString()}}
 }
-async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean; csvFailure?: boolean; csvHistory?: boolean; csvReadFailure?: boolean; uploadLostResponse?: boolean; diaryFailure?: boolean; pdfGeneration?: boolean; pdfHold?: boolean } = {}) {
+async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean; csvFailure?: boolean; csvHistory?: boolean; csvReadFailure?: boolean; uploadLostResponse?: boolean; diaryFailure?: boolean; pdfGeneration?: boolean; pdfHold?: boolean; invitePages?: boolean } = {}) {
   let releasePdf=()=>{}
   const pdfGate=new Promise<void>(resolve=>{ releasePdf=resolve })
   let diaryPosts=0
@@ -56,7 +56,10 @@ async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean;
         if(body.action==='accept') return send({ok:true})
         if(body.action==='status') return send({role:id===owner?'owner':'member'})
         if(id!==owner) return send({error:'access_denied'},403)
-        if(body.action==='list') return send({invites:[],members:[{user_id:owner,role:'owner',status:'active'}],guest_limit:1})
+        if(body.action==='list') {
+          if(options.invitePages) return send({invites:[{id:`invite-page-${body.page??0}`,email:`page-${body.page??0}@example.test`,status:'pending',expires_at:'2099-01-01T00:00:00Z',user_id:null}],members:[],has_more:(body.page??0)===0})
+          return send({invites:[],members:[],has_more:false})
+        }
         if(body.action==='create') return send({link:'http://127.0.0.1:4173/finanze-app/auth/callback#token_hash=valid-invite&type=invite&invite_id=33333333-3333-4333-8333-333333333333',email_sent:false})
       }
       if(name==='user-credentials') {
@@ -276,6 +279,31 @@ test('owner creates invite; invited user completes password and has no owner pan
   await expect(page.getByRole('heading',{name:'Le mie integrazioni'})).toBeVisible()
   await expect(page.getByRole('heading',{name:'Utenti e inviti'})).toHaveCount(0)
   expect(calls.find(call=>call.body.action==='accept')?.id).toBe(guest)
+})
+
+test('owner can prepare an invitation in the local mail app without SMTP', async ({page})=>{
+  const {calls}=await mockBackend(page)
+  await page.goto('impostazioni'); await login(page)
+  await expect(page.getByText(/Posti ospite previsti/)).toHaveCount(0)
+  await page.getByLabel('Email dell’ospite').fill('guest@example.test')
+  await page.getByRole('button',{name:'Prepara email'}).click()
+  const mail=page.getByRole('link',{name:'Apri app di posta'})
+  await expect(mail).toBeVisible()
+  const href=await mail.getAttribute('href')
+  expect(href).toMatch(/^mailto:guest%40example\.test\?/)
+  expect(new URL(href!).searchParams.get('body')).toContain('token_hash=valid-invite')
+  expect(calls.find(call=>call.body.action==='create')?.body.delivery).toBe('link')
+  await expect(page.getByLabel('Link personale dell’invito')).toBeVisible()
+})
+
+test('owner can browse invitations beyond the first page', async ({page})=>{
+  await mockBackend(page,{invitePages:true})
+  await page.goto('impostazioni'); await login(page)
+  await expect(page.getByText('page-0@example.test')).toBeVisible()
+  await page.getByRole('button',{name:'Carica altri inviti'}).click()
+  await expect(page.getByText('page-0@example.test')).toBeVisible()
+  await expect(page.getByText('page-1@example.test')).toBeVisible()
+  await expect(page.getByRole('button',{name:'Carica altri inviti'})).toHaveCount(0)
 })
 
 test('personal key save stays masked; logout removes OAuth; guest cannot see owner configuration',async({page})=>{

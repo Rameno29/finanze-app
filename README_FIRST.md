@@ -4,6 +4,17 @@
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
 > Ultimo aggiornamento: **23 settembre 2026**.
 
+## Inviti senza limite applicativo
+
+La migration `20260923202147_unlimited_invites_auth_lookup.sql` corregge il blocco degli inviti:
+il ruolo server verifica l'identità Auth tramite due funzioni private circoscritte, senza ottenere
+lettura generale di `auth.users`. Il limite applicativo di un ospite è rimosso; restano i limiti
+operativi del fornitore Supabase. Gli inviti rimangono riservati al proprietario, personali e
+monouso. L'elenco nelle Impostazioni è paginato, quindi mostra anche gli invitati oltre i primi 100.
+«Prepara email» genera un link e offre «Apri app di posta» con destinatario e messaggio compilati:
+è il proprietario a inviare il messaggio. La copia manuale del link resta disponibile e non serve SMTP.
+I test usano solo account e indirizzi sintetici; nessun invito reale è stato generato nel collaudo.
+
 ## Icona deluxe AJE v3
 
 La prima delle tre proposte visive approvate è ora l'icona dell'app: stesso volto sereno e foglia
@@ -70,7 +81,7 @@ Registro delle prove e limiti: `docs/audit/2026-09-20-audit.md`.
 Consegna e passaggi che richiedono il proprietario: `docs/consegna-multiutente.md`.
 
 - Login solo su invito, recupero password, contrasto e autofill corretti; callback password dedicata.
-- Membership server con proprietario e un posto ospite, inviti dalle Impostazioni e sospensione;
+- Membership server con proprietario e inviti dalle Impostazioni senza limite applicativo di ospiti;
   RLS restrittive applicano lo stato attivo anche a JWT emessi prima della sospensione.
 - API key Gemini/YouTube personali cifrate AES-256-GCM nel database; la chiave principale
   deve stare esclusivamente nei secret delle Edge Functions. Non è cifratura end-to-end.
@@ -121,7 +132,8 @@ Consegna e passaggi che richiedono il proprietario: `docs/consegna-multiutente.m
 Il rilascio è stato autorizzato il 22 settembre; Docker Desktop installato con autorizzazione
 e motore verificato. Backup completo fuori Git e ripristino SQL su PostgreSQL isolato riusciti.
 Entrambe le migrazioni (transazioni esplicite), master key e nove Edge Functions sono distribuiti;
-owner attivo unico, un posto ospite, 20 movimenti e due documenti conservati. Site URL Auth e callback
+owner attivo unico, 20 movimenti e due documenti conservati. All'epoca era previsto un posto ospite,
+poi rimosso dalla migration per gli inviti illimitati. Site URL Auth e callback
 corretti per GitHub Pages. Smoke remoto: otto endpoint 401 senza sessione, legacy 410.
 Frontend `175ccf6` pubblicato su Pages: workflow `35781348797` riuscito il 22 settembre.
 Verifica live in browser nuovo: login solo su invito, email/password leggibili, mostra/nascondi
@@ -129,7 +141,8 @@ password e recupero presenti; viewport desktop/mobile scuro e console senza erro
 Le skill Supabase/verifica hanno guidato backup e controllo del ripristino; Playwright il controllo live.
 Registro completo in `docs/release-multiutente.md`.
 Restano inserimento delle credenziali personali e collaudo autenticato/iPhone del proprietario.
-SMTP facoltativo: senza configurazione resta la copia del link. Nessun invito o email reale inviato.
+La UI attuale prepara il messaggio nella posta locale e conserva la copia del link; SMTP non è richiesto.
+Nessun invito o email reale inviato nei test.
 Le impostazioni `verify_jwt=false` delle nuove funzioni non significano accesso libero: gli handler
 verificano il bearer con Supabase Auth e applicano membership e limiti. Il cron usa il proprio secret;
 l'endpoint legacy restituisce soltanto 410. Non distribuire un handler privo di questi controlli.
@@ -699,8 +712,8 @@ in attesa: i dati non ancora sincronizzati esistono solo sul dispositivo.
 - **Dati sincronizzati:** sono nel database cloud; le operazioni offline pendenti non lo sono ancora.
 - **Costi e privacy:** quote e gratuità dipendono dai provider. Valutare le condizioni prima di inviare
   buste paga o altri dati sensibili; cifrare la chiave salvata non rende private le richieste al provider.
-- **Accesso ospite dopo il nuovo rilascio:** Impostazioni → Utenti e inviti. Un solo posto ospite,
-  dati e chiavi separati. Versione pubblicata; usare il link copiabile (SMTP inviti non configurato).
+- **Inviti:** Impostazioni → Utenti e inviti. Nessun limite applicativo di ospiti; dati e chiavi
+  restano separati. Puoi copiare il link o preparare il messaggio nella tua app di posta.
 - **Notifiche su iPhone:** funzionano solo con l'app installata sulla Home e permesso concesso.
 
 ---
