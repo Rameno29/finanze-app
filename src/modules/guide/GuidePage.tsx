@@ -71,7 +71,7 @@ export function GuidePage() {
       <PageHeader title="Guida" subtitle="Come funziona ogni sezione di AJE" />
 
       <AccordionContext.Provider value={{ openId, toggle }}>
-      <div className="mx-auto flex max-w-lg flex-col gap-3 px-5 pt-4">
+      <div className="page-content guide-layout flex flex-col gap-3 py-5">
         <Section icon={Home} title="Home">
           <P>La Home è il tuo colpo d'occhio quotidiano:</P>
           <P>• <B>Saldo del mese</B> — entrate, uscite e differenza del mese corrente.</P>

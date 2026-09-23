@@ -222,7 +222,7 @@ export function FinancePage() {
         }
       />
 
-      <div className="mx-auto max-w-lg px-5">
+      <div className="page-content max-w-[1320px] px-0">
         {exportMsg && (
           <p className="mt-3 rounded-xl bg-accent-soft px-4 py-3 text-sm text-accent">{exportMsg}</p>
         )}
@@ -230,7 +230,7 @@ export function FinancePage() {
         <div className="mt-4 grid grid-cols-5 gap-1 rounded-xl bg-card-2 p-1">
           {(
             [
-              ['movimenti', 'Movim.'],
+              ['movimenti', 'Movimenti'],
               ['conti', 'Conti'],
               ['budget', 'Budget'],
               ['categorie', 'Categ.'],
@@ -240,7 +240,7 @@ export function FinancePage() {
             <button
               key={key}
               onClick={() => setView(key)}
-              className={`min-h-[40px] rounded-lg text-[12px] font-semibold transition ${
+              className={`min-h-[40px] rounded-lg text-[11px] font-semibold transition sm:text-xs ${
                 view === key ? 'bg-card shadow text-ink' : 'text-muted'
               }`}
             >

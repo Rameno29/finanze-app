@@ -139,14 +139,14 @@ export function HomePage() {
   return (
     <div className="pb-28">
       <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur-lg">
-        <div className="mx-auto flex max-w-lg items-center gap-3 px-5 py-3">
+        <div className="page-content flex items-center gap-3 py-3">
           <img
-            src={`${import.meta.env.BASE_URL}pwa-192.png`}
+            src={`${import.meta.env.BASE_URL}aje-leaf-icon.webp`}
             alt=""
             className="h-10 w-10 rounded-xl shadow-sm"
           />
           <div>
-            <h1 className="bg-gradient-to-r from-accent to-income bg-clip-text text-[26px] font-black tracking-[0.18em] leading-none text-transparent">
+            <h1 className="text-[26px] font-bold tracking-[0.28em] leading-none text-[var(--brand)]">
               AJE
             </h1>
             <p className="mt-0.5 text-xs capitalize text-muted">
@@ -156,11 +156,11 @@ export function HomePage() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
+      <div className="dashboard-main page-content flex flex-col gap-4 py-5">
         {operationError && (
           <p className="rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{operationError}</p>
         )}
-        <Card className="bg-accent text-white border-transparent">
+        <Card className="dashboard-balance border-transparent text-white" style={{ backgroundColor: 'var(--brand-panel)' }}>
           <div className="flex items-center gap-2 text-white/80">
             <Wallet className="h-4 w-4" />
             <span className="text-sm">Saldo del mese</span>
@@ -205,7 +205,7 @@ export function HomePage() {
 
         <Link
           to="/assistente"
-          className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4 shadow-sm"
+          className="dashboard-actions app-card flex items-center gap-3 rounded-2xl border border-line bg-card p-4 shadow-sm"
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
             <Bot className="h-5 w-5" />
@@ -294,7 +294,7 @@ export function HomePage() {
           )}
         </Card>
 
-        <Card>
+        <Card className="dashboard-chart">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="font-semibold">Ultimi 6 mesi</h2>
             <span className="text-xs text-muted">Tocca un mese</span>

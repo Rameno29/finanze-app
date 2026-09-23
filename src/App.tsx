@@ -29,19 +29,21 @@ function Shell() {
   return (
     <MembershipGate key={session.user.id} userId={session.user.id}><div className="min-h-dvh bg-bg">
       <OfflineBanner userId={session.user.id} />
-      <Suspense fallback={<FullPageSpinner />}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/finanze" element={<FinancePage />} />
-          <Route path="/agenda" element={<AgendaPage />} />
-          <Route path="/documenti" element={<DocumentsPage />} />
-          <Route path="/impostazioni" element={<SettingsPage />} />
-          <Route path="/guida" element={<GuidePage />} />
-          <Route path="/assistente" element={<AssistantPage />} />
-          <Route path="/carburanti" element={<FuelPage />} />
-          <Route path="*" element={<HomePage />} />
-        </Routes>
-      </Suspense>
+      <div className="app-main lg:pl-[264px]">
+        <Suspense fallback={<FullPageSpinner />}>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/finanze" element={<FinancePage />} />
+            <Route path="/agenda" element={<AgendaPage />} />
+            <Route path="/documenti" element={<DocumentsPage />} />
+            <Route path="/impostazioni" element={<SettingsPage />} />
+            <Route path="/guida" element={<GuidePage />} />
+            <Route path="/assistente" element={<AssistantPage />} />
+            <Route path="/carburanti" element={<FuelPage />} />
+            <Route path="*" element={<HomePage />} />
+          </Routes>
+        </Suspense>
+      </div>
       <TabBar />
     </div></MembershipGate>
   )

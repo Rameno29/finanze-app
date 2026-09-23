@@ -1,12 +1,12 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Loader2, X } from 'lucide-react'
 
 export function PageHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
   return (
-    <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur-lg">
-      <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-3">
+    <header className="page-header pt-safe sticky top-0 z-30 border-b border-line bg-bg/95 backdrop-blur-lg">
+      <div className="page-header-inner mx-auto flex w-full max-w-[1320px] items-center justify-between px-5 py-4 lg:px-0 lg:py-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <h1 className="page-header-title display-type text-[1.75rem] leading-tight">{title}</h1>
           {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
         </div>
         {right}
@@ -15,9 +15,9 @@ export function PageHeader({ title, subtitle, right }: { title: string; subtitle
   )
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function Card({ children, className = '', style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
   return (
-    <div className={`rounded-2xl border border-line bg-card p-4 shadow-sm ${className}`}>
+    <div style={style} className={`app-card rounded-2xl border border-line bg-card p-4 shadow-sm ${className}`}>
       {children}
     </div>
   )
@@ -117,4 +117,4 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 export const inputClass =
-  'w-full rounded-xl border border-line bg-card-2 px-4 py-3 outline-none focus:border-accent'
+  'app-field w-full rounded-xl border border-line bg-card px-4 py-3 outline-none focus:border-accent focus:ring-2 focus:ring-accent/15'

@@ -149,9 +149,9 @@ export function SettingsPage() {
 
   return (
     <div className="pb-28">
-      <PageHeader title="Altro" subtitle="Impostazioni e informazioni" />
+      <PageHeader title="Impostazioni" subtitle="Sicurezza, preferenze e integrazioni" />
 
-      <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
+      <div className="page-content settings-layout flex flex-col gap-4 py-5">
         <InvitesPanel />
         <IntegrationsPanel />
         <Card className="divide-y divide-line p-0">

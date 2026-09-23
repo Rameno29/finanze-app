@@ -74,15 +74,20 @@ export function FuelPage() {
 
   // Inizializza la mappa Leaflet (una sola volta)
   useEffect(() => {
-    if (!mapDivRef.current || mapRef.current) return
-    const map = L.map(mapDivRef.current, { zoomControl: true }).setView(DEFAULT_CENTER, 6)
+    const mapElement = mapDivRef.current
+    if (!mapElement || mapRef.current) return
+    const map = L.map(mapElement, { zoomControl: true }).setView(DEFAULT_CENTER, 6)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap',
     }).addTo(map)
     markersRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
+    const resizeObserver = new ResizeObserver(() => map.invalidateSize({ pan: false }))
+    resizeObserver.observe(mapElement)
+    requestAnimationFrame(() => map.invalidateSize({ pan: false }))
     return () => {
+      resizeObserver.disconnect()
       map.remove()
       mapRef.current = null
       markersRef.current = null
@@ -183,7 +188,7 @@ export function FuelPage() {
     <div className="pb-28">
       <PageHeader title="Carburanti" subtitle="Il distributore più conveniente vicino a te" />
 
-      <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
+      <div className="page-content fuel-layout flex flex-col gap-4 py-5">
         {/* Selettore carburante */}
         <div className="grid grid-cols-4 gap-1 rounded-xl bg-card-2 p-1">
           {FUEL_OPTIONS.map((option) => (
@@ -200,7 +205,7 @@ export function FuelPage() {
         </div>
 
         {/* Mappa interattiva (trascinabile e zoomabile) */}
-        <div className="relative overflow-hidden rounded-2xl border border-line">
+        <div className="fuel-map relative overflow-hidden rounded-2xl border border-line">
           <div ref={mapDivRef} className="h-[320px] w-full" />
           <div className="absolute bottom-3 left-1/2 z-[1000] flex -translate-x-1/2 gap-2">
             <button
@@ -222,6 +227,7 @@ export function FuelPage() {
           </div>
         </div>
 
+        <div className="fuel-results flex flex-col gap-4">
         {message && <p className="rounded-xl bg-accent-soft px-4 py-3 text-sm text-accent">{message}</p>}
 
         {/* Classifica per prezzo */}
@@ -277,6 +283,7 @@ export function FuelPage() {
         <p className="pb-2 text-center text-[11px] text-muted">
           Prezzi comunicati dai gestori al MIMIT (aggiornati ogni mattina) · Mappa © OpenStreetMap
         </p>
+        </div>
       </div>
     </div>
   )

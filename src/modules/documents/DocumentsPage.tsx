@@ -184,7 +184,7 @@ export function DocumentsPage() {
     <div className="pb-28">
       <PageHeader title="Documenti" subtitle="Analisi AI di buste paga, scontrini e altro" />
 
-      <div className="mx-auto flex max-w-lg flex-col gap-4 px-5 pt-4">
+      <div className="document-layout page-content flex flex-col gap-4 py-5">
         <input
           ref={fileRef}
           type="file"
@@ -196,7 +196,7 @@ export function DocumentsPage() {
           }}
         />
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="document-upload-actions grid grid-cols-3 gap-2">
           {uploadButtons.map(({ type, label, hint, icon: Icon }) => (
             <button
               key={type}
@@ -211,8 +211,9 @@ export function DocumentsPage() {
           ))}
         </div>
 
-        <GeneratePdfCard documents={documents} onSaved={reload} />
+        <div className="document-generator"><GeneratePdfCard documents={documents} onSaved={reload} /></div>
 
+        <div className="document-archive flex flex-col gap-4">
         {/* Ricerca nei documenti analizzati */}
         {documents.length > 0 && (
           <div className="relative">
@@ -345,6 +346,7 @@ export function DocumentsPage() {
             })}
           </Card>
         )}
+        </div>
       </div>
 
       <PayslipConfirmSheet

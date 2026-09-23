@@ -136,15 +136,152 @@ export function AgendaPage() {
     ['Senza data', groups.noDate, false],
   ]
 
+  const activityPanel = (
+    <section className={`agenda-panel agenda-activities ${view === 'attivita' ? '' : 'hidden lg:block'}`}>
+      <div className="agenda-panel-heading">
+        <div>
+          <p className="agenda-eyebrow">Il tuo spazio</p>
+          <h2 className="display-type text-2xl">Le mie attività</h2>
+        </div>
+        <span className="agenda-count">{groups.overdue.length + groups.today.length + groups.upcoming.length + groups.noDate.length} aperte</span>
+      </div>
+      {tasks.length === 0 && (
+        <EmptyState
+          icon={<ClipboardList className="h-10 w-10" />}
+          title="Nessuna attività"
+          hint="Tocca il bottone + per aggiungere la tua prima attività o promemoria."
+        />
+      )}
+      {sections.map(
+        ([label, list, danger]) =>
+          list.length > 0 && (
+            <section key={label} className="mt-5">
+              <h3 className={`mb-2 text-sm font-semibold ${danger ? 'text-expense' : 'text-muted'}`}>
+                {label} · {list.length}
+              </h3>
+              <Card className="divide-y divide-line p-0">
+                {list.map((t) => (
+                  <TaskRow key={t.id} task={t} onToggle={toggleTask} onEdit={openEdit} showDate />
+                ))}
+              </Card>
+            </section>
+          ),
+      )}
+      {groups.done.length > 0 && (
+        <section className="mt-5">
+          <button
+            onClick={() => setShowDone(!showDone)}
+            className="mb-2 text-sm font-semibold text-muted"
+          >
+            Completate · {groups.done.length} {showDone ? '▾' : '▸'}
+          </button>
+          {showDone && (
+            <Card className="divide-y divide-line p-0">
+              {groups.done.slice(0, 30).map((t) => (
+                <TaskRow key={t.id} task={t} onToggle={toggleTask} onEdit={openEdit} showDate />
+              ))}
+            </Card>
+          )}
+        </section>
+      )}
+    </section>
+  )
+
+  const calendarPanel = (
+    <section className={`agenda-panel agenda-calendar ${view === 'calendario' ? '' : 'hidden lg:block'}`}>
+      <div className="agenda-panel-heading">
+        <div>
+          <p className="agenda-eyebrow">Pianifica</p>
+          <h2 className="display-type text-2xl">Calendario</h2>
+        </div>
+        <span className="agenda-count">{tasksByDay.get(selectedDay)?.length ?? 0} per il giorno</span>
+      </div>
+      <div className="mt-4 flex items-center justify-between">
+        <button
+          onClick={() => shiftCalMonth(-1)}
+          aria-label="Mese precedente"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-card-2"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <span className="font-semibold">
+          {MONTH_NAMES[calMonth - 1]} {calYear}
+        </span>
+        <button
+          onClick={() => shiftCalMonth(1)}
+          aria-label="Mese successivo"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-card-2"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+
+      <Card className="mt-3 p-3">
+        <div className="mb-1 grid grid-cols-7 text-center text-xs font-semibold text-muted">
+          {WEEKDAYS.map((d, i) => (
+            <span key={i} className="py-1">
+              {d}
+            </span>
+          ))}
+        </div>
+        {weeks.map((week, wi) => (
+          <div key={wi} className="grid grid-cols-7">
+            {week.map((day, di) => {
+              if (!day) return <span key={di} />
+              const has = (tasksByDay.get(day) ?? []).some((t) => !t.done)
+              const isSelected = day === selectedDay
+              const isToday = day === today
+              return (
+                <button
+                  key={di}
+                  onClick={() => setSelectedDay(day)}
+                  className={`mx-auto flex h-11 w-11 flex-col items-center justify-center rounded-full text-sm transition ${
+                    isSelected
+                      ? 'bg-accent font-bold text-white'
+                      : isToday
+                        ? 'font-bold text-accent'
+                        : ''
+                  }`}
+                >
+                  {Number(day.slice(8))}
+                  <span
+                    className={`mt-0.5 h-1.5 w-1.5 rounded-full ${
+                      has ? (isSelected ? 'bg-white' : 'bg-accent') : 'bg-transparent'
+                    }`}
+                  />
+                </button>
+              )
+            })}
+          </div>
+        ))}
+      </Card>
+
+      <section className="mt-5">
+        <h3 className="mb-2 text-sm font-semibold capitalize text-muted">{formatDay(selectedDay)}</h3>
+        {dayTasks.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
+            Nessuna attività in questo giorno.
+          </p>
+        ) : (
+          <Card className="divide-y divide-line p-0">
+            {dayTasks.map((t) => (
+              <TaskRow key={t.id} task={t} onToggle={toggleTask} onEdit={openEdit} />
+            ))}
+          </Card>
+        )}
+      </section>
+    </section>
+  )
+
   return (
     <div className="pb-28">
       <PageHeader title="Agenda" />
 
-      <div className="mx-auto max-w-lg px-5">
+      <div className="page-content max-w-[1320px] px-0">
         {operationError && (
           <p className="mt-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{operationError}</p>
         )}
-        <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-card-2 p-1">
+        <div className="agenda-tabs mt-4 grid grid-cols-2 gap-1 rounded-xl bg-card-2 p-1 lg:hidden">
           {(
             [
               ['attivita', 'Attività'],
@@ -167,125 +304,11 @@ export function AgendaPage() {
           <div className="flex justify-center py-12">
             <Spinner />
           </div>
-        ) : view === 'attivita' ? (
-          <>
-            {tasks.length === 0 && (
-              <EmptyState
-                icon={<ClipboardList className="h-10 w-10" />}
-                title="Nessuna attività"
-                hint="Tocca il bottone + per aggiungere la tua prima attività o promemoria."
-              />
-            )}
-            {sections.map(
-              ([label, list, danger]) =>
-                list.length > 0 && (
-                  <section key={label} className="mt-5">
-                    <h3 className={`mb-2 text-sm font-semibold ${danger ? 'text-expense' : 'text-muted'}`}>
-                      {label} · {list.length}
-                    </h3>
-                    <Card className="divide-y divide-line p-0">
-                      {list.map((t) => (
-                        <TaskRow key={t.id} task={t} onToggle={toggleTask} onEdit={openEdit} showDate />
-                      ))}
-                    </Card>
-                  </section>
-                ),
-            )}
-            {groups.done.length > 0 && (
-              <section className="mt-5">
-                <button
-                  onClick={() => setShowDone(!showDone)}
-                  className="mb-2 text-sm font-semibold text-muted"
-                >
-                  Completate · {groups.done.length} {showDone ? '▾' : '▸'}
-                </button>
-                {showDone && (
-                  <Card className="divide-y divide-line p-0">
-                    {groups.done.slice(0, 30).map((t) => (
-                      <TaskRow key={t.id} task={t} onToggle={toggleTask} onEdit={openEdit} showDate />
-                    ))}
-                  </Card>
-                )}
-              </section>
-            )}
-          </>
         ) : (
-          <>
-            <div className="mt-4 flex items-center justify-between">
-              <button
-                onClick={() => shiftCalMonth(-1)}
-                aria-label="Mese precedente"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-card-2"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <span className="font-semibold">
-                {MONTH_NAMES[calMonth - 1]} {calYear}
-              </span>
-              <button
-                onClick={() => shiftCalMonth(1)}
-                aria-label="Mese successivo"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-card-2"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </div>
-
-            <Card className="mt-3 p-3">
-              <div className="mb-1 grid grid-cols-7 text-center text-xs font-semibold text-muted">
-                {WEEKDAYS.map((d, i) => (
-                  <span key={i} className="py-1">
-                    {d}
-                  </span>
-                ))}
-              </div>
-              {weeks.map((week, wi) => (
-                <div key={wi} className="grid grid-cols-7">
-                  {week.map((day, di) => {
-                    if (!day) return <span key={di} />
-                    const has = (tasksByDay.get(day) ?? []).some((t) => !t.done)
-                    const isSelected = day === selectedDay
-                    const isToday = day === today
-                    return (
-                      <button
-                        key={di}
-                        onClick={() => setSelectedDay(day)}
-                        className={`mx-auto flex h-11 w-11 flex-col items-center justify-center rounded-full text-sm transition ${
-                          isSelected
-                            ? 'bg-accent font-bold text-white'
-                            : isToday
-                              ? 'font-bold text-accent'
-                              : ''
-                        }`}
-                      >
-                        {Number(day.slice(8))}
-                        <span
-                          className={`mt-0.5 h-1.5 w-1.5 rounded-full ${
-                            has ? (isSelected ? 'bg-white' : 'bg-accent') : 'bg-transparent'
-                          }`}
-                        />
-                      </button>
-                    )
-                  })}
-                </div>
-              ))}
-            </Card>
-
-            <section className="mt-5">
-              <h3 className="mb-2 text-sm font-semibold capitalize text-muted">{formatDay(selectedDay)}</h3>
-              {dayTasks.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
-                  Nessuna attività in questo giorno.
-                </p>
-              ) : (
-                <Card className="divide-y divide-line p-0">
-                  {dayTasks.map((t) => (
-                    <TaskRow key={t.id} task={t} onToggle={toggleTask} onEdit={openEdit} />
-                  ))}
-                </Card>
-              )}
-            </section>
-          </>
+          <div className="agenda-layout">
+            {activityPanel}
+            {calendarPanel}
+          </div>
         )}
       </div>
 

@@ -216,7 +216,7 @@ export function AssistantPage() {
     <div className="flex min-h-dvh flex-col pb-28">
       <PageHeader title="Assistente" subtitle="Parla o scrivi: domande e comandi" />
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-5 pt-4">
+      <div className="page-content assistant-conversation flex w-full max-w-5xl flex-1 flex-col gap-3 py-5">
         {messages.length === 0 && (
           <div className="flex flex-col items-center gap-4 py-8 text-center">
             <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-soft text-accent">
@@ -300,8 +300,8 @@ export function AssistantPage() {
       </div>
 
       {/* Barra di input fissa sopra la tab bar */}
-      <div className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom))] z-30 border-t border-line bg-bg/95 backdrop-blur-lg">
-        <form onSubmit={handleSubmit} className="mx-auto flex max-w-lg gap-2 px-5 py-3">
+      <div className="assistant-composer fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom))] z-30 border-t border-line bg-bg/95 backdrop-blur-lg">
+        <form onSubmit={handleSubmit} className="page-content mx-auto flex max-w-5xl gap-2 px-0 py-3">
           <input
             ref={inputRef}
             value={input}
