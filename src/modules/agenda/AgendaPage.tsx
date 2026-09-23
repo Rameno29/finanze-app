@@ -140,7 +140,6 @@ export function AgendaPage() {
     <section className={`agenda-panel agenda-activities ${view === 'attivita' ? '' : 'hidden lg:block'}`}>
       <div className="agenda-panel-heading">
         <div>
-          <p className="agenda-eyebrow">Il tuo spazio</p>
           <h2 className="display-type text-2xl">Le mie attività</h2>
         </div>
         <span className="agenda-count">{groups.overdue.length + groups.today.length + groups.upcoming.length + groups.noDate.length} aperte</span>
@@ -191,7 +190,6 @@ export function AgendaPage() {
     <section className={`agenda-panel agenda-calendar ${view === 'calendario' ? '' : 'hidden lg:block'}`}>
       <div className="agenda-panel-heading">
         <div>
-          <p className="agenda-eyebrow">Pianifica</p>
           <h2 className="display-type text-2xl">Calendario</h2>
         </div>
         <span className="agenda-count">{tasksByDay.get(selectedDay)?.length ?? 0} per il giorno</span>

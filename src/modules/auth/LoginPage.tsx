@@ -61,35 +61,25 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login-page min-h-dvh bg-bg lg:grid lg:grid-cols-[1.08fr_.92fr]">
+    <div className="login-page min-h-dvh bg-bg lg:grid lg:grid-cols-[.85fr_1.15fr]">
       <section
-        className="login-hero relative flex min-h-[270px] flex-col justify-between overflow-hidden bg-cover bg-center px-6 pb-7 pt-safe text-white lg:sticky lg:top-0 lg:h-dvh lg:min-h-[640px] lg:px-14 lg:py-12"
-        style={{ backgroundImage: `linear-gradient(90deg, rgb(4 47 40 / 86%), rgb(4 47 40 / 18%)), url("${import.meta.env.BASE_URL}aje-lake-hero.webp")` }}
+        className="login-hero relative flex h-28 items-center overflow-hidden bg-[var(--brand-deep)] px-6 pt-[env(safe-area-inset-top)] text-white lg:sticky lg:top-0 lg:h-dvh lg:min-h-[640px] lg:items-start lg:px-14 lg:py-12"
       >
-        <div className="relative z-10 flex items-center gap-3">
-          <img src={`${import.meta.env.BASE_URL}aje-leaf-icon.webp`} alt="" className="h-12 w-12 rounded-xl" />
-          <div>
-            <p className="text-xl font-bold tracking-[.32em]">AJE</p>
-            <p className="text-xs text-white/75">Le tue finanze. Una vita più serena.</p>
-          </div>
-        </div>
-        <div className="relative z-10 max-w-xl">
-          <h1 className="display-type max-w-[12ch] text-4xl leading-[1.03] sm:text-5xl lg:text-6xl">
-            Più consapevolezza ogni giorno.
-          </h1>
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-white/85 sm:text-base">
-            Gestisci, pianifica, raggiungi. AJE è il tuo alleato finanziario, sempre con te.
-          </p>
-          <p className="mt-8 hidden text-sm italic text-white/75 lg:block">Un domani più tuo.</p>
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 hidden bg-cover bg-center lg:block"
+          style={{ backgroundImage: `linear-gradient(90deg, rgb(4 47 40 / 75%), rgb(4 47 40 / 18%)), url("${import.meta.env.BASE_URL}aje-lake-hero.webp")` }}
+        />
+        <div className="relative z-10 lg:mt-4">
+          <img src={`${import.meta.env.BASE_URL}aje-logo-v2.webp`} alt="AJE" className="h-12 w-auto" />
         </div>
       </section>
 
-      <main className="flex min-h-[calc(100dvh-270px)] items-center justify-center px-5 py-9 sm:px-8 lg:min-h-dvh lg:px-12">
+      <main className="flex min-h-[calc(100dvh-7rem)] items-start justify-center px-5 py-6 sm:px-8 lg:min-h-dvh lg:items-center lg:px-12">
         <div className="w-full max-w-[440px]">
-          <header className="mb-6">
-            <p className="text-sm font-semibold text-accent">Il tuo spazio personale</p>
-            <h2 className="display-type mt-1 text-3xl">{mode === 'login' ? 'Bentornato' : 'Recupera la password'}</h2>
-            <p className="mt-1 text-sm text-muted">{mode === 'login' ? 'Accedi al tuo conto per continuare.' : 'Inserisci la tua email e ti invieremo il link di recupero.'}</p>
+          <header className="mb-5">
+            <h1 className="display-type text-3xl">{mode === 'login' ? 'Accedi' : 'Recupera la password'}</h1>
+            {mode === 'recovery' && <p className="mt-1 text-sm text-muted">Ti invieremo un link all’email del tuo account.</p>}
           </header>
 
         <form onSubmit={handleSubmit} className="app-card rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
@@ -118,7 +108,6 @@ export function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={fieldClass}
-              placeholder="Minimo 6 caratteri"
             />
             <button type="button" className="mt-2 flex min-h-11 items-center gap-2 text-sm text-accent" onClick={() => setShowPassword(!showPassword)} aria-pressed={showPassword}>
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -179,7 +168,7 @@ export function LoginPage() {
         >
           {mode === 'login' ? 'Password dimenticata?' : 'Torna ad Accedi'}
         </button>
-        <p className="mt-4 text-center text-sm leading-relaxed text-muted">AJE è su invito. Per creare il tuo account, apri il link ricevuto dal proprietario.</p>
+        {mode === 'login' && <p className="mt-2 text-center text-sm text-muted">Nuovo account? Usa il link d’invito ricevuto.</p>}
         </div>
       </main>
     </div>

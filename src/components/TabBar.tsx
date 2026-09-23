@@ -38,14 +38,9 @@ export function TabBar() {
         </div>
       </nav>
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[264px] flex-col bg-[var(--nav-bg)] px-4 py-6 text-white lg:flex">
-        <NavLink to="/" className="mb-9 flex items-center gap-3 rounded-2xl px-3">
-          <img src={`${import.meta.env.BASE_URL}aje-leaf-icon.webp`} alt="" className="h-11 w-11 rounded-xl" />
-          <span>
-            <span className="block text-xl font-bold tracking-[.28em]">AJE</span>
-            <span className="block text-[11px] text-white/70">Le tue finanze. Una vita più serena.</span>
-          </span>
+        <NavLink to="/" className="mb-8 block rounded-2xl px-3">
+          <img src={`${import.meta.env.BASE_URL}aje-logo-v2.webp`} alt="AJE" className="h-11 w-auto" />
         </NavLink>
-        <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[.18em] text-white/45">Il tuo spazio</p>
         <nav aria-label="Navigazione desktop" className="flex flex-col gap-1">
           {DESKTOP_LINKS.map(({ to, label, icon: Icon }) => (
           <NavLink
@@ -61,10 +56,6 @@ export function TabBar() {
           </NavLink>
           ))}
         </nav>
-        <div className="mt-auto rounded-2xl border border-white/12 bg-white/5 p-4 text-sm">
-          <p className="font-semibold">Un domani più tuo.</p>
-          <p className="mt-1 text-xs leading-relaxed text-white/65">Movimenti, obiettivi e piccoli passi, tutto in un unico posto.</p>
-        </div>
       </aside>
     </>
   )

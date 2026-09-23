@@ -141,13 +141,13 @@ export function HomePage() {
       <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur-lg">
         <div className="page-content flex items-center gap-3 py-3">
           <img
-            src={`${import.meta.env.BASE_URL}aje-leaf-icon.webp`}
+            src={`${import.meta.env.BASE_URL}aje-icon-v2.webp`}
             alt=""
             className="h-10 w-10 rounded-xl shadow-sm"
           />
           <div>
-            <h1 className="text-[26px] font-bold tracking-[0.28em] leading-none text-[var(--brand)]">
-              AJE
+            <h1>
+              <img src={`${import.meta.env.BASE_URL}aje-wordmark-dark-v2.webp`} alt="AJE" className="h-[26px] w-auto dark:brightness-0 dark:invert" />
             </h1>
             <p className="mt-0.5 text-xs capitalize text-muted">
               {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -212,9 +212,6 @@ export function HomePage() {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-semibold">Chiedi ad AJE</span>
-            <span className="block truncate text-sm text-muted">
-              "Quanto ho speso in ristoranti quest'anno?"
-            </span>
           </span>
           <ArrowRight className="h-5 w-5 shrink-0 text-accent" />
         </Link>

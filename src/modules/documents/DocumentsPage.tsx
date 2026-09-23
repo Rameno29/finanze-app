@@ -182,7 +182,7 @@ export function DocumentsPage() {
 
   return (
     <div className="pb-28">
-      <PageHeader title="Documenti" subtitle="Analisi AI di buste paga, scontrini e altro" />
+      <PageHeader title="Documenti" />
 
       <div className="document-layout page-content flex flex-col gap-4 py-5">
         <input

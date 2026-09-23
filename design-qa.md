@@ -9,7 +9,7 @@
 **Open Questions**
 
 - Le tavole sono board riepilogative con viste desktop/mobile, non file di design con misure o token esportabili. Sono state trattate come riferimento visivo, conservando i flussi già presenti nell’app.
-- Non è stato chiesto di pubblicare o distribuire la PWA: questa verifica riguarda la versione locale.
+- La verifica descritta qui è stata svolta sulla versione locale; la pubblicazione del frontend è stata richiesta successivamente.
 
 **Implementation Checklist**
 

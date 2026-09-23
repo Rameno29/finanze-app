@@ -4,6 +4,25 @@
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
 > Ultimo aggiornamento: **23 settembre 2026**.
 
+## Marchio AJE v2 — interfaccia aggiornata
+
+Il logo originale con il volto sereno e la foglia centrale è stato ridisegnato in forma più pulita;
+la scritta «AJE» è ora un wordmark con dettagli a foglia nelle lettere A ed E. Le versioni chiara
+e scura sono usate in login, navigazione desktop e Home. Le icone v2 per favicon, iOS e PWA sono
+generate da `scripts/aje-brand-mark-v2-source.png` con `node scripts/generate-brand-v2.mjs`.
+I file precedenti restano nel progetto per poter confrontare o ripristinare il vecchio marchio.
+Il rilascio frontend include il nuovo marchio e le icone PWA con nomi versionati; le immagini
+WebP usate dall'interfaccia entrano nella precache per restare visibili anche offline.
+
+La successiva pulizia dell'interfaccia elimina slogan e frasi decorative vicino al logo.
+Nel login mobile resta una fascia compatta con il solo marchio, mentre su desktop resta la foto;
+il modulo ora ha un titolo d'azione chiaro e recupero password e accesso su invito sono più
+facili da individuare. Anche il menu desktop, la scheda Assistente nella Home e i sottotitoli
+ridondanti di alcune pagine sono stati alleggeriti. Restano le istruzioni operative, gli stati
+d'errore e gli avvisi di sicurezza. La modifica non cambia autenticazione o dati.
+Il logo del login desktop è stato abbassato di 16 px per dargli più respiro dal bordo superiore;
+la posizione nella fascia mobile non cambia.
+
 ## Rifocalizzazione pubblicata — ritiro server legacy completato
 
 La proposta approvata è in `docs/superpowers/specs/2026-09-23-rifocalizzazione-aje-design.md`;
@@ -527,7 +546,9 @@ VITE_SUPABASE_ANON_KEY=...
 ### Deploy
 - Basta fare **push su `main`**: GitHub Actions compila e pubblica su GitHub Pages.
 - Le **Edge Functions** si ridistribuiscono dal pannello Supabase o via connettore.
-- Le **icone** dell'app si rigenerano da `scripts/icon-source.png` con `node scripts/generate-icons.mjs`.
+- Le **icone attuali** dell'app si rigenerano da `scripts/aje-brand-mark-v2-source.png`
+  con `node scripts/generate-brand-v2.mjs`; il marchio precedente resta in
+  `scripts/icon-source.png` e si rigenera con `node scripts/generate-icons.mjs`.
 
 ### Ultimo rilascio
 - **20 luglio 2026 — rilevamento bordi molto più robusto:** dopo il feedback ("non legge bene i

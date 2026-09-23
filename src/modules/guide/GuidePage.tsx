@@ -68,7 +68,7 @@ export function GuidePage() {
 
   return (
     <div className="pb-28">
-      <PageHeader title="Guida" subtitle="Come funziona ogni sezione di AJE" />
+      <PageHeader title="Guida" />
 
       <AccordionContext.Provider value={{ openId, toggle }}>
       <div className="page-content guide-layout flex flex-col gap-3 py-5">

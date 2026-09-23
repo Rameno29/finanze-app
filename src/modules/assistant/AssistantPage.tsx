@@ -214,7 +214,7 @@ export function AssistantPage() {
 
   return (
     <div className="flex min-h-dvh flex-col pb-28">
-      <PageHeader title="Assistente" subtitle="Parla o scrivi: domande e comandi" />
+      <PageHeader title="Assistente" />
 
       <div className="page-content assistant-conversation flex w-full max-w-5xl flex-1 flex-col gap-3 py-5">
         {messages.length === 0 && (

@@ -186,7 +186,7 @@ export function FuelPage() {
 
   return (
     <div className="pb-28">
-      <PageHeader title="Carburanti" subtitle="Il distributore più conveniente vicino a te" />
+      <PageHeader title="Carburanti" />
 
       <div className="page-content fuel-layout flex flex-col gap-4 py-5">
         {/* Selettore carburante */}

@@ -149,7 +149,7 @@ export function SettingsPage() {
 
   return (
     <div className="pb-28">
-      <PageHeader title="Impostazioni" subtitle="Sicurezza, preferenze e integrazioni" />
+      <PageHeader title="Impostazioni" />
 
       <div className="page-content settings-layout flex flex-col gap-4 py-5">
         <InvitesPanel />
@@ -160,7 +160,6 @@ export function SettingsPage() {
               <Bot className="h-4 w-4" />
             </span>
             <span className="flex-1 font-medium">Assistente</span>
-            <span className="text-xs text-muted">Domande sulle tue finanze</span>
             <ChevronRight className="h-4 w-4 text-muted" />
           </Link>
           <Link to="/carburanti" className="flex min-h-[52px] items-center gap-3 px-4">
@@ -168,7 +167,6 @@ export function SettingsPage() {
               <Fuel className="h-4 w-4" />
             </span>
             <span className="flex-1 font-medium">Carburanti</span>
-            <span className="text-xs text-muted">Il distributore più economico</span>
             <ChevronRight className="h-4 w-4 text-muted" />
           </Link>
           <Link to="/guida" className="flex min-h-[52px] items-center gap-3 px-4">
@@ -176,7 +174,6 @@ export function SettingsPage() {
               <BookOpen className="h-4 w-4" />
             </span>
             <span className="flex-1 font-medium">Guida all'uso</span>
-            <span className="text-xs text-muted">Come funziona AJE</span>
             <ChevronRight className="h-4 w-4 text-muted" />
           </Link>
         </Card>
