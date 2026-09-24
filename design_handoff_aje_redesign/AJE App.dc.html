@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&amp;display=block" rel="stylesheet">
+<style>body{margin:0;background:#e8e5da} a{color:#0b5145} a:hover{color:#07382f} *::-webkit-scrollbar{width:0;height:0} input:focus{outline:none}</style>
+</helmet>
+<div style="display:flex; flex-wrap:wrap; gap:40px; justify-content:center; align-items:flex-start; padding:40px 24px; font-family:Geist, system-ui, sans-serif; color:#152c29;">
+  <div style="--bg:#f6f4ed; --card:#fffefa; --card2:#f2f0e9; --ink:#152c29; --muted:#5c6b67; --line:#e4e4dc; --accent:#6253e8; --accentSoft:#efedff; --inc:#07865f; --exp:#d94e59; --brand:#0b5145; --brandDeep:#07382f; --brandSoft:#e6f0ea; --nav:#07382f; --warnBg:#f6e7c1; --warnInk:#4d3a00; width:390px; height:844px; flex-shrink:0; border-radius:56px; padding:10px; background:#101413; box-shadow:0 30px 80px rgba(21,44,41,.28);">
+    <div style="{{ themeVars }}">
+    <div style="position:relative; width:100%; height:100%; border-radius:46px; overflow:hidden; background:#000;">
+      <div style="position:absolute; inset:0; background:var(--bg); color:var(--ink); border-radius:{{ appRadius }}; transform:{{ appScale }}; transition:transform .5s cubic-bezier(.32,.72,0,1), border-radius .5s, background .4s, color .4s; overflow:hidden;">
+
+        <div style="position:absolute; top:0; left:0; right:0; height:50px; z-index:20; display:flex; align-items:center; justify-content:space-between; padding:0 30px 0 36px; font-size:15px; font-weight:600; background:linear-gradient(var(--bg) 60%, transparent);">
+          <span>9:41</span>
+          <span style="display:flex; gap:4px; align-items:center;"><span style="font-family:'Material Symbols Rounded'; font-size:18px;">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded'; font-size:18px;">wifi</span><span style="font-family:'Material Symbols Rounded'; font-size:20px;">battery_full</span></span>
+        </div>
+        <div role="status" style="position:absolute; top:50px; left:16px; right:16px; z-index:21; display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:14px; background:var(--warnBg); color:var(--warnInk); font-size:13px; font-weight:500; transform:translateY({{ offY }}); opacity:{{ offO }}; transition:transform .5s cubic-bezier(.2,.8,.2,1), opacity .3s;">
+          <span style="font-family:'Material Symbols Rounded'; font-size:18px;">cloud_off</span><span style="flex:1;">Sei offline · 2 modifiche in attesa di sincronizzazione</span>
+        </div>
+
+        <div data-screen-label="A Home" style="position:absolute; inset:0; overflow-y:auto; scrollbar-width:none; padding:58px 24px 130px; transform:{{ s0.t }}; opacity:{{ s0.o }}; pointer-events:{{ s0.pe }}; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="flex:1; display:flex; flex-direction:column; gap:3px;">
+              <img src="public/aje-wordmark-dark-v2.webp" alt="AJE" style="height:24px; width:auto; align-self:flex-start; filter:{{ markFilter }};">
+              <span style="font-size:13px; color:var(--muted);">Giovedì 24 settembre</span>
+            </div>
+            <button onClick="{{ toggleDark }}" aria-label="Cambia tema" style="width:44px; height:44px; border-radius:22px; border:1px solid var(--line); background:transparent; color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:20px;">{{ themeIcon }}</span></button>
+            <button onClick="{{ goAltro }}" aria-label="Altro e impostazioni" style="width:44px; height:44px; border-radius:22px; border:0; background:var(--brandSoft); color:var(--brand); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:22px;">person</span></button>
+          </div>
+
+          <div style="margin-top:36px; font-size:14px; color:var(--muted);">Patrimonio · 3 conti</div>
+          <div style="margin-top:4px; display:flex; align-items:baseline; font-variant-numeric:tabular-nums; letter-spacing:-.035em;">
+            <span style="font-size:58px; font-weight:600; line-height:1;">{{ balInt }}</span>
+            <span style="font-size:28px; font-weight:500; color:var(--muted);">{{ balDec }}</span>
+          </div>
+          <div style="margin-top:14px; display:flex; gap:18px; font-size:14px; font-variant-numeric:tabular-nums;">
+            <span style="display:flex; align-items:center; gap:6px;"><span style="width:8px; height:8px; border-radius:4px; background:var(--inc);"></span>{{ incStr }} entrate</span>
+            <span style="display:flex; align-items:center; gap:6px;"><span style="width:8px; height:8px; border-radius:4px; background:var(--exp);"></span>{{ expStr }} uscite</span>
+          </div>
+
+          <div style="margin-top:36px; display:flex; justify-content:space-between; align-items:baseline;">
+            <span style="font-size:15px; font-weight:600;">Settembre, giorno per giorno</span>
+            <span style="font-size:13px; color:var(--muted);">{{ dayLabel }}</span>
+          </div>
+          <div style="margin-top:14px; height:104px; display:flex; align-items:flex-end; gap:3px;">
+            <sc-for list="{{ bars }}" as="b" hint-placeholder-count="30">
+              <button onClick="{{ b.pick }}" aria-label="{{ b.aria }}" style="flex:1; height:100%; border:0; padding:0; background:transparent; display:flex; align-items:flex-end; cursor:pointer;">
+                <span style="display:block; width:100%; height:{{ b.h }}; background:{{ b.bg }}; border-radius:3px; transition:height .7s cubic-bezier(.2,.8,.2,1) {{ b.delay }}, background .25s;"></span>
+              </button>
+            </sc-for>
+          </div>
+          <div style="margin-top:8px; display:flex; justify-content:space-between; font-size:11px; color:var(--muted);"><span>1</span><span>10</span><span>20</span><span>30</span></div>
+
+          <div style="margin-top:28px; padding:18px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px;">
+            <div style="flex:1;">
+              <div style="font-size:14px; color:var(--muted);">Puoi spendere ancora oggi</div>
+              <div style="margin-top:2px; font-size:26px; font-weight:600; color:var(--inc); font-variant-numeric:tabular-nums; letter-spacing:-.02em;">{{ perDay }}</div>
+            </div>
+            <div style="text-align:right; font-size:13px; color:var(--muted); line-height:1.5;">{{ remaining }} nei budget<br>per 7 giorni</div>
+          </div>
+
+          <div style="margin-top:28px; display:flex; justify-content:space-between; align-items:baseline;">
+            <span style="font-size:15px; font-weight:600;">Ultimi movimenti</span>
+            <button onClick="{{ goFin }}" style="border:0; background:none; color:var(--accent); font:inherit; font-size:14px; font-weight:600; cursor:pointer; min-height:44px;">Tutti</button>
+          </div>
+          <sc-for list="{{ homeTx }}" as="it" hint-placeholder-count="4">
+            <div style="height:{{ it.h }}; overflow:hidden; transition:height .45s cubic-bezier(.2,.8,.2,1);">
+              <div style="height:64px; display:flex; align-items:center; gap:14px; margin:0 -10px; padding:0 10px; border-radius:14px; background:{{ it.hl }}; transition:background 1.4s ease;">
+                <span style="width:40px; height:40px; border-radius:20px; background:{{ it.soft }}; color:{{ it.color }}; display:flex; align-items:center; justify-content:center; font-family:'Material Symbols Rounded'; font-size:20px;">{{ it.icon }}</span>
+                <span style="flex:1; min-width:0;"><span style="display:block; font-size:15px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ it.desc }}</span><span style="display:block; font-size:13px; color:var(--muted);">{{ it.sub }}</span></span>
+                <span style="font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; color:{{ it.amtColor }};">{{ it.amt }}</span>
+              </div>
+            </div>
+          </sc-for>
+
+          <div style="margin-top:28px; font-size:15px; font-weight:600;">Da fare oggi</div>
+          <sc-for list="{{ tasks }}" as="t" hint-placeholder-count="2">
+            <button onClick="{{ t.toggle }}" style="width:100%; min-height:56px; display:flex; align-items:center; gap:14px; border:0; border-bottom:1px solid var(--line); background:none; padding:0; font:inherit; color:var(--ink); text-align:left; cursor:pointer;">
+              <span style="width:26px; height:26px; border-radius:13px; border:2px solid {{ t.ring }}; background:{{ t.fill }}; color:#fff; display:flex; align-items:center; justify-content:center; transition:all .3s cubic-bezier(.2,.8,.2,1); transform:{{ t.pop }};"><span style="font-family:'Material Symbols Rounded'; font-size:16px; opacity:{{ t.checkO }}; transition:opacity .2s;">check</span></span>
+              <span style="flex:1; font-size:15px; text-decoration:{{ t.strike }}; opacity:{{ t.o }}; transition:opacity .3s;">{{ t.t }}</span>
+              <span style="font-size:13px; color:{{ t.metaColor }}; font-weight:500;">{{ t.m }}</span>
+            </button>
+          </sc-for>
+
+          <div style="margin-top:32px; font-size:15px; font-weight:600;">Chiedi ad AJE</div>
+          <div style="margin:12px -24px 0; padding:0 24px; display:flex; gap:8px; overflow-x:auto; scrollbar-width:none;">
+            <sc-for list="{{ suggest }}" as="q" hint-placeholder-count="3">
+              <button onClick="{{ q.askHome }}" style="flex-shrink:0; min-height:44px; padding:0 14px; border-radius:22px; border:0; background:var(--accentSoft); color:var(--accent); font:inherit; font-size:14px; font-weight:500; cursor:pointer;" style-active="transform:scale(.96)">{{ q.text }}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div data-screen-label="A Finanze" style="position:absolute; inset:0; overflow-y:auto; scrollbar-width:none; padding:58px 0 130px; transform:{{ s1.t }}; opacity:{{ s1.o }}; pointer-events:{{ s1.pe }}; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s;">
+          <div style="padding:0 24px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-size:34px; font-weight:600; letter-spacing:-.03em;">Finanze</div>
+            <div style="font-size:14px; color:var(--muted);">Settembre 2026</div>
+          </div>
+          <div style="position:sticky; top:-58px; z-index:5; background:var(--bg); margin-top:18px; padding:0 24px; border-bottom:1px solid var(--line);">
+            <div style="position:relative; display:grid; grid-template-columns:repeat(4, 1fr);">
+              <sc-for list="{{ subs }}" as="s" hint-placeholder-count="4">
+                <button onClick="{{ s.go }}" style="min-height:48px; border:0; background:none; font:inherit; font-size:14px; font-weight:{{ s.w }}; color:{{ s.c }}; cursor:pointer; transition:color .25s;">{{ s.label }}</button>
+              </sc-for>
+              <span style="position:absolute; bottom:-1px; left:{{ subLeft }}; width:25%; height:2px; background:var(--ink); transition:left .4s cubic-bezier(.2,.8,.2,1);"></span>
+            </div>
+          </div>
+          <div style="overflow:hidden;">
+            <div style="display:flex; width:400%; transform:{{ trackX }}; transition:transform .5s cubic-bezier(.2,.8,.2,1); align-items:flex-start;">
+
+              <div style="width:25%; padding:8px 24px 0; box-sizing:border-box; opacity:{{ p0 }}; transition:opacity .4s;">
+                <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+                  <div style="display:flex; justify-content:space-between; margin-top:18px; font-size:13px; color:var(--muted);"><span style="font-weight:600;">{{ g.label }}</span><span style="font-variant-numeric:tabular-nums;">{{ g.total }}</span></div>
+                  <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="2">
+                    <div style="height:{{ it.h }}; overflow:hidden; transition:height .45s cubic-bezier(.2,.8,.2,1);">
+                      <div style="height:64px; display:flex; align-items:center; gap:14px; margin:0 -10px; padding:0 10px; border-radius:14px; background:{{ it.hl }}; transition:background 1.4s ease;">
+                        <span style="width:40px; height:40px; border-radius:20px; background:{{ it.soft }}; color:{{ it.color }}; display:flex; align-items:center; justify-content:center; font-family:'Material Symbols Rounded'; font-size:20px;">{{ it.icon }}</span>
+                        <span style="flex:1; min-width:0;"><span style="display:block; font-size:15px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ it.desc }}</span><span style="display:block; font-size:13px; color:var(--muted);">{{ it.sub }}</span></span>
+                        <span style="font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; color:{{ it.amtColor }};">{{ it.amt }}</span>
+                      </div>
+                    </div>
+                  </sc-for>
+                </sc-for>
+              </div>
+
+              <div style="width:25%; padding:24px 24px 0; box-sizing:border-box; opacity:{{ p1 }}; transition:opacity .4s;">
+                <div style="font-size:14px; color:var(--muted);">Budget del mese</div>
+                <div style="font-size:30px; font-weight:600; letter-spacing:-.03em; font-variant-numeric:tabular-nums;">{{ budTotal }}</div>
+                <sc-for list="{{ budgets }}" as="b" hint-placeholder-count="4">
+                  <div style="padding:18px 0; border-bottom:1px solid var(--line);">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <span style="font-family:'Material Symbols Rounded'; font-size:20px; color:{{ b.color }};">{{ b.icon }}</span>
+                      <span style="flex:1; font-size:15px; font-weight:500;">{{ b.name }}</span>
+                      <span style="font-size:14px; font-variant-numeric:tabular-nums;">{{ b.label }}</span>
+                    </div>
+                    <div style="margin-top:10px; height:8px; border-radius:4px; background:var(--card2); overflow:hidden;"><div style="height:100%; width:{{ b.w }}; background:{{ b.bar }}; border-radius:4px; transition:width .9s cubic-bezier(.2,.8,.2,1) {{ b.delay }};"></div></div>
+                    <div style="margin-top:6px; font-size:13px; color:{{ b.noteColor }};">{{ b.note }}</div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="width:25%; padding:24px 24px 0; box-sizing:border-box; opacity:{{ p2 }}; transition:opacity .4s;">
+                <sc-for list="{{ goals }}" as="g" hint-placeholder-count="2">
+                  <div style="padding:20px 0; border-bottom:1px solid var(--line);">
+                    <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:17px; font-weight:600;">{{ g.name }}</span><span style="font-size:14px; color:var(--muted);">{{ g.when }}</span></div>
+                    <div style="margin-top:8px; display:flex; align-items:baseline; gap:8px; font-variant-numeric:tabular-nums;"><span style="font-size:32px; font-weight:600; letter-spacing:-.03em;">{{ g.pct }}</span><span style="font-size:14px; color:var(--muted);">{{ g.label }}</span></div>
+                    <div style="margin-top:10px; height:8px; border-radius:4px; background:var(--card2); overflow:hidden;"><div style="height:100%; width:{{ g.w }}; background:var(--brand); border-radius:4px; transition:width 1s cubic-bezier(.2,.8,.2,1) {{ g.delay }};"></div></div>
+                    <button style="margin-top:14px; min-height:44px; padding:0 16px; border-radius:22px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; font-size:14px; font-weight:500; cursor:pointer;">Aggiungi risparmio</button>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="width:25%; padding:24px 24px 0; box-sizing:border-box; opacity:{{ p3 }}; transition:opacity .4s;">
+                <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="3">
+                  <div style="min-height:72px; display:flex; align-items:center; gap:14px; border-bottom:1px solid var(--line);">
+                    <span style="width:44px; height:44px; border-radius:12px; background:var(--brandSoft); color:var(--brand); display:flex; align-items:center; justify-content:center; font-family:'Material Symbols Rounded'; font-size:22px;">{{ a.icon }}</span>
+                    <span style="flex:1;"><span style="display:block; font-size:15px; font-weight:500;">{{ a.name }}</span><span style="display:block; font-size:13px; color:var(--muted);">{{ a.kind }}</span></span>
+                    <span style="font-size:16px; font-weight:600; font-variant-numeric:tabular-nums;">{{ a.bal }}</span>
+                  </div>
+                </sc-for>
+                <button style="margin-top:18px; min-height:48px; width:100%; border-radius:14px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; font-size:15px; font-weight:500; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:20px;">swap_horiz</span>Trasferisci tra conti</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div data-screen-label="A Agenda" style="position:absolute; inset:0; overflow-y:auto; scrollbar-width:none; padding:58px 0 130px; transform:{{ s2.t }}; opacity:{{ s2.o }}; pointer-events:{{ s2.pe }}; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s;">
+          <div style="padding:0 24px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-size:34px; font-weight:600; letter-spacing:-.03em;">Agenda</div>
+            <div style="position:relative; display:grid; grid-template-columns:1fr 1fr; padding:3px; border-radius:12px; background:var(--card2);">
+              <span style="position:absolute; top:3px; bottom:3px; left:{{ agLeft }}; width:calc(50% - 3px); border-radius:9px; background:var(--card); box-shadow:0 1px 3px rgba(0,0,0,.1); transition:left .4s cubic-bezier(.3,1.2,.5,1);"></span>
+              <button onClick="{{ agList }}" style="position:relative; min-height:40px; padding:0 12px; border:0; background:none; font:inherit; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer;">Attività</button>
+              <button onClick="{{ agCal }}" style="position:relative; min-height:40px; padding:0 12px; border:0; background:none; font:inherit; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer;">Calendario</button>
+            </div>
+          </div>
+          <div style="padding:0 24px; margin-top:4px; font-size:14px; color:var(--muted);">{{ agSummary }}</div>
+          <div style="overflow:hidden;">
+            <div style="display:flex; width:200%; transform:{{ agX }}; transition:transform .5s cubic-bezier(.2,.8,.2,1); align-items:flex-start;">
+              <div style="width:50%; padding:0 24px; box-sizing:border-box; opacity:{{ agP0 }}; transition:opacity .4s;">
+                <sc-for list="{{ agGroups }}" as="g" hint-placeholder-count="3">
+                  <div style="margin-top:22px; display:flex; justify-content:space-between; font-size:13px; font-weight:600; color:{{ g.c }};"><span>{{ g.label }}</span><span style="color:var(--muted); font-weight:500;">{{ g.count }}</span></div>
+                  <sc-for list="{{ g.items }}" as="t" hint-placeholder-count="2">
+                    <div style="height:{{ t.h }}; overflow:hidden; transition:height .45s cubic-bezier(.2,.8,.2,1);">
+                      <button onClick="{{ t.toggle }}" style="width:100%; height:60px; display:flex; align-items:center; gap:14px; border:0; border-bottom:1px solid var(--line); background:{{ t.hl }}; padding:0; font:inherit; color:var(--ink); text-align:left; cursor:pointer; transition:background 1.4s;">
+                        <span style="flex-shrink:0; width:26px; height:26px; border-radius:13px; border:2px solid {{ t.ring }}; background:{{ t.fill }}; color:#fff; display:flex; align-items:center; justify-content:center; transition:all .3s cubic-bezier(.2,.8,.2,1); transform:{{ t.pop }};"><span style="font-family:'Material Symbols Rounded'; font-size:16px; opacity:{{ t.checkO }}; transition:opacity .2s;">check</span></span>
+                        <span style="flex:1; min-width:0;"><span style="display:block; font-size:15px; text-decoration:{{ t.strike }}; opacity:{{ t.o }}; transition:opacity .3s;">{{ t.t }}</span><span style="display:block; font-size:13px; color:{{ t.metaColor }};">{{ t.meta }}</span></span>
+                      </button>
+                    </div>
+                  </sc-for>
+                </sc-for>
+              </div>
+              <div style="width:50%; padding:18px 24px 0; box-sizing:border-box; opacity:{{ agP1 }}; transition:opacity .4s;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:17px; font-weight:600;">Settembre 2026</span>
+                  <span style="display:flex;"><button aria-label="Mese precedente" style="width:44px; height:44px; border:0; background:none; color:var(--muted); cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:22px;">chevron_left</span></button><button aria-label="Mese successivo" style="width:44px; height:44px; border:0; background:none; color:var(--muted); cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:22px;">chevron_right</span></button></span>
+                </div>
+                <div style="margin-top:6px; display:grid; grid-template-columns:repeat(7, 1fr); text-align:center; font-size:12px; color:var(--muted); font-weight:500;"><span>L</span><span>M</span><span>M</span><span>G</span><span>V</span><span>S</span><span>D</span></div>
+                <div style="margin-top:6px; display:grid; grid-template-columns:repeat(7, 1fr); row-gap:4px;">
+                  <sc-for list="{{ cal }}" as="d" hint-placeholder-count="31">
+                    <button onClick="{{ d.pick }}" aria-label="{{ d.aria }}" style="height:46px; border:0; background:none; padding:0; font:inherit; color:{{ d.c }}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; visibility:{{ d.vis }};">
+                      <span style="width:36px; height:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:{{ d.w }}; background:{{ d.bg }}; box-shadow:inset 0 0 0 1.5px {{ d.ring }}; transition:background .3s, color .3s;">{{ d.n }}</span>
+                      <span style="width:4px; height:4px; border-radius:2px; background:{{ d.dot }};"></span>
+                    </button>
+                  </sc-for>
+                </div>
+                <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--line); font-size:15px; font-weight:600;">{{ selLabel }}</div>
+                <sc-for list="{{ selTasks }}" as="t" hint-placeholder-count="1">
+                  <button onClick="{{ t.toggle }}" style="width:100%; min-height:56px; display:flex; align-items:center; gap:14px; border:0; border-bottom:1px solid var(--line); background:none; padding:0; font:inherit; color:var(--ink); text-align:left; cursor:pointer;">
+                    <span style="flex-shrink:0; width:26px; height:26px; border-radius:13px; border:2px solid {{ t.ring }}; background:{{ t.fill }}; color:#fff; display:flex; align-items:center; justify-content:center; transition:all .3s;"><span style="font-family:'Material Symbols Rounded'; font-size:16px; opacity:{{ t.checkO }};">check</span></span>
+                    <span style="flex:1; font-size:15px; text-decoration:{{ t.strike }}; opacity:{{ t.o }};">{{ t.t }}</span>
+                    <span style="font-size:13px; color:var(--muted);">{{ t.time }}</span>
+                  </button>
+                </sc-for>
+                <sc-if value="{{ selEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:18px 0; font-size:14px; color:var(--muted); line-height:1.5;">Niente in programma. Tocca <b style="color:var(--accent);">+</b> per aggiungere un'attività a questo giorno.</div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div data-screen-label="A Documenti" style="position:absolute; inset:0; overflow-y:auto; scrollbar-width:none; padding:58px 24px 130px; transform:{{ s3.t }}; opacity:{{ s3.o }}; pointer-events:{{ s3.pe }}; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s;">
+          <div style="font-size:34px; font-weight:600; letter-spacing:-.03em;">Documenti</div>
+          <div style="margin-top:4px; font-size:14px; color:var(--muted);">Buste paga, scontrini e PDF generati</div>
+
+          <div style="margin-top:28px; font-size:15px; font-weight:600;">Crea un PDF</div>
+          <div style="margin-top:12px; display:grid; grid-template-columns:repeat(4, 1fr); gap:6px;">
+            <sc-for list="{{ pdfSteps }}" as="p" hint-placeholder-count="4">
+              <div>
+                <div style="height:4px; border-radius:2px; background:var(--line); overflow:hidden;"><div style="height:100%; width:{{ p.w }}; background:var(--accent); transition:width .5s cubic-bezier(.2,.8,.2,1);"></div></div>
+                <div style="margin-top:6px; font-size:12px; font-weight:{{ p.fw }}; color:{{ p.c }};">{{ p.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="overflow:hidden; margin:0 -24px;">
+            <div style="display:flex; width:400%; transform:{{ pdfX }}; transition:transform .5s cubic-bezier(.2,.8,.2,1); align-items:flex-start;">
+              <div style="width:25%; padding:14px 24px 0; box-sizing:border-box;">
+                <sc-for list="{{ pdfSrcs }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.pick }}" style="width:100%; min-height:64px; display:flex; align-items:center; gap:14px; border:0; border-bottom:1px solid var(--line); background:none; padding:0; font:inherit; color:var(--ink); text-align:left; cursor:pointer;">
+                    <span style="font-family:'Material Symbols Rounded'; font-size:24px; color:var(--brand);">{{ o.icon }}</span>
+                    <span style="flex:1;"><span style="display:block; font-size:15px; font-weight:500;">{{ o.label }}</span><span style="display:block; font-size:13px; color:var(--muted);">{{ o.sub }}</span></span>
+                    <span style="width:22px; height:22px; border-radius:11px; border:2px solid {{ o.ring }}; display:flex; align-items:center; justify-content:center; transition:border-color .25s;"><span style="width:10px; height:10px; border-radius:5px; background:var(--accent); transform:scale({{ o.dot }}); transition:transform .3s cubic-bezier(.3,1.5,.5,1);"></span></span>
+                  </button>
+                </sc-for>
+                <input aria-label="Fonte" placeholder="{{ pdfPh }}" style="margin-top:14px; width:100%; box-sizing:border-box; min-height:48px; padding:0 14px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; font-size:15px;">
+              </div>
+              <div style="width:25%; padding:14px 24px 0; box-sizing:border-box;">
+                <div style="font-size:14px; color:var(--muted);">Che documento vuoi ottenere?</div>
+                <div style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;">
+                  <sc-for list="{{ pdfFmts }}" as="f" hint-placeholder-count="4">
+                    <button onClick="{{ f.pick }}" style="min-height:44px; padding:0 16px; border-radius:22px; border:1.5px solid {{ f.border }}; background:{{ f.bg }}; color:var(--ink); font:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:all .25s;">{{ f.label }}</button>
+                  </sc-for>
+                </div>
+                <div style="margin-top:16px; font-size:13px; color:var(--muted); line-height:1.5;">Fonte: {{ pdfSrcName }}. Il testo generato resta modificabile prima del download.</div>
+              </div>
+              <div style="width:25%; padding:30px 24px 0; box-sizing:border-box; text-align:center;">
+                <div style="font-size:44px; font-weight:600; letter-spacing:-.03em; font-variant-numeric:tabular-nums;">{{ pdfPct }}</div>
+                <div style="margin-top:6px; font-size:14px; color:var(--muted);">{{ pdfMsg }}</div>
+                <div style="margin:16px auto 0; max-width:240px; height:6px; border-radius:3px; background:var(--line); overflow:hidden;"><div style="height:100%; width:{{ pdfBar }}; background:var(--accent); transition:width .12s linear;"></div></div>
+              </div>
+              <div style="width:25%; padding:14px 24px 0; box-sizing:border-box;">
+                <div style="padding:22px 20px; border-radius:6px; background:#fffefa; color:#152c29; box-shadow:0 1px 2px rgba(0,0,0,.08), 0 8px 24px rgba(21,44,41,.1); transform:{{ paperT }}; opacity:{{ paperO }}; transition:transform .6s cubic-bezier(.2,.8,.2,1) .1s, opacity .4s .1s;">
+                  <div style="font-size:11px; color:#5c6b67; letter-spacing:.04em;">{{ pdfFmtName }} · generato da AJE</div>
+                  <div style="margin-top:6px; font-size:18px; font-weight:600; letter-spacing:-.01em;">Come funziona l'inflazione</div>
+                  <p style="margin:10px 0 0; font-size:13px; line-height:1.55;">L'inflazione è l'aumento generale dei prezzi nel tempo: con la stessa cifra si comprano meno cose.</p>
+                  <p style="margin:8px 0 0; font-size:13px; line-height:1.55;">La BCE punta a un'inflazione vicina al 2% e la regola soprattutto con i tassi d'interesse.</p>
+                  <p style="margin:8px 0 0; font-size:13px; line-height:1.55;">Per i risparmi conta il rendimento reale: interesse ottenuto meno inflazione.</p>
+                </div>
+                <div style="margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                  <button style="min-height:48px; border-radius:14px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; font-size:14px; font-weight:500; cursor:pointer;">Modifica testo</button>
+                  <button onClick="{{ pdfSave }}" style="min-height:48px; border-radius:14px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; font-size:14px; font-weight:500; cursor:pointer;">Salva in archivio</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:14px; display:flex; gap:8px;">
+            <sc-if value="{{ pdfCanBack }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ pdfBack }}" style="min-height:52px; padding:0 18px; border-radius:16px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; font-size:15px; font-weight:500; cursor:pointer;">{{ pdfBackLabel }}</button>
+            </sc-if>
+            <button onClick="{{ pdfNext }}" style="flex:1; min-height:52px; border-radius:16px; border:0; background:{{ pdfNextBg }}; color:#fff; font:inherit; font-size:15px; font-weight:600; cursor:pointer; opacity:{{ pdfNextO }}; transition:opacity .3s, background .3s;" style-active="transform:scale(.98)">{{ pdfNextLabel }}</button>
+          </div>
+
+          <div style="margin-top:36px; display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; font-weight:600;">Archivio</span><span style="font-size:13px; color:var(--muted);">{{ docCount }}</span></div>
+          <div style="margin:12px -24px 0; padding:0 24px; display:flex; gap:8px; overflow-x:auto; scrollbar-width:none;">
+            <sc-for list="{{ docFilters }}" as="f" hint-placeholder-count="4">
+              <button onClick="{{ f.pick }}" style="flex-shrink:0; min-height:40px; padding:0 14px; border-radius:20px; border:1px solid {{ f.border }}; background:{{ f.bg }}; color:{{ f.c }}; font:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:all .25s;">{{ f.label }}</button>
+            </sc-for>
+          </div>
+          <sc-for list="{{ docs }}" as="d" hint-placeholder-count="4">
+            <div style="height:{{ d.h }}; overflow:hidden; transition:height .45s cubic-bezier(.2,.8,.2,1);">
+              <div style="height:72px; display:flex; align-items:center; gap:14px; margin:0 -10px; padding:0 10px; border-radius:14px; background:{{ d.hl }}; transition:background 1.4s;">
+                <span style="width:44px; height:44px; border-radius:12px; background:var(--brandSoft); color:var(--brand); display:flex; align-items:center; justify-content:center; font-family:'Material Symbols Rounded'; font-size:22px;">{{ d.icon }}</span>
+                <span style="flex:1; min-width:0;"><span style="display:block; font-size:15px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ d.name }}</span><span style="display:block; font-size:13px; color:{{ d.metaC }};">{{ d.meta }}</span></span>
+                <span style="flex-shrink:0; padding:5px 10px; border-radius:10px; font-size:12px; font-weight:600; background:{{ d.chipBg }}; color:{{ d.chipC }};">{{ d.status }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div data-screen-label="A Altro" style="position:absolute; inset:0; overflow-y:auto; scrollbar-width:none; padding:58px 24px 130px; transform:{{ s4.t }}; opacity:{{ s4.o }}; pointer-events:{{ s4.pe }}; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s;">
+          <div style="font-size:34px; font-weight:600; letter-spacing:-.03em;">Altro</div>
+          <div style="margin-top:22px; display:flex; align-items:center; gap:14px; padding-bottom:20px; border-bottom:1px solid var(--line);">
+            <span style="width:56px; height:56px; border-radius:28px; background:var(--brandSoft); color:var(--brand); display:flex; align-items:center; justify-content:center; font-family:'Material Symbols Rounded'; font-size:28px;">person</span>
+            <span style="flex:1;"><span style="display:block; font-size:17px; font-weight:600;">Il tuo account</span><span style="display:block; font-size:13px; color:var(--muted);">tu@esempio.it · proprietario</span></span>
+          </div>
+          <sc-for list="{{ more }}" as="m" hint-placeholder-count="4">
+            <button onClick="{{ m.go }}" style="width:100%; min-height:72px; display:flex; align-items:center; gap:16px; border:0; border-bottom:1px solid var(--line); background:none; padding:0; font:inherit; color:var(--ink); text-align:left; cursor:pointer;" style-active="opacity:.6">
+              <span style="font-family:'Material Symbols Rounded'; font-size:24px; color:{{ m.ic }};">{{ m.icon }}</span>
+              <span style="flex:1;"><span style="display:block; font-size:16px; font-weight:500;">{{ m.label }}</span><span style="display:block; font-size:13px; color:var(--muted);">{{ m.sub }}</span></span>
+              <span style="font-family:'Material Symbols Rounded'; font-size:22px; color:var(--muted);">chevron_right</span>
+            </button>
+          </sc-for>
+          <button onClick="{{ logout }}" style="margin-top:24px; min-height:48px; padding:0; border:0; background:none; color:var(--exp); font:inherit; font-size:15px; font-weight:600; display:flex; align-items:center; gap:8px; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:20px;">logout</span>Esci</button>
+          <div style="margin-top:10px; font-size:12px; color:var(--muted);">AJE · versione 175ccf6</div>
+        </div>
+
+        <div data-screen-label="A Assistente" style="position:absolute; inset:0; transform:{{ s5.t }}; opacity:{{ s5.o }}; pointer-events:{{ s5.pe }}; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s;">
+          <div ref="{{ chatRef }}" style="position:absolute; inset:0; overflow-y:auto; scrollbar-width:none; padding:58px 24px 110px;">
+            <button onClick="{{ goAltro }}" aria-label="Indietro" style="margin-left:-12px; width:44px; height:44px; border-radius:22px; border:0; background:none; color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:24px;">arrow_back</span></button>
+            <div style="font-size:34px; font-weight:600; letter-spacing:-.03em;">Assistente</div>
+            <div style="margin-top:4px; display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted);"><span style="width:8px; height:8px; border-radius:4px; background:var(--inc);"></span>Gemini · chiave personale attiva</div>
+            <sc-if value="{{ chatEmpty }}" hint-placeholder-val="{{ true }}">
+              <p style="margin:26px 0 0; font-size:17px; line-height:1.5; max-width:300px;">Chiedimi dei tuoi soldi, dei documenti o dell'agenda. Rispondo usando i tuoi dati.</p>
+              <div style="margin-top:18px; display:flex; flex-direction:column; gap:8px; align-items:flex-start;">
+                <sc-for list="{{ suggest }}" as="q" hint-placeholder-count="3">
+                  <button onClick="{{ q.ask }}" style="min-height:44px; padding:0 16px; border-radius:22px; border:0; background:var(--accentSoft); color:var(--accent); font:inherit; font-size:14px; font-weight:500; cursor:pointer; text-align:left;" style-active="transform:scale(.97)">{{ q.text }}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <div style="margin-top:18px;">
+              <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="0">
+                <div style="display:flex; justify-content:{{ m.jc }}; margin-top:12px; opacity:{{ m.o }}; transform:translateY({{ m.y }}); transition:opacity .4s, transform .5s cubic-bezier(.2,.8,.2,1);">
+                  <div style="max-width:84%; padding:12px 16px; border-radius:{{ m.r }}; background:{{ m.bg }}; color:{{ m.c }}; font-size:15px; line-height:1.5; text-wrap:pretty;">{{ m.text }}</div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ typing }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:12px; font-size:14px; color:var(--muted); display:flex; align-items:center; gap:8px;"><span style="font-family:'Material Symbols Rounded'; font-size:18px; color:var(--accent);">auto_awesome</span>AJE sta controllando i tuoi dati…</div>
+              </sc-if>
+            </div>
+          </div>
+          <div style="position:absolute; left:16px; right:16px; bottom:28px; display:flex; align-items:center; gap:6px; height:58px; padding:0 6px 0 18px; border-radius:29px; background:var(--card); border:1px solid var(--line); box-shadow:0 10px 30px rgba(21,44,41,.12);">
+            <input value="{{ chatIn }}" onChange="{{ onChatIn }}" onKeyDown="{{ onChatKey }}" placeholder="Scrivi una domanda" aria-label="Domanda per l'assistente" style="flex:1; min-width:0; height:44px; border:0; background:transparent; color:var(--ink); font:inherit; font-size:15px;">
+            <button onClick="{{ sendChat }}" aria-label="Invia" style="width:46px; height:46px; border-radius:23px; border:0; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; transform:scale({{ sendS }}); transition:transform .3s cubic-bezier(.3,1.5,.5,1);"><span style="font-family:'Material Symbols Rounded'; font-size:24px;">arrow_upward</span></button>
+          </div>
+        </div>
+
+        <div data-screen-label="A Carburanti" style="position:absolute; inset:0; overflow-y:auto; scrollbar-width:none; padding:58px 24px 40px; transform:{{ s6.t }}; opacity:{{ s6.o }}; pointer-events:{{ s6.pe }}; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s;">
+          <button onClick="{{ goAltro }}" aria-label="Indietro" style="margin-left:-12px; width:44px; height:44px; border-radius:22px; border:0; background:none; color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:24px;">arrow_back</span></button>
+          <div style="font-size:34px; font-weight:600; letter-spacing:-.03em;">Carburanti</div>
+          <div style="margin-top:24px; font-size:14px; color:var(--muted);">Costo per km · settembre</div>
+          <div style="display:flex; align-items:baseline; gap:6px; font-variant-numeric:tabular-nums; letter-spacing:-.035em;"><span style="font-size:58px; font-weight:600; line-height:1.05;">0,112 €</span><span style="font-size:20px; color:var(--muted); font-weight:500;">/km</span></div>
+          <div style="margin-top:6px; font-size:14px; color:var(--inc); font-weight:500;">−8% rispetto ad agosto</div>
+          <div style="margin-top:22px; display:grid; grid-template-columns:repeat(3, 1fr); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+            <div style="padding:14px 0;"><div style="font-size:12px; color:var(--muted);">Speso</div><div style="font-size:17px; font-weight:600;">120,00 €</div></div>
+            <div style="padding:14px 0 14px 14px; border-left:1px solid var(--line);"><div style="font-size:12px; color:var(--muted);">Rifornimenti</div><div style="font-size:17px; font-weight:600;">2</div></div>
+            <div style="padding:14px 0 14px 14px; border-left:1px solid var(--line);"><div style="font-size:12px; color:var(--muted);">Km percorsi</div><div style="font-size:17px; font-weight:600;">1.071</div></div>
+          </div>
+          <div style="margin-top:26px; font-size:15px; font-weight:600;">Prezzo pagato al litro</div>
+          <div style="margin-top:14px; display:flex; align-items:flex-end; gap:12px; height:120px;">
+            <sc-for list="{{ fills }}" as="f" hint-placeholder-count="6">
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <span style="font-size:11px; font-weight:600; font-variant-numeric:tabular-nums; color:{{ f.tc }};">{{ f.v }}</span>
+                <span style="width:100%; height:{{ f.h }}; border-radius:6px; background:{{ f.bg }}; transition:height .8s cubic-bezier(.2,.8,.2,1) {{ f.delay }};"></span>
+                <span style="font-size:11px; color:var(--muted);">{{ f.l }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:30px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:15px; font-weight:600;">Distributori vicini</span>
+            <div style="position:relative; display:grid; grid-template-columns:repeat(3, 1fr); padding:3px; border-radius:12px; background:var(--card2);">
+              <span style="position:absolute; top:3px; bottom:3px; left:{{ fuelLeft }}; width:calc(33.33% - 2px); border-radius:9px; background:var(--card); box-shadow:0 1px 3px rgba(0,0,0,.1); transition:left .4s cubic-bezier(.3,1.2,.5,1);"></span>
+              <sc-for list="{{ fuelTypes }}" as="f" hint-placeholder-count="3">
+                <button onClick="{{ f.pick }}" style="position:relative; min-height:38px; padding:0 10px; border:0; background:none; font:inherit; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer;">{{ f.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="margin-top:14px; height:130px; border-radius:16px; border:1px solid var(--line); background:repeating-linear-gradient(135deg, var(--card2) 0 10px, transparent 10px 20px); display:flex; align-items:center; justify-content:center; font-family:ui-monospace, monospace; font-size:12px; color:var(--muted);">mappa distributori</div>
+          <sc-for list="{{ stations }}" as="st" hint-placeholder-count="3">
+            <div style="min-height:64px; display:flex; align-items:center; gap:14px; border-bottom:1px solid var(--line);">
+              <span style="flex:1;"><span style="display:block; font-size:15px; font-weight:500;">{{ st.name }}</span><span style="display:block; font-size:13px; color:var(--muted);">{{ st.sub }}</span></span>
+              <span style="text-align:right;"><span style="display:block; font-size:17px; font-weight:600; font-variant-numeric:tabular-nums;">{{ st.price }}</span><span style="display:block; font-size:12px; font-weight:600; color:var(--inc);">{{ st.tag }}</span></span>
+            </div>
+          </sc-for>
+          <button onClick="{{ addFuel }}" style="margin-top:22px; width:100%; min-height:56px; border-radius:18px; border:0; background:var(--accent); color:#fff; font:inherit; font-size:16px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;" style-active="transform:scale(.98)"><span style="font-family:'Material Symbols Rounded'; font-size:22px;">local_gas_station</span>Registra rifornimento</button>
+        </div>
+
+        <div data-screen-label="A Impostazioni" style="position:absolute; inset:0; overflow-y:auto; scrollbar-width:none; padding:58px 24px 40px; transform:{{ s7.t }}; opacity:{{ s7.o }}; pointer-events:{{ s7.pe }}; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s;">
+          <button onClick="{{ goAltro }}" aria-label="Indietro" style="margin-left:-12px; width:44px; height:44px; border-radius:22px; border:0; background:none; color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:24px;">arrow_back</span></button>
+          <div style="font-size:34px; font-weight:600; letter-spacing:-.03em;">Impostazioni</div>
+          <div style="margin-top:4px; font-size:14px; color:var(--muted);">Tocca una sezione per aprirla</div>
+          <div style="margin-top:18px;">
+            <sc-for list="{{ secs }}" as="x" hint-placeholder-count="6">
+              <div style="border-bottom:1px solid var(--line);">
+                <button onClick="{{ x.toggle }}" aria-expanded="{{ x.exp }}" style="width:100%; min-height:64px; display:flex; align-items:center; gap:14px; border:0; background:none; padding:0; font:inherit; color:var(--ink); text-align:left; cursor:pointer;">
+                  <span style="font-family:'Material Symbols Rounded'; font-size:22px; color:var(--brand);">{{ x.icon }}</span>
+                  <span style="flex:1; font-size:16px; font-weight:500;">{{ x.title }}</span>
+                  <span style="font-size:13px; color:{{ x.sumC }};">{{ x.sum }}</span>
+                  <span style="font-family:'Material Symbols Rounded'; font-size:22px; color:var(--muted); transform:rotate({{ x.rot }}); transition:transform .35s cubic-bezier(.2,.8,.2,1);">expand_more</span>
+                </button>
+                <div style="max-height:{{ x.mh }}; opacity:{{ x.o }}; overflow:hidden; transition:max-height .5s cubic-bezier(.2,.8,.2,1), opacity .3s;">
+                  <div style="padding:0 0 18px 36px;">
+                    <sc-for list="{{ x.rows }}" as="r" hint-placeholder-count="2">
+                      <div style="min-height:52px; display:flex; align-items:center; gap:12px;">
+                        <span style="flex:1; min-width:0;"><span style="display:block; font-size:15px;">{{ r.l }}</span><span style="display:block; font-size:13px; color:var(--muted);">{{ r.s }}</span></span>
+                        <sc-if value="{{ r.isChip }}" hint-placeholder-val="{{ false }}"><span style="padding:5px 10px; border-radius:10px; font-size:12px; font-weight:600; background:{{ r.chipBg }}; color:{{ r.chipC }};">{{ r.chip }}</span></sc-if>
+                        <sc-if value="{{ r.isBtn }}" hint-placeholder-val="{{ false }}"><button onClick="{{ r.act }}" style="min-height:40px; padding:0 14px; border-radius:20px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; font-size:13px; font-weight:600; cursor:pointer;">{{ r.btn }}</button></sc-if>
+                        <sc-if value="{{ r.isTog }}" hint-placeholder-val="{{ false }}"><button onClick="{{ r.act }}" role="switch" aria-checked="{{ r.on }}" aria-label="{{ r.l }}" style="width:52px; height:32px; flex-shrink:0; border-radius:16px; border:0; padding:3px; background:{{ r.track }}; cursor:pointer; transition:background .3s;"><span style="display:block; width:26px; height:26px; border-radius:13px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transform:translateX({{ r.knob }}); transition:transform .35s cubic-bezier(.3,1.4,.5,1);"></span></button></sc-if>
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{ x.invite }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:6px; display:flex; gap:8px;">
+                        <input value="{{ inviteEmail }}" onChange="{{ onInvite }}" placeholder="email della persona" aria-label="Email ospite" style="flex:1; min-width:0; min-height:44px; padding:0 12px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; font-size:15px;">
+                        <button onClick="{{ sendInvite }}" style="min-height:44px; padding:0 14px; border-radius:12px; border:0; background:var(--accent); color:#fff; font:inherit; font-size:14px; font-weight:600; cursor:pointer;">Invita</button>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ x.hasNote }}" hint-placeholder-val="{{ false }}"><div style="margin-top:8px; font-size:13px; color:var(--muted); line-height:1.5;">{{ x.note }}</div></sc-if>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <button onClick="{{ logout }}" style="margin-top:22px; min-height:48px; padding:0; border:0; background:none; color:var(--exp); font:inherit; font-size:15px; font-weight:600; display:flex; align-items:center; gap:8px; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:20px;">logout</span>Esci dall'account</button>
+        </div>
+
+        <div data-screen-label="A Guida" style="position:absolute; inset:0; overflow-y:auto; scrollbar-width:none; padding:58px 24px 40px; transform:{{ s8.t }}; opacity:{{ s8.o }}; pointer-events:{{ s8.pe }}; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s;">
+          <button onClick="{{ goAltro }}" aria-label="Indietro" style="margin-left:-12px; width:44px; height:44px; border-radius:22px; border:0; background:none; color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:24px;">arrow_back</span></button>
+          <div style="font-size:34px; font-weight:600; letter-spacing:-.03em;">Guida</div>
+          <div style="margin-top:18px; display:flex; align-items:center; gap:10px; min-height:48px; padding:0 14px; border-radius:14px; border:1px solid var(--line); background:var(--card);">
+            <span style="font-family:'Material Symbols Rounded'; font-size:20px; color:var(--muted);">search</span>
+            <input value="{{ gq }}" onChange="{{ onGq }}" placeholder="Cerca: spesa, PDF, ospite…" aria-label="Cerca nella guida" style="flex:1; min-width:0; height:44px; border:0; background:transparent; color:var(--ink); font:inherit; font-size:15px;">
+          </div>
+          <div style="margin:12px -24px 0; padding:0 24px; display:flex; gap:8px; overflow-x:auto; scrollbar-width:none;">
+            <sc-for list="{{ gcats }}" as="c" hint-placeholder-count="5">
+              <button onClick="{{ c.pick }}" style="flex-shrink:0; min-height:40px; padding:0 14px; border-radius:20px; border:1px solid {{ c.border }}; background:{{ c.bg }}; color:{{ c.c }}; font:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:all .25s;">{{ c.label }}</button>
+            </sc-for>
+          </div>
+          <div style="margin-top:10px;">
+            <sc-for list="{{ topics }}" as="t" hint-placeholder-count="6">
+              <div style="border-bottom:1px solid var(--line);">
+                <button onClick="{{ t.toggle }}" aria-expanded="{{ t.exp }}" style="width:100%; min-height:60px; display:flex; align-items:center; gap:12px; border:0; background:none; padding:0; font:inherit; color:var(--ink); text-align:left; cursor:pointer;">
+                  <span style="flex:1;"><span style="display:block; font-size:15px; font-weight:500;">{{ t.q }}</span><span style="display:block; font-size:12px; color:var(--muted);">{{ t.cat }}</span></span>
+                  <span style="font-family:'Material Symbols Rounded'; font-size:22px; color:var(--muted); transform:rotate({{ t.rot }}); transition:transform .35s;">add</span>
+                </button>
+                <div style="max-height:{{ t.mh }}; overflow:hidden; transition:max-height .45s cubic-bezier(.2,.8,.2,1);"><p style="margin:0; padding:0 0 16px; font-size:14px; line-height:1.55; color:var(--muted);">{{ t.a }}</p></div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ noTopics }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:28px 0; font-size:14px; color:var(--muted); line-height:1.5;">Nessun risultato per “{{ gq }}”. Prova con “spesa”, “PDF” o “offline”.</div>
+            </sc-if>
+          </div>
+        </div>
+
+        <div style="position:absolute; left:20px; right:20px; bottom:104px; z-index:25; display:flex; align-items:center; gap:12px; padding:14px 18px; border-radius:18px; background:var(--ink); color:var(--bg); font-size:14px; transform:translateY({{ toastY }}); opacity:{{ toastO }}; transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .3s;">
+          <span style="font-family:'Material Symbols Rounded'; font-size:20px; color:#6fe0b0;">check_circle</span>
+          <span style="flex:1;">{{ toastText }}</span>
+          <sc-if value="{{ toastUndo }}" hint-placeholder-val="{{ false }}"><button onClick="{{ undo }}" style="border:0; background:none; color:inherit; font:inherit; font-weight:600; text-decoration:underline; cursor:pointer; min-height:36px;">Annulla</button></sc-if>
+        </div>
+
+        <nav aria-label="Navigazione principale" style="position:absolute; left:18px; right:18px; bottom:26px; z-index:30; height:66px; border-radius:33px; background:var(--nav); box-shadow:0 12px 30px rgba(7,56,47,.3); display:grid; grid-template-columns:repeat(5, 1fr); align-items:center; transform:translateY({{ navY }}); transition:transform .45s cubic-bezier(.2,.8,.2,1);">
+          <span style="position:absolute; top:7px; bottom:7px; left:{{ navLeft }}; width:calc(20% - 8px); margin-left:4px; border-radius:26px; background:rgba(255,255,255,.12); opacity:{{ navPillO }}; transition:left .45s cubic-bezier(.3,1.3,.5,1), opacity .2s;"></span>
+          <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+            <sc-if value="{{ n.plus }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ n.go }}" aria-label="{{ plusLabel }}" style="justify-self:center; width:54px; height:54px; border-radius:27px; border:0; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 6px 16px rgba(98,83,232,.45); transform:{{ plusRot }}; transition:transform .45s cubic-bezier(.3,1.4,.5,1);" style-active="transform:scale(.9)"><span style="font-family:'Material Symbols Rounded'; font-size:30px;">add</span></button>
+            </sc-if>
+            <sc-if value="{{ n.tab }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ n.go }}" style="position:relative; height:66px; border:0; background:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; color:{{ n.c }}; font:inherit; font-size:10.5px; font-weight:600; cursor:pointer; transition:color .3s;">
+                <span style="font-family:'Material Symbols Rounded'; font-size:23px; font-variation-settings:'FILL' {{ n.fill }}; transition:font-variation-settings .3s;">{{ n.icon }}</span>{{ n.label }}
+              </button>
+            </sc-if>
+          </sc-for>
+        </nav>
+        <div style="position:absolute; bottom:8px; left:50%; width:134px; height:5px; margin-left:-67px; border-radius:3px; background:var(--ink); opacity:.85; z-index:31;"></div>
+      </div>
+
+      <div onClick="{{ closeSheet }}" style="position:absolute; inset:0; background:rgba(0,0,0,.4); opacity:{{ backO }}; pointer-events:{{ backPE }}; transition:opacity .4s;"></div>
+
+      <div role="dialog" aria-label="Nuovo movimento" style="position:absolute; left:0; right:0; bottom:0; height:92%; z-index:40; background:var(--card); color:var(--ink); border-radius:34px 34px 46px 46px; transform:translateY({{ sheetY }}); transition:transform .5s cubic-bezier(.32,.72,0,1), background .4s; overflow-y:auto; display:flex; flex-direction:column; font-family:Geist, system-ui, sans-serif;">
+        <div style="width:40px; height:5px; border-radius:3px; background:var(--line); margin:10px auto 0;"></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 16px 0 24px;">
+          <span style="font-size:18px; font-weight:600;">Nuovo movimento</span>
+          <button onClick="{{ closeSheet }}" aria-label="Chiudi" style="width:44px; height:44px; border-radius:22px; border:0; background:var(--card2); color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:22px;">close</span></button>
+        </div>
+        <div style="margin:14px 24px 0; position:relative; display:grid; grid-template-columns:1fr 1fr; padding:4px; border-radius:14px; background:var(--card2);">
+          <span style="position:absolute; top:4px; bottom:4px; left:{{ kindLeft }}; width:calc(50% - 4px); border-radius:10px; background:{{ kindBg }}; transition:left .4s cubic-bezier(.3,1.2,.5,1), background .3s;"></span>
+          <button onClick="{{ setExp }}" style="position:relative; min-height:44px; border:0; background:none; font:inherit; font-size:15px; font-weight:600; color:{{ expTabC }}; cursor:pointer; transition:color .3s;">Uscita</button>
+          <button onClick="{{ setInc }}" style="position:relative; min-height:44px; border:0; background:none; font:inherit; font-size:15px; font-weight:600; color:{{ incTabC }}; cursor:pointer; transition:color .3s;">Entrata</button>
+        </div>
+        <div style="text-align:center; margin-top:18px; font-size:52px; font-weight:600; letter-spacing:-.035em; font-variant-numeric:tabular-nums; color:{{ amtColor }}; transform:translateX({{ shake }}); transition:color .3s, transform .08s;">{{ amtStr }}</div>
+        <div style="flex-shrink:0; margin:14px 0 0; padding:0 24px; display:flex; gap:8px; overflow-x:auto; scrollbar-width:none;">
+          <sc-for list="{{ cats }}" as="c" hint-placeholder-count="6">
+            <button onClick="{{ c.pick }}" style="flex-shrink:0; min-height:40px; padding:0 14px 0 10px; border-radius:20px; border:1.5px solid {{ c.border }}; background:{{ c.bg }}; color:var(--ink); font:inherit; font-size:14px; font-weight:500; display:flex; align-items:center; gap:6px; cursor:pointer; transition:all .25s;"><span style="font-family:'Material Symbols Rounded'; font-size:18px; color:{{ c.color }};">{{ c.icon }}</span>{{ c.name }}</button>
+          </sc-for>
+        </div>
+        <div style="flex-shrink:0; margin:12px 24px 0; display:grid; grid-template-columns:1fr auto; gap:8px;">
+          <input value="{{ desc }}" onChange="{{ onDesc }}" placeholder="Descrizione (facoltativa)" aria-label="Descrizione" style="min-height:44px; padding:0 14px; border-radius:12px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font:inherit; font-size:15px;">
+          <button onClick="{{ cycleAcc }}" style="min-height:44px; padding:0 12px; border-radius:12px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font:inherit; font-size:13px; font-weight:500; display:flex; align-items:center; gap:4px; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:18px;">account_balance_wallet</span>{{ acc }}</button>
+        </div>
+        <div style="flex-shrink:0; margin:10px 24px 0; display:flex; gap:16px; font-size:13px; color:var(--muted);"><span>Oggi, 24 set</span><span>EUR</span><span>Nessuna ricorrenza</span></div>
+        <div style="flex:1 0 auto; display:grid; grid-template-columns:repeat(3, 1fr); grid-auto-rows:minmax(44px, 1fr); gap:6px; padding:12px 18px 0;">
+          <sc-for list="{{ keys }}" as="k" hint-placeholder-count="12">
+            <button onClick="{{ k.press }}" aria-label="{{ k.aria }}" style="border:0; border-radius:14px; background:transparent; color:var(--ink); font:inherit; font-size:26px; font-weight:500; cursor:pointer; min-height:48px; transition:background .15s, transform .1s;" style-active="background:var(--card2); transform:scale(.94)">{{ k.label }}</button>
+          </sc-for>
+        </div>
+        <div style="padding:10px 18px 30px;">
+          <button onClick="{{ save }}" style="width:100%; min-height:56px; border-radius:18px; border:0; background:var(--accent); color:#fff; font:inherit; font-size:16px; font-weight:600; cursor:pointer; transition:transform .1s;" style-active="transform:scale(.98)">{{ saveLabel }}</button>
+        </div>
+      </div>
+
+      <div role="dialog" aria-label="Nuova attività" style="position:absolute; left:0; right:0; bottom:0; z-index:40; background:var(--card); color:var(--ink); border-radius:34px 34px 46px 46px; transition:transform .5s cubic-bezier(.32,.72,0,1); display:flex; flex-direction:column; font-family:Geist, system-ui, sans-serif; transform:translateY({{ taskY }});">
+        <div style="width:40px; height:5px; border-radius:3px; background:var(--line); margin:10px auto 0;"></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 16px 0 24px;">
+          <span style="font-size:18px; font-weight:600;">Nuova attività</span>
+          <button onClick="{{ closeSheet }}" aria-label="Chiudi" style="width:44px; height:44px; border-radius:22px; border:0; background:var(--card2); color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:22px;">close</span></button>
+        </div>
+        <div style="padding:18px 24px 30px;">
+          <input value="{{ tTitle }}" onChange="{{ onTTitle }}" placeholder="Cosa devi fare?" aria-label="Titolo attività" style="width:100%; box-sizing:border-box; min-height:56px; padding:0 16px; border-radius:14px; border:1.5px solid {{ tBorder }}; background:var(--bg); color:var(--ink); font:inherit; font-size:18px; font-weight:500; transform:translateX({{ shake }}); transition:border-color .3s, transform .08s;">
+          <div style="margin-top:20px; font-size:14px; color:var(--muted);">Quando</div>
+          <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px;">
+            <sc-for list="{{ tWhens }}" as="c" hint-placeholder-count="4">
+              <button onClick="{{ c.pick }}" style="min-height:44px; padding:0 16px; border-radius:22px; border:1.5px solid {{ c.border }}; background:{{ c.bg }}; color:var(--ink); font:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:all .25s;">{{ c.label }}</button>
+            </sc-for>
+          </div>
+          <div style="margin-top:18px; font-size:14px; color:var(--muted);">Orario</div>
+          <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px;">
+            <sc-for list="{{ tTimes }}" as="c" hint-placeholder-count="4">
+              <button onClick="{{ c.pick }}" style="min-height:44px; padding:0 16px; border-radius:22px; border:1.5px solid {{ c.border }}; background:{{ c.bg }}; color:var(--ink); font:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:all .25s;">{{ c.label }}</button>
+            </sc-for>
+          </div>
+          <div style="margin-top:16px; display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted);"><span style="font-family:'Material Symbols Rounded'; font-size:18px;">notifications</span>Ti avviso con una notifica il giorno stesso</div>
+          <button onClick="{{ saveTask }}" style="margin-top:22px; width:100%; min-height:56px; border-radius:18px; border:0; background:var(--accent); color:#fff; font:inherit; font-size:16px; font-weight:600; cursor:pointer;" style-active="transform:scale(.98)">Aggiungi all'agenda</button>
+        </div>
+      </div>
+
+      <div role="dialog" aria-label="Carica documento" style="position:absolute; left:0; right:0; bottom:0; z-index:40; background:var(--card); color:var(--ink); border-radius:34px 34px 46px 46px; transition:transform .5s cubic-bezier(.32,.72,0,1); display:flex; flex-direction:column; font-family:Geist, system-ui, sans-serif; transform:translateY({{ upY }});">
+        <div style="width:40px; height:5px; border-radius:3px; background:var(--line); margin:10px auto 0;"></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 16px 0 24px;">
+          <span style="font-size:18px; font-weight:600;">Carica documento</span>
+          <button onClick="{{ closeSheet }}" aria-label="Chiudi" style="width:44px; height:44px; border-radius:22px; border:0; background:var(--card2); color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:22px;">close</span></button>
+        </div>
+        <div style="padding:14px 24px 30px;">
+          <sc-if value="{{ upChoose }}" hint-placeholder-val="{{ true }}">
+            <sc-for list="{{ upTypes }}" as="u" hint-placeholder-count="3">
+              <button onClick="{{ u.pick }}" style="width:100%; min-height:68px; margin-top:8px; display:flex; align-items:center; gap:14px; padding:0 16px; border-radius:16px; border:1.5px solid {{ u.border }}; background:{{ u.bg }}; font:inherit; color:var(--ink); text-align:left; cursor:pointer; transition:all .25s;">
+                <span style="font-family:'Material Symbols Rounded'; font-size:24px; color:var(--brand);">{{ u.icon }}</span>
+                <span style="flex:1;"><span style="display:block; font-size:15px; font-weight:600;">{{ u.label }}</span><span style="display:block; font-size:13px; color:var(--muted);">{{ u.sub }}</span></span>
+              </button>
+            </sc-for>
+            <div style="margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <button onClick="{{ upload }}" style="min-height:56px; border-radius:16px; border:0; background:var(--accent); color:#fff; font:inherit; font-size:15px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:22px;">photo_camera</span>Scatta foto</button>
+              <button onClick="{{ upload }}" style="min-height:56px; border-radius:16px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; font-size:15px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:22px;">folder_open</span>Scegli file</button>
+            </div>
+            <div style="margin-top:12px; font-size:13px; color:var(--muted); line-height:1.5;">La lettura automatica usa la tua chiave Gemini. Senza chiave il file viene solo archiviato.</div>
+          </sc-if>
+          <sc-if value="{{ upBusy }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:40px 0 10px; text-align:center;">
+              <div style="font-size:44px; font-weight:600; letter-spacing:-.03em; font-variant-numeric:tabular-nums;">{{ upPct }}</div>
+              <div style="margin-top:6px; font-size:14px; color:var(--muted);">{{ upMsg }}</div>
+              <div style="margin:18px auto 0; max-width:260px; height:6px; border-radius:3px; background:var(--line); overflow:hidden;"><div style="height:100%; width:{{ upBar }}; background:var(--accent); transition:width .12s linear;"></div></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ upDoneV }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:22px 0 0;">
+              <span style="width:52px; height:52px; border-radius:26px; background:var(--brandSoft); color:var(--inc); display:flex; align-items:center; justify-content:center; font-family:'Material Symbols Rounded'; font-size:30px;">check</span>
+              <div style="margin-top:14px; font-size:20px; font-weight:600;">{{ upResTitle }}</div>
+              <div style="margin-top:4px; font-size:15px; color:var(--muted); line-height:1.5;">{{ upResSub }}</div>
+              <button onClick="{{ upFinish }}" style="margin-top:22px; width:100%; min-height:56px; border-radius:18px; border:0; background:var(--accent); color:#fff; font:inherit; font-size:16px; font-weight:600; cursor:pointer;">{{ upResBtn }}</button>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div data-screen-label="A Login" style="position:absolute; inset:0; z-index:60; background:var(--bg); color:var(--ink); display:flex; flex-direction:column; padding:0 28px 34px; transform:translateY({{ loginY }}); opacity:{{ loginO }}; pointer-events:{{ loginPE }}; transition:transform .75s cubic-bezier(.7,0,.2,1), opacity .5s; font-family:Geist, system-ui, sans-serif;">
+        <div style="height:50px; display:flex; align-items:center; justify-content:space-between; padding:0 2px 0 8px; font-size:15px; font-weight:600;"><span>9:41</span><span style="font-family:'Material Symbols Rounded'; font-size:20px;">battery_full</span></div>
+        <img src="public/aje-wordmark-dark-v2.webp" alt="AJE" style="margin-top:60px; height:34px; width:auto; align-self:flex-start; filter:{{ markFilter }};">
+        <sc-if value="{{ lvLogin }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:34px; font-size:38px; font-weight:600; letter-spacing:-.035em; line-height:1.1;">Bentornato.</div>
+          <div style="margin-top:6px; font-size:15px; color:var(--muted);">Accedi per vedere conti, agenda e documenti.</div>
+          <label style="display:block; margin-top:30px; font-size:14px; font-weight:500; color:var(--muted);">Email
+            <input value="{{ email }}" onChange="{{ onEmail }}" type="email" autocomplete="email" style="margin-top:6px; width:100%; box-sizing:border-box; min-height:52px; padding:0 16px; border-radius:14px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; font-size:16px;">
+          </label>
+          <label style="display:block; margin-top:14px; font-size:14px; font-weight:500; color:var(--muted);">Password
+            <span style="margin-top:6px; display:flex; align-items:center; min-height:52px; padding:0 6px 0 16px; border-radius:14px; border:1px solid var(--line); background:var(--card);">
+              <input value="{{ pw }}" onChange="{{ onPw }}" type="{{ pwType }}" autocomplete="current-password" placeholder="La tua password" style="flex:1; min-width:0; height:48px; border:0; background:transparent; color:var(--ink); font:inherit; font-size:16px;">
+              <button onClick="{{ togglePw }}" type="button" style="min-height:40px; padding:0 10px; border:0; background:none; color:var(--accent); font:inherit; font-size:14px; font-weight:600; cursor:pointer;">{{ pwBtn }}</button>
+            </span>
+          </label>
+          <button onClick="{{ toRecover }}" style="align-self:flex-end; margin-top:6px; min-height:44px; border:0; background:none; padding:0; color:var(--accent); font:inherit; font-size:14px; font-weight:600; cursor:pointer;">Password dimenticata?</button>
+          <div style="flex:1;"></div>
+          <button onClick="{{ doLogin }}" style="width:100%; min-height:56px; border-radius:18px; border:0; background:var(--accent); color:#fff; font:inherit; font-size:16px; font-weight:600; cursor:pointer;" style-active="transform:scale(.98)">{{ loginLabel }}</button>
+          <button onClick="{{ doLogin }}" style="margin-top:10px; width:100%; min-height:56px; border-radius:18px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; font-size:16px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;"><span style="font-family:'Material Symbols Rounded'; font-size:22px;">passkey</span>Accedi con passkey</button>
+          <div style="margin-top:16px; font-size:13px; color:var(--muted); text-align:center; line-height:1.5;">Hai ricevuto un invito? Apri il link nell'email per completare l'accesso.</div>
+        </sc-if>
+        <sc-if value="{{ lvRecover }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:34px; font-size:34px; font-weight:600; letter-spacing:-.035em; line-height:1.1;">Recupera la password</div>
+          <div style="margin-top:8px; font-size:15px; color:var(--muted); line-height:1.5;">Ti mandiamo un link per sceglierne una nuova. Vale per un'ora.</div>
+          <label style="display:block; margin-top:28px; font-size:14px; font-weight:500; color:var(--muted);">Email
+            <input value="{{ email }}" onChange="{{ onEmail }}" type="email" style="margin-top:6px; width:100%; box-sizing:border-box; min-height:52px; padding:0 16px; border-radius:14px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; font-size:16px;">
+          </label>
+          <div style="margin-top:16px; display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:14px; background:var(--brandSoft); color:var(--brand); font-size:14px; font-weight:500; opacity:{{ sentO }}; transform:translateY({{ sentY }}); transition:opacity .4s, transform .5s cubic-bezier(.2,.8,.2,1);"><span style="font-family:'Material Symbols Rounded'; font-size:20px;">mark_email_read</span>Link inviato. Controlla anche lo spam.</div>
+          <div style="flex:1;"></div>
+          <button onClick="{{ sendReset }}" style="width:100%; min-height:56px; border-radius:18px; border:0; background:var(--accent); color:#fff; font:inherit; font-size:16px; font-weight:600; cursor:pointer;">{{ resetLabel }}</button>
+          <button onClick="{{ toLogin }}" style="margin-top:10px; width:100%; min-height:52px; border:0; background:none; color:var(--ink); font:inherit; font-size:15px; font-weight:600; cursor:pointer;">Torna all'accesso</button>
+        </sc-if>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div style="max-width:320px; padding-top:24px; line-height:1.55; font-size:15px;">
+    <div style="display:inline-block; padding:4px 10px; border-radius:8px; background:#152c29; color:#f6f4ed; font-size:13px; font-weight:600;">Flusso · app completa</div>
+    <h2 style="margin:12px 0 6px; font-size:28px; font-weight:600; letter-spacing:-.02em;">AJE, tutte le schermate</h2>
+    <p style="margin:0; color:#4e5d59;">Si parte dall'accesso. Il “+” cambia azione in base alla scheda: movimento in Home e Finanze, attività in Agenda, caricamento in Documenti.</p>
+    <p style="margin:14px 0 0; color:#4e5d59;">L'avatar in alto apre Altro: Assistente, Carburanti, Impostazioni, Guida. Nelle schermate secondarie la barra scende per lasciare spazio.</p>
+    <p style="margin:14px 0 0; color:#4e5d59;">Da provare: crea un PDF in Documenti, chiedi qualcosa all'Assistente, attiva “Simula offline” nelle Impostazioni.</p>
+    <p style="margin:14px 0 0; font-size:13px; color:#6b7874;">Tutti i dati sono demo. Stati vuoti ed errori sono nella tavola <a href="AJE Stati.dc.html">AJE Stati</a>.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:820,&quot;height&quot;:930},&quot;dark&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;startAtLogin&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  C = {Spesa:['#d98a0b','shopping_cart'],Ristoranti:['#e0662a','restaurant'],Trasporti:['#3b82f6','directions_car'],Bollette:['#c79a06','bolt'],Svago:['#a855f7','sports_esports'],'Affitto/Mutuo':['#6366f1','home'],Salute:['#ef4444','favorite'],Altro:['#71717a','sell'],Stipendio:['#10b981','payments'],'Altre entrate':['#14b8a6','savings']};
+  ACC = ['Conto corrente','Carta','Contanti'];
+  WD = ['lun','mar','mer','gio','ven','sab','dom'];
+  chatRef = React.createRef();
+  ANS = {
+    'Quanto ho speso in ristoranti?':'A settembre hai speso 132,50 € in Ristoranti: l’88% del budget di 150 €. Ti restano 17,50 € per 7 giorni, circa 2,50 € al giorno.',
+    'Report di agosto':'Agosto: entrate 2.100 €, uscite 1.610 €, avanzo 490 €. Le voci principali sono Affitto (650 €), Spesa (342 €) e Viaggi (210 €). Hai rispettato tutti i budget tranne Ristoranti, superato di 12 €.',
+    'Posso permettermi il Giappone?':'Hai 1.850 € su 4.000 €. Per arrivare a dicembre 2027 ti servono circa 144 € al mese. Negli ultimi tre mesi ti sono avanzati in media 390 € al mese: l’obiettivo è sostenibile.'
+  };
+  GUIDE = [
+    ['Finanze','Registrare una spesa','Tocca + in Home o Finanze, digita l’importo, scegli la categoria e salva. Hai qualche secondo per annullare dal messaggio in basso.'],
+    ['Finanze','Cos’è “Puoi spendere ancora oggi”','È quanto resta nei tuoi budget del mese diviso per i giorni rimanenti. Senza budget impostati non compare.'],
+    ['Documenti','Caricare una busta paga','In Documenti tocca +, scegli Busta paga e scatta una foto. AJE legge netto, lordo e ferie e ti propone di aggiungere lo stipendio alle entrate.'],
+    ['Documenti','Creare un PDF da un video YouTube','In Documenti scegli la fonte “Video YouTube pubblico”, incolla il link, scegli il formato e genera. Puoi modificare il testo prima di scaricarlo.'],
+    ['Account','Invitare un ospite','Impostazioni → Ospite. Puoi invitare una persona: avrà un suo account con dati e integrazioni separati dai tuoi.'],
+    ['Account','Aggiungere la chiave Gemini','Impostazioni → Chiavi e integrazioni. La chiave viene cifrata sul server e nell’app vedi solo le ultime cifre.'],
+    ['Agenda','Promemoria delle attività','Le attività con una data ti arrivano come notifica quel giorno. Puoi disattivarle in Impostazioni → Notifiche.'],
+    ['Account','Usare AJE offline','Puoi aggiungere movimenti e attività anche senza rete: restano cifrati sul telefono e si sincronizzano al ritorno. Non cancellare i dati del sito se ci sono operazioni in attesa.']
+  ];
+  state = {
+    login:null, loginView:'login', loggingIn:false, sent:false, email:'tu@esempio.it', pw:'', showPw:false,
+    tab:0, sub:0, sheet:false, taskSheet:false, upSheet:false, kind:'expense', cents:0, cat:'Spesa', acc:'Carta', desc:'',
+    bal:841260, balShown:841260, inc:218000, exp:124635,
+    bspent:{Spesa:28640,Ristoranti:13250,Trasporti:18800,Svago:6199},
+    toast:false, toastText:'', toastUndo:false, mounted:false, selDay:23, dark:null, shakeX:0, open:{},
+    tasks:[
+      {id:1,t:'Pagare il bollo auto',day:23,time:''},
+      {id:2,t:'Chiamare il commercialista',day:24,time:'15:30'},
+      {id:3,t:'Ritirare le analisi',day:25,time:'10:00'},
+      {id:4,t:'Cena da Giulia',day:26,time:'20:30'},
+      {id:5,t:'Rinnovare l’assicurazione auto',day:28,time:''},
+      {id:6,t:'Scadenza F24',day:30,time:''},
+      {id:7,t:'Portare la bici a riparare',day:null,time:''}
+    ],
+    agView:0, selDate:24, tTitle:'', tWhen:0, tTime:0, tErr:false,
+    upType:0, upState:0, upProg:0,
+    pdfStep:0, pdfSrc:1, pdfFmt:0, pdfProg:0, docFilter:0,
+    docs:[
+      {id:1,name:'Busta paga agosto 2026',type:0,meta:'Netto 1.980,00 € · 12 giorni di ferie',status:'Analizzato'},
+      {id:2,name:'Scontrino Esselunga',type:1,meta:'24 set · 46,80 € · collegato alla spesa',status:'Analizzato'},
+      {id:3,name:'Contratto affitto.pdf',type:2,meta:'5 set · 2,1 MB',status:'Caricato'},
+      {id:4,name:'Bolletta luce agosto',type:2,meta:'Foto sfocata: non riesco a leggerla',status:'Errore'}
+    ],
+    msgs:[], typing:false, chatIn:'',
+    fuel:0, openSec:null, offline:false, nTask:true, nBud:true, inviteEmail:'', invited:'',
+    gq:'', gcat:0, gopen:null,
+    txs:[
+      {id:1,d:'Oggi',desc:'Esselunga',cat:'Spesa',c:-4680,acc:'Carta'},
+      {id:2,d:'Oggi',desc:'Bar Centrale',cat:'Ristoranti',c:-320,acc:'Contanti'},
+      {id:3,d:'Ieri',desc:'Q8 Via Roma',cat:'Trasporti',c:-6000,acc:'Carta'},
+      {id:4,d:'22 settembre',desc:'Netflix',cat:'Svago',c:-1399,acc:'Carta'},
+      {id:5,d:'20 settembre',desc:'Bolletta luce',cat:'Bollette',c:-8430,acc:'Conto corrente'},
+      {id:6,d:'18 settembre',desc:'Farmacia Comunale',cat:'Salute',c:-1860,acc:'Carta'},
+      {id:7,d:'10 settembre',desc:'Stipendio settembre',cat:'Stipendio',c:198000,acc:'Conto corrente'},
+      {id:8,d:'5 settembre',desc:'Affitto',cat:'Affitto/Mutuo',c:-65000,acc:'Conto corrente'}
+    ]
+  };
+  DAYS = [4,0,22,9,650,15,0,31,12,0,6,38,0,18,72,9,0,19,24,84,11,5,14,50];
+  componentDidMount(){ this.t = setTimeout(()=>this.setState({mounted:true}),250); }
+  componentWillUnmount(){ clearTimeout(this.t); cancelAnimationFrame(this.raf); clearInterval(this.iv); clearInterval(this.iv2); }
+  componentDidUpdate(pp,ps){ if((ps.msgs.length!==this.state.msgs.length||ps.typing!==this.state.typing)&&this.chatRef.current){ const el=this.chatRef.current; setTimeout(()=>el.scrollTo({top:el.scrollHeight,behavior:'smooth'}),60); } }
+  grp(n){ let s=String(n), o=''; while(s.length>3){ o='.'+s.slice(-3)+o; s=s.slice(0,-3); } return s+o; }
+  fmt(c,sign){ const a=Math.abs(Math.round(c)); const s=this.grp(Math.floor(a/100))+','+String(a%100).padStart(2,'0')+' €'; return sign? (c<0?'− ':'+ ')+s : s; }
+  dl(d){ if(d===null) return 'Senza data'; if(d===24) return 'Oggi'; if(d===25) return 'Domani'; if(d===23) return 'Ieri'; return this.WD[d%7]+' '+d+' set'; }
+  shake(){ [8,-8,6,-6,0].forEach((x,i)=>setTimeout(()=>this.setState({shakeX:x}),i*60)); }
+  toast(text,undo){ this.setState({toast:true,toastText:text,toastUndo:!!undo}); clearTimeout(this.tt); this.tt=setTimeout(()=>this.setState({toast:false}),4200); }
+  animBal(from,to){ cancelAnimationFrame(this.raf); const t0=performance.now(); const step=(t)=>{const p=Math.min(1,(t-t0)/900); const e=1-Math.pow(1-p,3); this.setState({balShown:Math.round(from+(to-from)*e)}); if(p<1) this.raf=requestAnimationFrame(step);}; this.raf=requestAnimationFrame(step); }
+  key(k){ if(k==='del') return this.setState(s=>({cents:Math.floor(s.cents/10)})); this.setState(s=>{const n=k==='00'?s.cents*100:s.cents*10+Number(k); return {cents:n>99999999?s.cents:n};}); }
+  openMove(p){ this.setState({sheet:true,taskSheet:false,upSheet:false,cents:0,desc:'',kind:'expense',cat:'Spesa',...(p||{})}); }
+  plus(){ const s=this.state; if(s.sheet||s.taskSheet||s.upSheet) return this.setState({sheet:false,taskSheet:false,upSheet:false});
+    if(s.tab===2) return this.setState({taskSheet:true,tTitle:'',tWhen:s.selDate===25?1:s.selDate===26?2:0,tTime:0,tErr:false});
+    if(s.tab===3) return this.setState({upSheet:true,upState:0,upProg:0});
+    this.openMove(); }
+  save(){
+    const s=this.state;
+    if(!s.cents) return this.shake();
+    const c = s.kind==='expense'?-s.cents:s.cents;
+    const tx={id:Date.now(),d:'Oggi',desc:s.desc||s.cat,cat:s.cat,c,acc:s.acc,fresh:true};
+    const bs={...s.bspent}; if(c<0&&bs[s.cat]!=null) bs[s.cat]+= -c;
+    this.prev={bal:s.bal,inc:s.inc,exp:s.exp,bspent:s.bspent,id:tx.id};
+    this.setState({txs:[tx,...s.txs],sheet:false,bal:s.bal+c,inc:c>0?s.inc+c:s.inc,exp:c<0?s.exp-c:s.exp,bspent:bs});
+    this.toast((c<0?'Uscita':'Entrata')+' di '+this.fmt(c)+' salvata',true);
+    setTimeout(()=>this.setState(st=>({open:{...st.open,[tx.id]:true}})),380);
+    setTimeout(()=>this.animBal(s.bal,s.bal+c),450);
+    setTimeout(()=>this.setState(st=>({txs:st.txs.map(t=>t.id===tx.id?{...t,fresh:false}:t)})),2600);
+  }
+  undo(){ const p=this.prev; if(!p) return; this.setState(s=>({txs:s.txs.filter(t=>t.id!==p.id),bal:p.bal,inc:p.inc,exp:p.exp,bspent:p.bspent,toast:false})); this.animBal(this.state.bal,p.bal); this.prev=null; }
+  saveTask(){ const s=this.state; if(!s.tTitle.trim()){ this.setState({tErr:true}); return this.shake(); }
+    const day=[24,25,26,null][s.tWhen]; const id=Date.now();
+    this.setState({tasks:[...s.tasks,{id,t:s.tTitle.trim(),day,time:['','09:00','15:30','20:00'][s.tTime],fresh:true}],taskSheet:false,selDate:day??s.selDate});
+    this.toast('Attività aggiunta: '+this.dl(day).toLowerCase());
+    setTimeout(()=>this.setState(st=>({open:{...st.open,['t'+id]:true}})),380);
+    setTimeout(()=>this.setState(st=>({tasks:st.tasks.map(t=>t.id===id?{...t,fresh:false}:t)})),2600);
+  }
+  toggleTask(id){ this.setState(st=>({tasks:st.tasks.map(x=>x.id===id?{...x,done:!x.done}:x)})); }
+  progress(key,dur,done){ const iv=key==='up'?'iv':'iv2'; clearInterval(this[iv]); let p=0; this[iv]=setInterval(()=>{ p=Math.min(100,p+100/(dur/50)); this.setState({[key==='up'?'upProg':'pdfProg']:p}); if(p>=100){ clearInterval(this[iv]); setTimeout(done,250);} },50); }
+  upload(){ this.setState({upState:1,upProg:0}); this.progress('up',1800,()=>this.setState({upState:2})); }
+  upFinish(){ const s=this.state; const id=Date.now();
+    const d=[{name:'Busta paga settembre 2026',type:0,meta:'Netto 1.980,00 € · 13 giorni di ferie',status:'Analizzato'},{name:'Scontrino Pizzeria Da Mario',type:1,meta:'Oggi · 18,50 € · Ristoranti',status:'Analizzato'},{name:'Documento caricato',type:2,meta:'Oggi · riassunto pronto',status:'Analizzato'}][s.upType];
+    this.setState({upSheet:false,docs:[{id,...d,fresh:true},...s.docs],docFilter:0});
+    if(s.upType!==1) this.toast(s.upType===0?'Busta paga archiviata':'Documento salvato in archivio');
+    setTimeout(()=>this.setState(st=>({open:{...st.open,['d'+id]:true}})),380);
+    setTimeout(()=>this.setState(st=>({docs:st.docs.map(x=>x.id===id?{...x,fresh:false}:x)})),2600);
+    if(s.upType===1) setTimeout(()=>this.setState({sheet:true,kind:'expense',cents:1850,desc:'Pizzeria Da Mario',cat:'Ristoranti',acc:'Carta'}),650);
+  }
+  pdfNext(){ const s=this.state; if(s.pdfStep===0) return this.setState({pdfStep:1});
+    if(s.pdfStep===1){ this.setState({pdfStep:2,pdfProg:0}); return this.progress('pdf',2200,()=>this.setState({pdfStep:3})); }
+    if(s.pdfStep===3) this.toast('PDF scaricato: come-funziona-inflazione.pdf'); }
+  ask(q){ if(!q||!q.trim()) return; const id=Date.now();
+    this.setState(s=>({tab:5,msgs:[...s.msgs,{id,me:true,text:q,shown:false}],typing:true,chatIn:''}));
+    setTimeout(()=>this.setState(s=>({msgs:s.msgs.map(m=>m.id===id?{...m,shown:true}:m)})),40);
+    setTimeout(()=>{ const aid=id+1; const a=this.ANS[q]||'Ho guardato i tuoi movimenti di settembre: uscite per 1.246,35 € su 2.180,00 € di entrate. Se vuoi, posso entrare nel dettaglio di una categoria.';
+      this.setState(s=>({typing:false,msgs:[...s.msgs,{id:aid,me:false,text:a,shown:false}]})); setTimeout(()=>this.setState(s=>({msgs:s.msgs.map(m=>m.id===aid?{...m,shown:true}:m)})),40); },1300);
+  }
+  doLogin(){ this.setState({loggingIn:true}); setTimeout(()=>this.setState({login:false,loggingIn:false,mounted:false,tab:0}),700); setTimeout(()=>this.setState({mounted:true}),1150); }
+  taskRow(t){ const late=t.day!==null&&t.day<24&&!t.done;
+    return {t:t.t,meta:t.done?'Fatto':(late?'In ritardo · '+this.dl(t.day).toLowerCase():this.dl(t.day)+(t.time?' · '+t.time:'')),time:t.time||'—',m:t.done?'fatto':(late?'in ritardo':t.time),
+      ring:t.done?'var(--inc)':'var(--line)',fill:t.done?'var(--inc)':'transparent',checkO:t.done?1:0,pop:t.done?'scale(1.08)':'scale(1)',strike:t.done?'line-through':'none',o:t.done?.5:1,
+      metaColor:late?'var(--exp)':'var(--muted)',h:(t.fresh!==undefined&&!this.state.open['t'+t.id])?'0px':'60px',hl:t.fresh?'var(--accentSoft)':'transparent',toggle:()=>this.toggleTask(t.id)}; }
+  row(t){ const [color,icon]=this.C[t.cat]||this.C.Altro; const isNew=t.fresh!==undefined; return {desc:t.desc,sub:t.cat+' · '+t.acc,icon,color,soft:color+'1f',amt:this.fmt(t.c,true),amtColor:t.c>0?'var(--inc)':'var(--ink)',h:(isNew&&!this.state.open[t.id])?'0px':'64px',hl:t.fresh?'var(--accentSoft)':'transparent'}; }
+  chips(items,sel,set){ return items.map((l,i)=>({label:l,pick:()=>set(i),border:i===sel?'var(--ink)':'var(--line)',bg:i===sel?'var(--card2)':'transparent'})); }
+  filt(items,sel,set){ return items.map((l,i)=>({label:l,pick:()=>set(i),border:i===sel?'var(--ink)':'var(--line)',bg:i===sel?'var(--ink)':'transparent',c:i===sel?'var(--bg)':'var(--ink)'})); }
+  renderVals(){
+    const s=this.state; const dark = s.dark ?? (this.props.dark ?? false);
+    const showLogin = s.login ?? (this.props.startAtLogin ?? true);
+    const scr=(i)=>({t:i===s.tab?'none':'translateX('+(i<s.tab?-28:28)+'%)',o:i===s.tab?1:0,pe:i===s.tab?'auto':'none'});
+    const anySheet=s.sheet||s.taskSheet||s.upSheet;
+    const bi=this.grp(Math.floor(Math.abs(s.balShown)/100)); const bd=','+String(Math.abs(s.balShown)%100).padStart(2,'0')+' €';
+    const maxV=Math.sqrt(650);
+    const todayExtra=s.txs.filter(t=>t.fresh!==undefined&&t.c<0).reduce((a,t)=>a-t.c,0)/100;
+    const days=this.DAYS.map((v,i)=>i===23?v+todayExtra:v);
+    const bars=Array.from({length:30},(_,i)=>{const v=days[i]; const past=i<24; const h=past?Math.max(4,Math.sqrt(v)/maxV*100):4; const sel=i===s.selDay;
+      return {h:s.mounted?h+'px':'0px',bg:!past?'var(--line)':sel?'var(--accent)':'var(--brand)',delay:(i*18)+'ms',aria:'Giorno '+(i+1),pick:()=>past&&this.setState({selDay:i})};});
+    const bud=[['Spesa',40000],['Ristoranti',15000],['Trasporti',25000],['Svago',12000]];
+    const budTot=bud.reduce((a,b)=>a+b[1],0); const budSp=bud.reduce((a,b)=>a+s.bspent[b[0]],0);
+    const groups=[]; s.txs.forEach(t=>{let g=groups.find(x=>x.label===t.d); if(!g){g={label:t.d,items:[],sum:0};groups.push(g);} g.items.push(this.row(t)); g.sum+=t.c;});
+    groups.forEach(g=>g.total=this.fmt(g.sum,true));
+    const accB={'Conto corrente':692040,'Carta':118420,'Contanti':30800};
+    const navDef=[['home','Home',0],['account_balance_wallet','Finanze',1],null,['calendar_month','Agenda',2],['description','Documenti',3]];
+    const T=s.tasks;
+    const agG=[['In ritardo',T.filter(t=>t.day!==null&&t.day<24),'var(--exp)'],['Oggi',T.filter(t=>t.day===24),'var(--ink)'],['Prossimi giorni',T.filter(t=>t.day>24).sort((a,b)=>a.day-b.day),'var(--ink)'],['Senza data',T.filter(t=>t.day===null),'var(--ink)']].filter(g=>g[1].length);
+    const openCount=T.filter(t=>!t.done).length; const lateCount=T.filter(t=>!t.done&&t.day!==null&&t.day<24).length;
+    const cal=[{n:'',vis:'hidden',pick:()=>{},aria:'',c:'',w:400,bg:'transparent',ring:'transparent',dot:'transparent'}].concat(Array.from({length:30},(_,i)=>{const d=i+1; const has=T.some(t=>t.day===d&&!t.done); const sel=d===s.selDate; const today=d===24;
+      return {n:String(d),vis:'visible',aria:d+' settembre',pick:()=>this.setState({selDate:d}),c:sel?'var(--bg)':(d<24?'var(--muted)':'var(--ink)'),w:sel||today?600:400,bg:sel?'var(--ink)':'transparent',ring:today&&!sel?'var(--accent)':'transparent',dot:has?(sel?'var(--accent)':'var(--brand)'):'transparent'};}));
+    const selT=T.filter(t=>t.day===s.selDate).map(t=>this.taskRow(t));
+    const typeIc=['request_quote','receipt_long','description'];
+    const docsV=s.docs.filter(d=>s.docFilter===0||d.type===s.docFilter-1).map(d=>({name:d.name,meta:d.meta,icon:typeIc[d.type],status:d.status==='Errore'?'Non leggibile':d.status,metaC:d.status==='Errore'?'var(--exp)':'var(--muted)',
+      chipBg:d.status==='Errore'?'rgba(217,78,89,.14)':d.status==='Analizzato'?'var(--brandSoft)':'var(--card2)',chipC:d.status==='Errore'?'var(--exp)':d.status==='Analizzato'?'var(--brand)':'var(--muted)',
+      h:(d.fresh!==undefined&&!s.open['d'+d.id])?'0px':'72px',hl:d.fresh?'var(--accentSoft)':'transparent'}));
+    const srcs=[['edit_note','Testo scritto','Incolla appunti o un articolo','Incolla qui il testo…'],['smart_display','Video YouTube pubblico','Uso i sottotitoli del video','https://youtube.com/watch?v=…'],['folder_open','Documento archiviato','Scegli un file dal tuo archivio','Contratto affitto.pdf']];
+    const fmts=['Riassunto','Appunti di studio','Report','Spiegazione semplice'];
+    const fuelP=[[1.769,1.789,1.812],[1.689,1.705,1.729],[0.699,0.715,0.729]][s.fuel];
+    const fillsV=[['12/7',1.82],['28/7',1.79],['9/8',1.85],['24/8',1.81],['6/9',1.77],['21/9',1.76]];
+    const tog=(on,act)=>({isTog:true,on:String(on),track:on?'var(--brand)':'var(--line)',knob:on?'20px':'0px',act});
+    const btn=(b,act)=>({isBtn:true,btn:b,act:act||(()=>{})});
+    const chipR=(c,good)=>({isChip:true,chip:c,chipBg:good?'var(--brandSoft)':'rgba(217,78,89,.14)',chipC:good?'var(--brand)':'var(--exp)'});
+    const secDef=[
+      ['account','person','Account','tu@esempio.it',false,[{l:'Email',s:'tu@esempio.it',...btn('Cambia')},{l:'Password',s:'Modificata 2 mesi fa',...btn('Cambia')},{l:'Passkey',s:'1 registrata · iPhone',...btn('Aggiungi')}],null,false],
+      ['guest','group_add','Ospite',s.invited?'Invito inviato':'Nessuno',false,s.invited?[{l:s.invited,s:'Invito in attesa di conferma',...btn('Revoca',()=>this.setState({invited:''}))}]:[],'Puoi invitare una persona. Avrà un suo account: dati e integrazioni restano separati dai tuoi.',!s.invited],
+      ['keys','key','Chiavi e integrazioni','1 di 4 attive',false,[{l:'Gemini',s:'••••7Q2c',...chipR('Attiva',true)},{l:'YouTube',s:'Serve per i PDF da video',...btn('Aggiungi')},{l:'Google',s:'Client ID non impostato',...btn('Guida')},{l:'Spotify',s:'Client ID non impostato',...btn('Guida')}],'Le chiavi sono cifrate sul server (AES-256-GCM). Qui vedi solo le ultime cifre.',false],
+      ['look','palette','Aspetto',dark?'Scuro':'Chiaro',false,[{l:'Tema scuro',s:'Anche dal pulsante in Home',...tog(dark,()=>this.setState({dark:!dark}))}],null,false],
+      ['notif','notifications','Notifiche',(s.nTask||s.nBud)?'Attive':'Spente',false,[{l:'Promemoria attività',s:'Il giorno della scadenza',...tog(s.nTask,()=>this.setState({nTask:!s.nTask}))},{l:'Avvisi budget',s:'Quando superi l’85%',...tog(s.nBud,()=>this.setState({nBud:!s.nBud}))}],null,false],
+      ['off','cloud_sync','Offline',s.offline?'2 in attesa':'Sincronizzato',s.offline,[{l:'Simula modalità offline',s:'Per provare il banner',...tog(s.offline,()=>this.setState({offline:!s.offline}))}],'Le modifiche fatte offline restano cifrate sul telefono fino al ritorno della rete. Non cancellare i dati del sito con operazioni in attesa.',false]
+    ];
+    const gcats=['Tutte','Finanze','Documenti','Agenda','Account'];
+    const q=s.gq.trim().toLowerCase();
+    const topics=this.GUIDE.map((g,i)=>({g,i})).filter(({g})=>(s.gcat===0||g[0]===gcats[s.gcat])&&(!q||(g[1]+' '+g[2]).toLowerCase().indexOf(q)>=0))
+      .map(({g,i})=>({cat:g[0],q:g[1],a:g[2],exp:String(s.gopen===i),mh:s.gopen===i?'200px':'0px',rot:s.gopen===i?'45deg':'0deg',toggle:()=>this.setState({gopen:s.gopen===i?null:i})}));
+    const upT=[['request_quote','Busta paga','Leggo netto, lordo e ferie'],['receipt_long','Scontrino','Preparo la spesa da confermare'],['description','Altro documento','Riassunto e spiegazione semplice']];
+    const plusLabel=s.tab===2?'Nuova attività':s.tab===3?'Carica documento':'Nuovo movimento';
+    return {
+      themeVars: dark?{height:'100%','--bg':'#081b19','--card':'#102825','--card2':'#17332f','--ink':'#f2f1e8','--muted':'#b3c1bb','--line':'#28514a','--accent':'#8f84ff','--accentSoft':'#302e5b','--inc':'#4dd49b','--exp':'#ff7a83','--brand':'#a5e2cb','--brandDeep':'#061715','--brandSoft':'#153a32','--nav':'#153b34','--warnBg':'#3a2f12','--warnInk':'#f6e7c1'}:{height:'100%'},
+      markFilter: dark?'brightness(0) invert(1)':'none',
+      themeIcon: dark?'light_mode':'dark_mode', toggleDark:()=>this.setState({dark:!dark}),
+      s0:scr(0),s1:scr(1),s2:scr(2),s3:scr(3),s4:scr(4),s5:scr(5),s6:scr(6),s7:scr(7),s8:scr(8),
+      goAltro:()=>this.setState({tab:4}),
+      appScale:anySheet?'scale(.93) translateY(10px)':'none', appRadius:anySheet?'36px':'46px',
+      offY:s.offline?'0px':'-120px', offO:s.offline?1:0,
+      balInt:(s.balShown<0?'−':'')+bi, balDec:bd, incStr:'+ '+this.fmt(s.inc), expStr:'− '+this.fmt(s.exp),
+      bars, dayLabel: s.selDay===23?'Oggi · '+this.fmt(days[23]*100):(s.selDay+1)+' set · '+this.fmt(days[s.selDay]*100),
+      perDay:this.fmt(Math.round((budTot-budSp)/7))+' al giorno', remaining:this.fmt(budTot-budSp),
+      homeTx:s.txs.slice(0,4).map(t=>this.row(t)), goFin:()=>this.setState({tab:1,sub:0}),
+      tasks:T.filter(t=>t.day!==null&&t.day<=24).map(t=>this.taskRow(t)),
+      suggest:Object.keys(this.ANS).map(k=>({text:k,ask:()=>this.ask(k),askHome:()=>this.ask(k)})),
+      subs:['Movimenti','Budget','Obiettivi','Conti'].map((l,i)=>({label:l,go:()=>this.setState({sub:i}),c:i===s.sub?'var(--ink)':'var(--muted)',w:i===s.sub?600:500})),
+      subLeft:(s.sub*25)+'%', trackX:'translateX(-'+(s.sub*25)+'%)', p0:s.sub===0?1:0,p1:s.sub===1?1:0,p2:s.sub===2?1:0,p3:s.sub===3?1:0,
+      groups, budTotal:this.fmt(budSp)+' di '+this.fmt(budTot),
+      budgets:bud.map(([n,max],i)=>{const sp=s.bspent[n]; const pct=Math.min(100,sp/max*100); const over=sp>max; const near=pct>=85; const [color,icon]=this.C[n];
+        return {name:n,icon,color,label:this.fmt(sp)+' / '+this.fmt(max),w:(s.tab===1&&s.sub===1)?pct+'%':'0%',delay:(i*90)+'ms',bar:over?'var(--exp)':near?'#d98a0b':'var(--brand)',note:over?'Superato di '+this.fmt(sp-max):'Restano '+this.fmt(max-sp),noteColor:over?'var(--exp)':'var(--muted)'};}),
+      goals:[['Viaggio in Giappone',185000,400000,'dic 2027'],['Fondo emergenza',320000,500000,'senza scadenza']].map(([n,sv,tg,w],i)=>({name:n,when:w,pct:Math.round(sv/tg*100)+'%',label:this.fmt(sv)+' di '+this.fmt(tg),w:(s.tab===1&&s.sub===2)?(sv/tg*100)+'%':'0%',delay:(i*120)+'ms'})),
+      accounts:[['Conto corrente','Banca','account_balance'],['Carta','Carta prepagata','credit_card'],['Contanti','Portafoglio','payments']].map(([n,k,ic])=>({name:n,kind:k,icon:ic,bal:this.fmt(accB[n]+s.txs.filter(t=>t.fresh!==undefined&&t.acc===n).reduce((a,t)=>a+t.c,0))})),
+      nav:navDef.map(d=>d?{tab:true,plus:false,icon:d[0],label:d[1],go:()=>this.setState({tab:d[2]}),c:s.tab===d[2]?'#fff':'rgba(255,255,255,.72)',fill:s.tab===d[2]?1:0}:{tab:false,plus:true,go:()=>this.plus()}),
+      navLeft:({0:0,1:20,2:60,3:80}[s.tab]??80)+'%', navPillO:s.tab<=3?1:0, plusRot:anySheet?'rotate(45deg)':'none', plusLabel,
+      navY:s.tab>=5?'140px':'0px',
+      toastY:s.toast?'0':'40px', toastO:s.toast?1:0, toastText:s.toastText, toastUndo:s.toastUndo, undo:()=>this.undo(),
+      backO:anySheet?1:0, backPE:anySheet?'auto':'none', sheetY:s.sheet?'0%':'105%', taskY:s.taskSheet?'0%':'105%', upY:s.upSheet?'0%':'105%',
+      closeSheet:()=>this.setState({sheet:false,taskSheet:false,upSheet:false}),
+      kindLeft:s.kind==='expense'?'4px':'50%', kindBg:s.kind==='expense'?'var(--exp)':'var(--inc)',
+      expTabC:s.kind==='expense'?'#fff':'var(--muted)', incTabC:s.kind==='income'?'#fff':'var(--muted)',
+      setExp:()=>this.setState({kind:'expense',cat:'Spesa'}), setInc:()=>this.setState({kind:'income',cat:'Stipendio'}),
+      amtStr:this.fmt(s.cents), amtColor:s.cents?(s.kind==='expense'?'var(--ink)':'var(--inc)'):'var(--muted)', shake:s.shakeX+'px',
+      cats:Object.keys(this.C).filter(n=>(s.kind==='income')===(n==='Stipendio'||n==='Altre entrate')).map(n=>({name:n,icon:this.C[n][1],color:this.C[n][0],pick:()=>this.setState({cat:n}),border:s.cat===n?'var(--ink)':'var(--line)',bg:s.cat===n?'var(--card2)':'transparent'})),
+      desc:s.desc, onDesc:(e)=>this.setState({desc:e.target.value}), acc:s.acc, cycleAcc:()=>this.setState(st=>({acc:this.ACC[(this.ACC.indexOf(st.acc)+1)%3]})),
+      keys:['1','2','3','4','5','6','7','8','9','00','0','del'].map(k=>({label:k==='del'?'⌫':k,aria:k==='del'?'Cancella':k,press:()=>this.key(k)})),
+      save:()=>this.save(), saveLabel:s.cents?('Salva '+(s.kind==='expense'?'uscita':'entrata')+' · '+this.fmt(s.cents)):'Inserisci un importo',
+      agLeft:s.agView===0?'3px':'50%', agList:()=>this.setState({agView:0}), agCal:()=>this.setState({agView:1}), agX:'translateX(-'+(s.agView*50)+'%)', agP0:s.agView===0?1:0, agP1:s.agView===1?1:0,
+      agSummary:openCount+' da fare'+(lateCount?' · '+lateCount+' in ritardo':''),
+      agGroups:agG.map(([l,items,c])=>({label:l,c,count:String(items.filter(t=>!t.done).length),items:items.map(t=>this.taskRow(t))})),
+      cal, selLabel:this.dl(s.selDate)+([23,24,25].includes(s.selDate)?' · '+this.WD[s.selDate%7]+' '+s.selDate+' settembre':''), selTasks:selT, selEmpty:selT.length===0,
+      tTitle:s.tTitle, onTTitle:(e)=>this.setState({tTitle:e.target.value,tErr:false}), tBorder:s.tErr?'var(--exp)':'var(--line)',
+      tWhens:this.chips(['Oggi','Domani','Sab 26','Senza data'],s.tWhen,i=>this.setState({tWhen:i})),
+      tTimes:this.chips(['Nessun orario','09:00','15:30','20:00'],s.tTime,i=>this.setState({tTime:i})),
+      saveTask:()=>this.saveTask(),
+      pdfSteps:['Fonte','Formato','Genera','Anteprima'].map((l,i)=>({label:l,w:i<=s.pdfStep?'100%':'0%',c:i===s.pdfStep?'var(--ink)':'var(--muted)',fw:i===s.pdfStep?600:500})),
+      pdfX:'translateX(-'+(s.pdfStep*25)+'%)',
+      pdfSrcs:srcs.map((o,i)=>({icon:o[0],label:o[1],sub:o[2],pick:()=>this.setState({pdfSrc:i}),ring:i===s.pdfSrc?'var(--accent)':'var(--line)',dot:i===s.pdfSrc?1:0})),
+      pdfPh:srcs[s.pdfSrc][3], pdfSrcName:srcs[s.pdfSrc][1].toLowerCase(),
+      pdfFmts:this.chips(fmts,s.pdfFmt,i=>this.setState({pdfFmt:i})), pdfFmtName:fmts[s.pdfFmt],
+      pdfPct:Math.round(s.pdfProg)+'%', pdfBar:s.pdfProg+'%', pdfMsg:s.pdfProg<35?'Leggo la fonte…':s.pdfProg<75?'Scrivo: '+fmts[s.pdfFmt].toLowerCase()+'…':'Impagino il PDF…',
+      paperT:s.pdfStep===3?'none':'translateY(20px) scale(.96)', paperO:s.pdfStep===3?1:0,
+      pdfCanBack:s.pdfStep===1||s.pdfStep===3, pdfBackLabel:s.pdfStep===3?'Ricomincia':'Indietro', pdfBack:()=>this.setState({pdfStep:s.pdfStep===3?0:s.pdfStep-1}),
+      pdfNext:()=>this.pdfNext(), pdfNextLabel:['Avanti · scegli il formato','Genera il PDF','Sto generando…','Scarica PDF'][s.pdfStep], pdfNextO:s.pdfStep===2?.5:1, pdfNextBg:'var(--accent)',
+      pdfSave:()=>{ const id=Date.now(); this.setState(st=>({docs:[{id,name:'Come funziona l’inflazione.pdf',type:2,meta:'Oggi · '+fmts[st.pdfFmt]+' generato da AJE',status:'Analizzato',fresh:true},...st.docs],docFilter:0})); this.toast('PDF salvato in archivio'); setTimeout(()=>this.setState(st=>({open:{...st.open,['d'+id]:true}})),300); setTimeout(()=>this.setState(st=>({docs:st.docs.map(x=>x.id===id?{...x,fresh:false}:x)})),2600); },
+      docFilters:this.filt(['Tutti','Buste paga','Scontrini','Altro'],s.docFilter,i=>this.setState({docFilter:i})), docs:docsV, docCount:docsV.length+' documenti',
+      upChoose:s.upState===0, upBusy:s.upState===1, upDoneV:s.upState===2,
+      upTypes:upT.map((u,i)=>({icon:u[0],label:u[1],sub:u[2],pick:()=>this.setState({upType:i}),border:i===s.upType?'var(--ink)':'var(--line)',bg:i===s.upType?'var(--card2)':'transparent'})),
+      upload:()=>this.upload(), upPct:Math.round(s.upProg)+'%', upBar:s.upProg+'%', upMsg:s.upProg<50?'Carico il file cifrato…':'Leggo il documento…',
+      upResTitle:['Busta paga di settembre letta','Scontrino letto','Documento pronto'][s.upType],
+      upResSub:['Netto 1.980,00 € · lordo 2.640,00 € · 13 giorni di ferie residue.','Pizzeria Da Mario · 18,50 € · oggi. Controlla la spesa prima di salvarla.','Ho preparato un riassunto e una spiegazione semplice.'][s.upType],
+      upResBtn:['Archivia','Archivia e crea la spesa','Archivia'][s.upType],
+      upFinish:()=>this.upFinish(),
+      more:[['smart_toy','Assistente AI','Gemini · chiave personale attiva',5,'var(--accent)'],['local_gas_station','Carburanti','0,112 €/km a settembre',6,'var(--brand)'],['settings','Impostazioni','Ospite, chiavi, tema, offline',7,'var(--brand)'],['menu_book','Guida','Come fare le cose in AJE',8,'var(--brand)']].map(m=>({icon:m[0],label:m[1],sub:m[2],ic:m[4],go:()=>this.setState({tab:m[3]})})),
+      logout:()=>this.setState({login:true,loginView:'login',sent:false,pw:''}),
+      chatEmpty:s.msgs.length===0, chatRef:this.chatRef, typing:s.typing,
+      msgs:s.msgs.map(m=>({text:m.text,jc:m.me?'flex-end':'flex-start',bg:m.me?'var(--accent)':'var(--card2)',c:m.me?'#fff':'var(--ink)',r:m.me?'20px 20px 6px 20px':'20px 20px 20px 6px',o:m.shown?1:0,y:m.shown?'0px':'12px'})),
+      chatIn:s.chatIn, onChatIn:(e)=>this.setState({chatIn:e.target.value}), onChatKey:(e)=>{ if(e.key==='Enter') this.ask(this.state.chatIn); }, sendChat:()=>this.ask(s.chatIn), sendS:s.chatIn.trim()?1:.85,
+      fills:fillsV.map(([l,v],i)=>({l,v:v.toFixed(2).replace('.',','),h:(s.mounted&&s.tab===6)?((v-1.6)/0.3*80)+'px':'0px',bg:i===5?'var(--accent)':'var(--brand)',tc:i===5?'var(--accent)':'var(--muted)',delay:(i*70)+'ms'})),
+      fuelTypes:['Benzina','Diesel','GPL'].map((l,i)=>({label:l,pick:()=>this.setState({fuel:i})})), fuelLeft:['3px','33.33%','calc(66.66% - 1px)'][s.fuel],
+      stations:[['Q8 Via Roma','Self · 0,4 km'],['Eni Viale Europa','Self · 1,2 km'],['IP Corso Italia','Servito · 2,0 km']].map((st,i)=>({name:st[0],sub:st[1],price:fuelP[i].toFixed(3).replace('.',',')+' €',tag:i===0?'più economico':''})),
+      addFuel:()=>this.openMove({cat:'Trasporti',desc:'Rifornimento',acc:'Carta'}),
+      secs:secDef.map(([id,icon,title,sum,warn,rows,note,invite])=>({icon,title,sum,sumC:warn?'#b7791f':'var(--muted)',note:note||'',hasNote:!!note,invite,exp:String(s.openSec===id),mh:s.openSec===id?'520px':'0px',o:s.openSec===id?1:0,rot:s.openSec===id?'180deg':'0deg',toggle:()=>this.setState({openSec:s.openSec===id?null:id}),rows:rows.map(r=>({isChip:false,isBtn:false,isTog:false,...r}))})),
+      inviteEmail:s.inviteEmail, onInvite:(e)=>this.setState({inviteEmail:e.target.value}), sendInvite:()=>{ if(!s.inviteEmail.includes('@')) return this.toast('Inserisci un’email valida'); this.setState({invited:s.inviteEmail,inviteEmail:''}); this.toast('Invito inviato a '+s.inviteEmail); },
+      gq:s.gq, onGq:(e)=>this.setState({gq:e.target.value}), gcats:this.filt(gcats,s.gcat,i=>this.setState({gcat:i})), topics, noTopics:topics.length===0,
+      loginY:showLogin?'0%':'-100%', loginO:showLogin?1:0, loginPE:showLogin?'auto':'none',
+      lvLogin:s.loginView==='login', lvRecover:s.loginView==='recover',
+      email:s.email, onEmail:(e)=>this.setState({email:e.target.value}), pw:s.pw, onPw:(e)=>this.setState({pw:e.target.value}),
+      pwType:s.showPw?'text':'password', pwBtn:s.showPw?'Nascondi':'Mostra', togglePw:(e)=>{ if(e&&e.preventDefault) e.preventDefault(); this.setState({showPw:!s.showPw}); },
+      toRecover:()=>this.setState({loginView:'recover',sent:false}), toLogin:()=>this.setState({loginView:'login'}),
+      doLogin:()=>this.doLogin(), loginLabel:s.loggingIn?'Accesso in corso…':'Accedi',
+      sendReset:()=>this.setState({sent:true}), resetLabel:s.sent?'Invia di nuovo':'Invia il link', sentO:s.sent?1:0, sentY:s.sent?'0px':'8px'
+    };
+  }
+}
+</script>
+</body>
+</html>

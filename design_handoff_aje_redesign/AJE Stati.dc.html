@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&amp;display=block" rel="stylesheet">
+<style>body{margin:0;background:#e8e5da} a{color:#0b5145} a:hover{color:#07382f}</style>
+</helmet>
+<section style="padding:48px 40px; font-family:Geist, system-ui, sans-serif; color:#152c29;">
+  <div style="font-size:14px; color:#5c6b67;">AJE · Flusso · <a href="AJE App.dc.html">torna all'app</a></div>
+  <h1 style="margin:6px 0 8px; font-size:36px; font-weight:600; letter-spacing:-.03em;">Stati dell'app</h1>
+  <p style="margin:0; max-width:640px; font-size:15px; line-height:1.55; color:#4e5d59;">Ogni stato dice cosa è successo e cosa fare dopo, con una sola azione principale. Stesso linguaggio dell'app: niente riquadri, testo diretto.</p>
+  <div style="margin-top:28px; display:grid; grid-template-columns:repeat(auto-fill, 340px); gap:20px;">
+
+    <div data-screen-label="Home vuota" style="height:560px; border-radius:36px; background:#f6f4ed; padding:40px 26px; box-sizing:border-box; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(21,44,41,.12);">
+      <div style="font-size:12px; font-weight:600; color:#0b5145;">Primo accesso · Home vuota</div>
+      <div style="margin-top:26px; font-size:14px; color:#5c6b67;">Patrimonio</div>
+      <div style="font-size:48px; font-weight:600; letter-spacing:-.035em; color:#c3c8c0;">0,00 €</div>
+      <div style="margin-top:14px; display:flex; align-items:flex-end; gap:3px; height:60px;"><span style="flex:1; height:4px; background:#e4e4dc; border-radius:2px;"></span><span style="flex:1; height:4px; background:#e4e4dc; border-radius:2px;"></span><span style="flex:1; height:4px; background:#e4e4dc; border-radius:2px;"></span><span style="flex:1; height:4px; background:#e4e4dc; border-radius:2px;"></span><span style="flex:1; height:4px; background:#e4e4dc; border-radius:2px;"></span><span style="flex:1; height:4px; background:#e4e4dc; border-radius:2px;"></span><span style="flex:1; height:4px; background:#e4e4dc; border-radius:2px;"></span><span style="flex:1; height:4px; background:#e4e4dc; border-radius:2px;"></span></div>
+      <div style="margin-top:28px; font-size:20px; font-weight:600; letter-spacing:-.02em;">Iniziamo dal tuo conto</div>
+      <p style="margin:6px 0 0; font-size:14px; line-height:1.55; color:#5c6b67;">Aggiungi il saldo di partenza: da lì AJE calcola patrimonio, andamento e quanto puoi spendere ogni giorno.</p>
+      <div style="flex:1;"></div>
+      <button style="min-height:52px; border-radius:16px; border:0; background:#6253e8; color:#fff; font:inherit; font-size:15px; font-weight:600;">Aggiungi un conto</button>
+      <button style="margin-top:6px; min-height:44px; border:0; background:none; color:#152c29; font:inherit; font-size:14px; font-weight:500;">Oppure importa un CSV della banca</button>
+    </div>
+
+    <div data-screen-label="Caricamento" style="height:560px; border-radius:36px; background:#f6f4ed; padding:40px 26px; box-sizing:border-box; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(21,44,41,.12);">
+      <div style="font-size:12px; font-weight:600; color:#0b5145;">Caricamento</div>
+      <div style="margin-top:26px; width:90px; height:12px; border-radius:6px; background:#ebe8df;"></div>
+      <div style="margin-top:10px; width:220px; height:48px; border-radius:12px; background:#ebe8df;"></div>
+      <div style="margin-top:12px; width:260px; height:12px; border-radius:6px; background:#ebe8df;"></div>
+      <div style="margin-top:28px; display:flex; align-items:flex-end; gap:3px; height:80px;"><span style="flex:1; height:30%; background:#ebe8df; border-radius:3px;"></span><span style="flex:1; height:55%; background:#ebe8df; border-radius:3px;"></span><span style="flex:1; height:20%; background:#ebe8df; border-radius:3px;"></span><span style="flex:1; height:70%; background:#ebe8df; border-radius:3px;"></span><span style="flex:1; height:40%; background:#ebe8df; border-radius:3px;"></span><span style="flex:1; height:25%; background:#ebe8df; border-radius:3px;"></span><span style="flex:1; height:60%; background:#ebe8df; border-radius:3px;"></span><span style="flex:1; height:35%; background:#ebe8df; border-radius:3px;"></span><span style="flex:1; height:50%; background:#ebe8df; border-radius:3px;"></span><span style="flex:1; height:15%; background:#ebe8df; border-radius:3px;"></span></div>
+      <div style="margin-top:30px; display:flex; gap:14px; align-items:center;"><span style="width:40px; height:40px; border-radius:20px; background:#ebe8df;"></span><span style="flex:1;"><span style="display:block; width:60%; height:12px; border-radius:6px; background:#ebe8df;"></span><span style="display:block; margin-top:8px; width:40%; height:10px; border-radius:5px; background:#ebe8df;"></span></span></div>
+      <div style="margin-top:18px; display:flex; gap:14px; align-items:center;"><span style="width:40px; height:40px; border-radius:20px; background:#ebe8df;"></span><span style="flex:1;"><span style="display:block; width:70%; height:12px; border-radius:6px; background:#ebe8df;"></span><span style="display:block; margin-top:8px; width:35%; height:10px; border-radius:5px; background:#ebe8df;"></span></span></div>
+      <div style="flex:1;"></div>
+      <div style="font-size:13px; color:#5c6b67;">Le forme ricalcano il contenuto reale, così nulla salta quando arrivano i dati.</div>
+    </div>
+
+    <div data-screen-label="Errore di rete" style="height:560px; border-radius:36px; background:#f6f4ed; padding:40px 26px; box-sizing:border-box; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(21,44,41,.12);">
+      <div style="font-size:12px; font-weight:600; color:#0b5145;">Errore di caricamento</div>
+      <div style="flex:1;"></div>
+      <span style="font-family:'Material Symbols Rounded'; font-size:40px; color:#d94e59;">sync_problem</span>
+      <div style="margin-top:12px; font-size:22px; font-weight:600; letter-spacing:-.02em;">Non riesco a caricare i movimenti</div>
+      <p style="margin:6px 0 0; font-size:14px; line-height:1.55; color:#5c6b67;">Il server non risponde. I dati salvati sul telefono sono al sicuro e restano visibili.</p>
+      <div style="flex:1;"></div>
+      <button style="min-height:52px; border-radius:16px; border:0; background:#6253e8; color:#fff; font:inherit; font-size:15px; font-weight:600;">Riprova</button>
+      <div style="margin-top:10px; font-size:12px; color:#5c6b67; text-align:center;">Ultimo aggiornamento riuscito: oggi alle 12:40</div>
+    </div>
+
+    <div data-screen-label="Offline" style="height:560px; border-radius:36px; background:#f6f4ed; padding:40px 26px; box-sizing:border-box; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(21,44,41,.12);">
+      <div style="font-size:12px; font-weight:600; color:#0b5145;">Offline</div>
+      <div style="margin-top:18px; display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:14px; background:#f6e7c1; color:#4d3a00; font-size:13px; font-weight:500;"><span style="font-family:'Material Symbols Rounded'; font-size:18px;">cloud_off</span>Sei offline · 2 modifiche in attesa</div>
+      <div style="margin-top:22px; font-size:15px; font-weight:600;">In attesa di sincronizzazione</div>
+      <div style="margin-top:8px; min-height:60px; display:flex; align-items:center; gap:14px; border-bottom:1px solid #e4e4dc;"><span style="font-family:'Material Symbols Rounded'; font-size:20px; color:#b7791f;">schedule</span><span style="flex:1; font-size:15px;">Pizzeria Da Mario</span><span style="font-size:15px; font-weight:600;">− 18,50 €</span></div>
+      <div style="min-height:60px; display:flex; align-items:center; gap:14px; border-bottom:1px solid #e4e4dc;"><span style="font-family:'Material Symbols Rounded'; font-size:20px; color:#b7791f;">schedule</span><span style="flex:1; font-size:15px;">Attività: Ritirare le analisi</span></div>
+      <p style="margin:18px 0 0; font-size:14px; line-height:1.55; color:#5c6b67;">Puoi continuare a usare AJE. Le modifiche sono cifrate sul telefono e partono da sole quando torna la rete.</p>
+      <div style="flex:1;"></div>
+      <div style="padding:12px 14px; border-radius:14px; background:#f2f0e9; font-size:13px; line-height:1.5;"><b>Non cancellare i dati del sito</b> e non reinstallare l'app finché ci sono modifiche in attesa.</div>
+    </div>
+
+    <div data-screen-label="Chiave mancante" style="height:560px; border-radius:36px; background:#f6f4ed; padding:40px 26px; box-sizing:border-box; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(21,44,41,.12);">
+      <div style="font-size:12px; font-weight:600; color:#0b5145;">Assistente · chiave API mancante</div>
+      <div style="margin-top:22px; font-size:30px; font-weight:600; letter-spacing:-.03em;">Assistente</div>
+      <div style="margin-top:4px; display:flex; align-items:center; gap:8px; font-size:14px; color:#5c6b67;"><span style="width:8px; height:8px; border-radius:4px; border:1.5px solid #b7791f;"></span>Nessuna chiave Gemini</div>
+      <div style="flex:1;"></div>
+      <span style="font-family:'Material Symbols Rounded'; font-size:36px; color:#6253e8;">key</span>
+      <div style="margin-top:10px; font-size:20px; font-weight:600;">Serve la tua chiave Gemini</div>
+      <p style="margin:6px 0 0; font-size:14px; line-height:1.55; color:#5c6b67;">L'assistente usa una chiave personale. Finanze, agenda e scanner funzionano anche senza.</p>
+      <div style="flex:1;"></div>
+      <button style="min-height:52px; border-radius:16px; border:0; background:#6253e8; color:#fff; font:inherit; font-size:15px; font-weight:600;">Aggiungi la chiave</button>
+      <button style="margin-top:6px; min-height:44px; border:0; background:none; color:#152c29; font:inherit; font-size:14px; font-weight:500;">Come ottenerla (2 minuti)</button>
+    </div>
+
+    <div data-screen-label="Documento non leggibile" style="height:560px; border-radius:36px; background:#f6f4ed; padding:40px 26px; box-sizing:border-box; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(21,44,41,.12);">
+      <div style="font-size:12px; font-weight:600; color:#0b5145;">Documento non leggibile</div>
+      <div style="margin-top:22px; height:170px; border-radius:16px; border:1px solid #e4e4dc; background:repeating-linear-gradient(135deg, #f2f0e9 0 10px, transparent 10px 20px); display:flex; align-items:center; justify-content:center; font-family:ui-monospace, monospace; font-size:12px; color:#5c6b67;">foto del documento</div>
+      <div style="margin-top:18px; font-size:20px; font-weight:600;">Non riesco a leggere la bolletta</div>
+      <p style="margin:6px 0 0; font-size:14px; line-height:1.55; color:#5c6b67;">La foto è sfocata e i numeri non sono chiari. Il file resta in archivio.</p>
+      <ul style="margin:10px 0 0; padding-left:18px; font-size:14px; line-height:1.7; color:#152c29;"><li>Appoggia il foglio su un piano</li><li>Evita ombre e riflessi</li><li>Inquadra tutti e quattro i bordi</li></ul>
+      <div style="flex:1;"></div>
+      <button style="min-height:52px; border-radius:16px; border:0; background:#6253e8; color:#fff; font:inherit; font-size:15px; font-weight:600;">Scatta di nuovo</button>
+      <button style="margin-top:6px; min-height:44px; border:0; background:none; color:#152c29; font:inherit; font-size:14px; font-weight:500;">Inserisci i dati a mano</button>
+    </div>
+
+    <div data-screen-label="Successo" style="height:560px; border-radius:36px; background:#f6f4ed; padding:40px 26px; box-sizing:border-box; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(21,44,41,.12);">
+      <div style="font-size:12px; font-weight:600; color:#0b5145;">Conferma</div>
+      <div style="flex:1;"></div>
+      <span style="width:56px; height:56px; border-radius:28px; background:#e6f0ea; color:#07865f; display:flex; align-items:center; justify-content:center; font-family:'Material Symbols Rounded'; font-size:32px;">check</span>
+      <div style="margin-top:16px; font-size:22px; font-weight:600; letter-spacing:-.02em;">Stipendio aggiunto alle entrate</div>
+      <p style="margin:6px 0 0; font-size:14px; line-height:1.55; color:#5c6b67;">+ 1.980,00 € su Conto corrente, dalla busta paga di settembre. Da oggi puoi spendere 38,20 € al giorno.</p>
+      <div style="flex:1;"></div>
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 18px; border-radius:18px; background:#152c29; color:#f6f4ed; font-size:14px;"><span style="font-family:'Material Symbols Rounded'; font-size:20px; color:#6fe0b0;">check_circle</span><span style="flex:1;">Entrata salvata</span><span style="font-weight:600; text-decoration:underline;">Annulla</span></div>
+      <div style="margin-top:8px; font-size:12px; color:#5c6b67; text-align:center;">Il messaggio resta 4 secondi, poi scompare da solo.</div>
+    </div>
+
+    <div data-screen-label="Account sospeso" style="height:560px; border-radius:36px; background:#f6f4ed; padding:40px 26px; box-sizing:border-box; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(21,44,41,.12);">
+      <div style="font-size:12px; font-weight:600; color:#0b5145;">Account ospite sospeso</div>
+      <img src="public/aje-wordmark-dark-v2.webp" alt="AJE" style="margin-top:26px; height:28px; width:auto; align-self:flex-start;">
+      <div style="flex:1;"></div>
+      <span style="font-family:'Material Symbols Rounded'; font-size:36px; color:#5c6b67;">lock</span>
+      <div style="margin-top:10px; font-size:22px; font-weight:600; letter-spacing:-.02em;">Il tuo accesso è sospeso</div>
+      <p style="margin:6px 0 0; font-size:14px; line-height:1.55; color:#5c6b67;">Il proprietario ha sospeso l'invito. I tuoi dati non sono stati cancellati e tornano disponibili se l'accesso viene riattivato.</p>
+      <div style="flex:1;"></div>
+      <button style="min-height:52px; border-radius:16px; border:1px solid #e4e4dc; background:transparent; color:#152c29; font:inherit; font-size:15px; font-weight:600;">Esci</button>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+</body>
+</html>
