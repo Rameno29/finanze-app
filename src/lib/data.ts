@@ -6,6 +6,21 @@ import { cacheData, currentUserId, readCachedData, overlayPendingRows } from './
 import { sessionScope } from './sessionScope'
 import { readAllPages } from './pagination'
 
+const DATA_CHANGED = 'aje:data-changed'
+
+/** Avvisa le viste montate che movimenti e saldi sono cambiati fuori da loro (es. dal "+" globale). */
+export function notifyDataChanged() {
+  window.dispatchEvent(new Event(DATA_CHANGED))
+}
+
+function useDataChanged(reload: () => unknown) {
+  useEffect(() => {
+    const onChange = () => void reload()
+    window.addEventListener(DATA_CHANGED, onChange)
+    return () => window.removeEventListener(DATA_CHANGED, onChange)
+  }, [reload])
+}
+
 async function loadWithOfflineCache<T>(
   collection: string,
   onlineLoad: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
@@ -129,6 +144,7 @@ export function useTransactions(year: number, month: number) {
     setLoading(true)
     void reload()
   }, [reload])
+  useDataChanged(reload)
 
   return { transactions, loading, reload }
 }
@@ -164,6 +180,8 @@ export function useAccounts() {
   useEffect(() => {
     void reload()
   }, [reload])
+
+  useDataChanged(reload)
 
   return { accounts, loading, reload }
 }

@@ -213,7 +213,7 @@ export function AssistantPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col pb-28">
+    <div className="flex min-h-dvh flex-col">
       <PageHeader title="Assistente" />
 
       <div className="page-content assistant-conversation flex w-full max-w-5xl flex-1 flex-col gap-3 py-5">
@@ -299,8 +299,8 @@ export function AssistantPage() {
         <div ref={endRef} />
       </div>
 
-      {/* Barra di input fissa sopra la tab bar */}
-      <div className="assistant-composer fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom))] z-30 border-t border-line bg-bg/95 backdrop-blur-lg">
+      {/* Barra di input fissa in fondo: su questa pagina la barra di navigazione mobile è nascosta */}
+      <div className="assistant-composer fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/95 pb-safe backdrop-blur-lg">
         <form onSubmit={handleSubmit} className="page-content mx-auto flex max-w-5xl gap-2 px-0 py-3">
           <input
             ref={inputRef}

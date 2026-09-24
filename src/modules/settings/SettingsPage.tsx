@@ -31,7 +31,7 @@ import {
 import { Card, PageHeader, Spinner } from '../../components/ui'
 import { IntegrationsPanel } from './IntegrationsPanel'
 import { InvitesPanel } from './InvitesPanel'
-import { clearExternalSessions } from '../../lib/sessionScope'
+import { signOutEverywhere } from '../../lib/signOut'
 
 const THEME_OPTIONS: Array<{ value: ThemeSetting; label: string; icon: typeof Sun }> = [
   { value: 'system', label: 'Sistema', icon: Smartphone },
@@ -148,7 +148,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="pb-28">
+    <div>
       <PageHeader title="Impostazioni" />
 
       <div className="page-content settings-layout flex flex-col gap-4 py-5">
@@ -332,7 +332,7 @@ export function SettingsPage() {
           <h2 className="mb-1 font-semibold">Account</h2>
           <p className="mb-4 text-sm text-muted">{session?.user.email}</p>
           <button
-            onClick={() => { void (async () => { try { await disablePush() } catch { /* procedi con il logout anche offline */ } clearExternalSessions(); const { error } = await supabase.auth.signOut(); if (error) setPushMsg('Uscita non riuscita. Controlla la connessione e riprova.') })() }}
+            onClick={() => { void signOutEverywhere().then((ok) => { if (!ok) setPushMsg('Uscita non riuscita. Controlla la connessione e riprova.') }) }}
             className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-line font-semibold text-expense"
           >
             <LogOut className="h-5 w-5" /> Esci

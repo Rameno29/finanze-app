@@ -21,6 +21,7 @@ import { PayslipConfirmSheet } from './PayslipConfirmSheet'
 import { ReceiptConfirmSheet } from './ReceiptConfirmSheet'
 import { ExplainSheet } from './ExplainSheet'
 import { GeneratePdfCard } from './GeneratePdfCard'
+import { useQuickAction } from '../../components/quickActionContext'
 import type { DocAnalysis, DocumentRow, Payslip, PayslipAnalysis, ReceiptAnalysis } from '../../types'
 
 type DocType = DocumentRow['doc_type']
@@ -49,6 +50,15 @@ export function DocumentsPage() {
   const [explainData, setExplainData] = useState<DocAnalysis | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const pendingType = useRef<DocType>('busta_paga')
+  const uploadActionsRef = useRef<HTMLDivElement>(null)
+
+  // "+" della barra e CTA della sidebar: porta ai tipi di caricamento (il foglio dedicato arriva col redesign di Documenti)
+  useQuickAction(() => {
+    const actions = uploadActionsRef.current
+    if (!actions) return
+    actions.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    actions.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus({ preventScroll: true })
+  })
 
   // Ricerca nei documenti (Full Text Search Postgres, filtrata dalla RLS)
   const [searchTerm, setSearchTerm] = useState('')
@@ -181,7 +191,7 @@ export function DocumentsPage() {
   ]
 
   return (
-    <div className="pb-28">
+    <div>
       <PageHeader title="Documenti" />
 
       <div className="document-layout page-content flex flex-col gap-4 py-5">
@@ -196,7 +206,7 @@ export function DocumentsPage() {
           }}
         />
 
-        <div className="document-upload-actions grid grid-cols-3 gap-2">
+        <div ref={uploadActionsRef} className="document-upload-actions grid grid-cols-3 gap-2">
           {uploadButtons.map(({ type, label, hint, icon: Icon }) => (
             <button
               key={type}

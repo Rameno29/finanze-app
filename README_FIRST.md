@@ -37,6 +37,31 @@ esclusi da build e lint). Si procede una fase per branch `redesign/<n>-<nome>`, 
     Righe, chip e skeleton entrano nelle schermate dalle fasi 4–6.
   - Nuovo `formatSignedCents` in `src/lib/format.ts`, con test: "− 46,80 €" con il segno U+2212.
   - Con movimento ridotto fogli, toast e righe nuove usano solo dissolvenze.
+- **Fase 3 — Shell** (`redesign/3-shell`):
+  - **Barra flottante mobile** (`TabBar.tsx`): Home · Finanze · + · Agenda · Documenti, con pill
+    attiva animata. "Altro" non è più nella barra: si apre dall'avatar della Home (link "Altro").
+  - **Pagine secondarie** (`/altro`, `/assistente`, `/carburanti`, `/impostazioni`, `/guida`):
+    su mobile la barra scende fuori schermo (`inert`) e `PageHeader` mostra "Indietro". Il
+    pulsante usa la cronologia; senza cronologia sostituisce la pagina con Altro, e Altro con la
+    Home.
+  - **Sidebar desktop**: wordmark bianco, stesse 8 voci, CTA contestuale, email e pulsante tema.
+  - **"+" contestuale** (barra e CTA della sidebar): le pagine registrano l'azione con
+    `useQuickAction` (`quickActionContext.ts`). Finanze apre "Nuovo movimento", Agenda "Nuova
+    attività", Documenti porta ai pulsanti di caricamento. Senza azione registrata (Home, pagine
+    secondarie su desktop) si apre `GlobalTransactionSheet`. Dopo il salvataggio,
+    `notifyDataChanged()` ricarica movimenti e conti già montati. I vecchi "+" flottanti di
+    Finanze e Agenda sono stati tolti.
+  - **Nuova rotta `/altro`** (`MorePage`, solo mobile; su desktop reindirizza a Impostazioni):
+    account con ruolo, link alle pagine secondarie ed "Esci". Il logout è condiviso con
+    Impostazioni in `src/lib/signOut.ts`.
+  - **Transizione di pagina** a ogni cambio di rotta: laterale su mobile, dal basso su desktop.
+    Lo spazio per la barra flottante è in `.page-bottom` (130px più la safe area) e ha sostituito
+    i `pb-28` delle pagine.
+  - **Banner offline**: pillola flottante in alto con i colori `--warn-*`; uno spazio in flusso
+    evita che copra l'intestazione. Il composer dell'Assistente ora è a fondo schermo.
+  - **Test e2e**: su mobile i test che partono da Impostazioni tornano alla Home con "Indietro";
+    il test del microfono esce dall'Assistente con "Indietro"; `/altro` è nel giro delle pagine
+    controllate.
 
 ## Inviti senza limite applicativo
 

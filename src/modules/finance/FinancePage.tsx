@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Moon, Plus, Sparkles } from 'lucide-react'
+import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Moon, Sparkles } from 'lucide-react'
 import { PageHeader, Card, EmptyState, Spinner, inputClass } from '../../components/ui'
+import { useQuickAction } from '../../components/quickActionContext'
 import { invokeFunction } from '../../lib/integrations'
 import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
 import { mutateOffline } from '../../lib/offline'
@@ -41,6 +42,13 @@ export function FinancePage() {
   const voiceStartingRef = useRef(false)
   const autoStopRef = useRef<number | null>(null)
   const quickInputRef = useRef<HTMLInputElement>(null)
+
+  // "+" della barra e CTA della sidebar: nuovo movimento
+  useQuickAction(() => {
+    setEditing(null)
+    setDraft(null)
+    setSheetOpen(true)
+  })
 
   useEffect(() => () => {
     voiceAbortRef.current?.abort()
@@ -206,7 +214,7 @@ export function FinancePage() {
   }
 
   return (
-    <div className="pb-28">
+    <div>
       <PageHeader
         title="Finanze"
         right={
@@ -462,21 +470,6 @@ export function FinancePage() {
           </>
         )}
       </div>
-
-      {/* FAB nuovo movimento */}
-      {view === 'movimenti' && (
-        <button
-          onClick={() => {
-            setEditing(null)
-            setDraft(null)
-            setSheetOpen(true)
-          }}
-          aria-label="Nuovo movimento"
-          className="fixed bottom-24 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-xl transition active:scale-95"
-        >
-          <Plus className="h-7 w-7" />
-        </button>
-      )}
 
       <DiarySheet
         open={diaryOpen}

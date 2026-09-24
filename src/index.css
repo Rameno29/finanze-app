@@ -289,6 +289,70 @@ textarea {
   color: #fff;
 }
 
+/* Shell: spazio per la barra flottante e transizione di pagina */
+.page-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 130px); }
+.app-main { overflow-x: clip; }
+
+@keyframes page-fade {
+  from { opacity: 0; }
+}
+
+@keyframes page-slide-x {
+  from { transform: translateX(var(--page-enter-x, 28px)); }
+}
+
+@keyframes page-slide-y {
+  from { transform: translateY(14px); }
+}
+
+.page-enter {
+  animation:
+    page-fade 350ms ease backwards,
+    page-slide-x var(--dur-sheet) var(--ease-standard) backwards;
+}
+
+@media (min-width: 1024px) {
+  .page-bottom { padding-bottom: 40px; }
+
+  .page-enter {
+    animation:
+      page-fade 350ms ease backwards,
+      page-slide-y var(--dur-sheet) var(--ease-standard) backwards;
+  }
+}
+
+/* Barra flottante mobile */
+.mobile-tabbar {
+  transition: transform var(--dur-base) var(--ease-standard);
+}
+
+.mobile-tabbar[data-hidden] { transform: translateY(140px); }
+
+.mobile-tabbar-pill {
+  transition: left var(--dur-base) var(--ease-spring), opacity 300ms ease;
+}
+
+.tabbar-plus {
+  transition: transform 150ms ease;
+}
+
+.tabbar-plus:active { transform: scale(.9); }
+
+.tabbar-plus svg {
+  transition: transform 400ms var(--ease-spring);
+}
+
+html.sheet-open .tabbar-plus svg { transform: rotate(45deg); }
+
+/* Banner offline */
+@keyframes banner-enter {
+  from { transform: translateY(-120px); }
+}
+
+.offline-banner {
+  animation: banner-enter var(--dur-sheet) var(--ease-standard) backwards;
+}
+
 /* Fogli e dialog (Sheet in components/ui.tsx) */
 html.sheet-open { overflow: hidden; }
 
@@ -419,4 +483,9 @@ html.sheet-open { overflow: hidden; }
   .toast { transform: none; }
 
   .row-new { animation: row-flash 150ms ease backwards; }
+
+  .page-enter,
+  .offline-banner { animation: page-fade 150ms ease backwards; }
+
+  .mobile-tabbar[data-hidden] { transform: none; opacity: 0; }
 }

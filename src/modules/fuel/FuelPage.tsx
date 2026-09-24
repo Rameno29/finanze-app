@@ -185,7 +185,7 @@ export function FuelPage() {
   }
 
   return (
-    <div className="pb-28">
+    <div>
       <PageHeader title="Carburanti" />
 
       <div className="page-content fuel-layout flex flex-col gap-4 py-5">

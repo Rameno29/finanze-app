@@ -67,7 +67,7 @@ export function GuidePage() {
   const toggle = (id: string) => setOpenId((current) => (current === id ? null : id))
 
   return (
-    <div className="pb-28">
+    <div>
       <PageHeader title="Guida" />
 
       <AccordionContext.Provider value={{ openId, toggle }}>

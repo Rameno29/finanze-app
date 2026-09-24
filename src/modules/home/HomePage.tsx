@@ -24,7 +24,8 @@ import { invokeFunction } from '../../lib/integrations'
 import { mutateOffline } from '../../lib/offline'
 import { AiText } from '../../components/AiText'
 import { Sheet } from '../../components/ui'
-import { Bot, Check, Euro, FileBarChart } from 'lucide-react'
+import { Bot, Check, CircleUser, Euro, FileBarChart } from 'lucide-react'
+import { ThemeToggle } from '../../components/TabBar'
 
 export function HomePage() {
   const now = new Date()
@@ -137,7 +138,7 @@ export function HomePage() {
   const activeMonth = barData[activeIndex]
 
   return (
-    <div className="pb-28">
+    <div>
       <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur-lg">
         <div className="page-content flex items-center gap-3 py-3">
           <img
@@ -152,6 +153,16 @@ export function HomePage() {
             <p className="mt-0.5 text-xs capitalize text-muted">
               {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle className="border border-line text-ink" />
+            <Link
+              to="/altro"
+              aria-label="Altro"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand lg:hidden"
+            >
+              <CircleUser className="h-6 w-6" strokeWidth={1.9} />
+            </Link>
           </div>
         </div>
       </header>

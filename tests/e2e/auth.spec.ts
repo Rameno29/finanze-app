@@ -124,6 +124,15 @@ test('document upload preserves a committed file when the database response is l
   expect(documents.size).toBe(1)
   expect(files.size).toBe(1)
 })
+/** Su mobile le pagine secondarie nascondono la barra: si torna alla Home con "Indietro" (Impostazioni → Altro → Home). */
+async function leaveSecondaryPage(page:Page) {
+  if (test.info().project.name !== 'mobile') return
+  await page.getByRole('button',{name:'Indietro'}).click()
+  await expect(page).toHaveURL(/\/altro$/)
+  await page.getByRole('button',{name:'Indietro'}).click()
+  await expect(page).toHaveURL(/\/finanze-app\/$/)
+}
+
 async function login(page:Page,email='owner@example.test') {
   await page.getByLabel('Email', {exact:true}).fill(email)
   await page.getByLabel('Password', {exact:true}).fill('test-password-1234')
@@ -140,6 +149,7 @@ test('navigazione focalizzata conserva agenda documenti e carburanti', async ({p
   await expect(page.locator('a[href$="/media"]')).toHaveCount(0)
   await expect(page.locator('a[href$="/google"]')).toHaveCount(0)
   await expect(page.getByRole('heading', {name: /Spotify/})).toHaveCount(0)
+  await leaveSecondaryPage(page)
   await page.getByRole('link', {name: 'Agenda', exact: true}).click()
   if (test.info().project.name === 'desktop') {
     await expect(page.getByRole('heading', {name: 'Calendario'})).toBeVisible()
@@ -154,6 +164,7 @@ test('documenti conserva caricamento e creazione PDF senza scanner', async ({pag
   await mockBackend(page)
   await page.goto('impostazioni')
   await login(page)
+  await leaveSecondaryPage(page)
   await page.getByRole('link', {name: 'Documenti', exact: true}).click()
   await expect(page.getByRole('button', {name: /Busta paga/})).toBeVisible()
   await expect(page.getByRole('button', {name: /Scontrino/})).toBeVisible()
@@ -237,7 +248,8 @@ test('leaving the assistant while microphone permission is pending cancels a lat
   if (test.info().project.name === 'desktop') {
     await page.getByRole('navigation',{name:'Navigazione desktop'}).getByRole('link',{name:'Impostazioni'}).click()
   } else {
-    await page.getByRole('navigation',{name:'Navigazione principale'}).getByRole('link',{name:'Altro'}).click()
+    await page.getByRole('button',{name:'Indietro'}).click()
+    await expect(page).toHaveURL(/\/impostazioni$/)
   }
   await page.evaluate(()=>(window as any).voiceTest.grant())
   await expect.poll(()=>page.evaluate(()=>(window as any).voiceTest.stopped)).toBe(1)
@@ -356,7 +368,7 @@ test('logout propagates to a second tab and authenticated modules render without
   await page.goto('impostazioni');await login(page)
   const errors:string[]=[]
   page.on('pageerror',error=>errors.push(error.message))
-  for(const path of ['finanze','agenda','documenti','assistente','google','media','carburanti','guida']) {
+  for(const path of ['finanze','agenda','documenti','altro','assistente','google','media','carburanti','guida']) {
     await page.goto(path)
     await expect(page.locator('h1')).toBeVisible()
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)

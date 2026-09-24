@@ -1,11 +1,35 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Loader2, X } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Loader2, X } from 'lucide-react'
+import { backFallback, isSecondaryRoute } from '../lib/navigation'
+
+/** Indietro (solo mobile, pagine secondarie): cronologia se c'è, altrimenti risale ad Altro o alla Home. */
+function BackButton() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  if (!isSecondaryRoute(pathname)) return null
+  return (
+    <button
+      type="button"
+      aria-label="Indietro"
+      onClick={() => {
+        const index = (window.history.state as { idx?: number } | null)?.idx ?? 0
+        if (index > 0) navigate(-1)
+        else navigate(backFallback(pathname), { replace: true })
+      }}
+      className="-ml-2.5 mb-2 flex h-11 w-11 items-center justify-center rounded-full lg:hidden"
+    >
+      <ArrowLeft className="h-6 w-6" strokeWidth={1.9} />
+    </button>
+  )
+}
 
 /** Intestazione di pagina: titolo sans 34px; su mobile scorre col contenuto, su desktop resta in alto. */
 export function PageHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
   return (
     <header className="page-header px-5 pb-2 pt-[calc(env(safe-area-inset-top)+16px)] lg:sticky lg:top-0 lg:z-30 lg:bg-bg lg:px-0 lg:pb-4 lg:pt-8">
+      <BackButton />
       <div className="page-header-inner mx-auto flex w-full max-w-[1320px] items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="page-header-title text-[34px] font-semibold leading-[1.1] tracking-[-0.03em]">{title}</h1>

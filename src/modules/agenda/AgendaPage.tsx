@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, ClipboardList, Plus } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react'
 import { mutateOffline } from '../../lib/offline'
 import { useTasks } from '../../lib/data'
 import { MONTH_NAMES, formatDay, todayISO } from '../../lib/format'
 import { Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
 import { TaskSheet } from './TaskSheet'
+import { useQuickAction } from '../../components/quickActionContext'
 import type { Task } from '../../types'
 
 type View = 'attivita' | 'calendario'
@@ -64,6 +65,12 @@ export function AgendaPage() {
   const [operationError, setOperationError] = useState('')
 
   const { tasks, loading, reload } = useTasks()
+
+  // "+" della barra e CTA della sidebar: nuova attività
+  useQuickAction(() => {
+    setEditing(null)
+    setSheetOpen(true)
+  })
 
   async function toggleTask(t: Task) {
     try {
@@ -272,7 +279,7 @@ export function AgendaPage() {
   )
 
   return (
-    <div className="pb-28">
+    <div>
       <PageHeader title="Agenda" />
 
       <div className="page-content max-w-[1320px] px-0">
@@ -309,17 +316,6 @@ export function AgendaPage() {
           </div>
         )}
       </div>
-
-      <button
-        onClick={() => {
-          setEditing(null)
-          setSheetOpen(true)
-        }}
-        aria-label="Nuova attività"
-        className="fixed bottom-24 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-xl transition active:scale-95"
-      >
-        <Plus className="h-7 w-7" />
-      </button>
 
       <TaskSheet
         open={sheetOpen}
