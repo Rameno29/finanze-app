@@ -4,6 +4,11 @@ export function formatCents(cents: number): string {
   return eur.format(cents / 100)
 }
 
+/** Importo con segno esplicito: "− 46,80 €" (U+2212) per le uscite, "+ 1.980,00 €" per le entrate. */
+export function formatSignedCents(cents: number, kind: 'income' | 'expense'): string {
+  return `${kind === 'income' ? '+' : '−'} ${formatCents(Math.abs(cents))}`
+}
+
 /** "1.234,56" | "1234.56" | "12" -> centesimi (int) oppure null se non valido */
 export function parseAmountToCents(input: string): number | null {
   const cleaned = input.trim().replace(/\s|€/g, '')

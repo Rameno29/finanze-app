@@ -224,7 +224,6 @@ a:focus-visible {
 
 @media (min-width: 1024px) {
   .page-header-inner { width: min(100% - 3.5rem, 1320px); }
-  .page-header-title { font-size: 2rem; }
   .document-layout {
     display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr);
@@ -290,6 +289,107 @@ textarea {
   color: #fff;
 }
 
+/* Fogli e dialog (Sheet in components/ui.tsx) */
+html.sheet-open { overflow: hidden; }
+
+.sheet-backdrop {
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+
+.sheet-panel {
+  transform: translateY(105%);
+  transition: transform var(--dur-sheet) var(--ease-sheet);
+}
+
+.sheet-root[data-state='open'] .sheet-backdrop { opacity: 1; }
+.sheet-root[data-state='open'] .sheet-panel { transform: none; }
+
+@media (max-width: 1023.98px) {
+  .app-main {
+    transition: transform var(--dur-sheet) var(--ease-sheet), border-radius var(--dur-sheet) var(--ease-sheet);
+  }
+
+  html.sheet-open .app-main {
+    overflow: hidden;
+    border-radius: 28px;
+    transform: scale(.94) translateY(8px);
+    transform-origin: 50% var(--sheet-origin-y, 50vh);
+  }
+}
+
+@media (min-width: 1024px) {
+  .sheet-panel {
+    opacity: 0;
+    transform: scale(.97);
+    transition: opacity 300ms ease, transform var(--dur-sheet) var(--ease-standard);
+  }
+
+  .sheet-root[data-state='open'] .sheet-panel { opacity: 1; }
+}
+
+/* Toast globale */
+.toast {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 350ms ease, transform var(--dur-base) var(--ease-standard);
+}
+
+.toast[data-state='open'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Riga appena aggiunta: si apre e sfuma dall'evidenziazione */
+@keyframes row-open {
+  from { max-height: 0; opacity: 0; }
+  to { max-height: 96px; opacity: 1; }
+}
+
+@keyframes row-flash {
+  from { background-color: var(--accent-soft); }
+  to { background-color: transparent; }
+}
+
+.row-new {
+  overflow: hidden;
+  animation:
+    row-open var(--dur-base) var(--ease-standard) 380ms backwards,
+    row-flash 1400ms ease 380ms backwards;
+}
+
+/* Segmented, switch e chip */
+.segmented-indicator {
+  transition: left 400ms var(--ease-spring), background-color 300ms ease;
+}
+
+.switch-knob {
+  transition: transform 350ms var(--ease-spring);
+}
+
+/* Skeleton: shimmer leggero solo senza movimento ridotto */
+.skeleton {
+  background-color: var(--skeleton);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes skeleton-shimmer {
+    from { background-position: 150% 0; }
+    to { background-position: -50% 0; }
+  }
+
+  .skeleton {
+    background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / .35) 50%, transparent 100%);
+    background-size: 50% 100%;
+    background-repeat: no-repeat;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+
+  .dark .skeleton {
+    background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / .06) 50%, transparent 100%);
+  }
+}
+
 /* Movimento ridotto: niente scorrimenti né stagger, restano solo dissolvenze brevi. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -299,4 +399,24 @@ textarea {
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel,
+  .sheet-root[data-state='open'] .sheet-panel {
+    transform: none;
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+
+  .sheet-root[data-state='open'] .sheet-panel { opacity: 1; }
+
+  html.sheet-open .app-main {
+    border-radius: 0;
+    transform: none;
+  }
+
+  .toast { transform: none; }
+
+  .row-new { animation: row-flash 150ms ease backwards; }
 }

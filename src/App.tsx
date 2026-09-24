@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { TabBar } from './components/TabBar'
+import { ToastProvider } from './components/Toast'
 import { FullPageSpinner } from './components/ui'
 import { LoginPage } from './modules/auth/LoginPage'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -57,7 +58,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <SessionShell />
+        <ToastProvider>
+          <SessionShell />
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   )

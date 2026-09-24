@@ -1,15 +1,17 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Loader2, X } from 'lucide-react'
 
+/** Intestazione di pagina: titolo sans 34px; su mobile scorre col contenuto, su desktop resta in alto. */
 export function PageHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
   return (
-    <header className="page-header pt-safe sticky top-0 z-30 border-b border-line bg-bg/95 backdrop-blur-lg">
-      <div className="page-header-inner mx-auto flex w-full max-w-[1320px] items-center justify-between px-5 py-4 lg:px-0 lg:py-6">
-        <div>
-          <h1 className="page-header-title display-type text-[1.75rem] leading-tight">{title}</h1>
-          {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
+    <header className="page-header px-5 pb-2 pt-[calc(env(safe-area-inset-top)+16px)] lg:sticky lg:top-0 lg:z-30 lg:bg-bg lg:px-0 lg:pb-4 lg:pt-8">
+      <div className="page-header-inner mx-auto flex w-full max-w-[1320px] items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="page-header-title text-[34px] font-semibold leading-[1.1] tracking-[-0.03em]">{title}</h1>
+          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
         </div>
-        {right}
+        {right && <div className="flex shrink-0 items-center gap-2">{right}</div>}
       </div>
     </header>
   )
@@ -35,50 +37,216 @@ export function FullPageSpinner() {
   )
 }
 
-export function EmptyState({ icon, title, hint }: { icon: ReactNode; title: string; hint?: string }) {
+const EMPTY_TONES = {
+  muted: 'text-muted',
+  accent: 'text-accent',
+  brand: 'text-brand',
+  expense: 'text-expense',
+  warning: 'text-warning',
+} as const
+
+export function EmptyState({
+  icon,
+  title,
+  hint,
+  tone = 'muted',
+  action,
+  onAction,
+}: {
+  icon: ReactNode
+  title: string
+  hint?: string
+  tone?: keyof typeof EMPTY_TONES
+  action?: string
+  onAction?: () => void
+}) {
   return (
     <div className="flex flex-col items-center gap-2 py-12 text-center">
-      <div className="text-muted">{icon}</div>
-      <p className="font-semibold">{title}</p>
-      {hint && <p className="max-w-[260px] text-sm text-muted">{hint}</p>}
+      <div className={`mb-1 [&>svg]:h-9 [&>svg]:w-9 ${EMPTY_TONES[tone]}`} aria-hidden="true">{icon}</div>
+      <p className="text-xl font-semibold tracking-[-0.01em]">{title}</p>
+      {hint && <p className="max-w-[300px] text-sm leading-[1.55] text-muted">{hint}</p>}
+      {action && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-4 min-h-12 rounded-[16px] bg-accent px-6 text-[15px] font-semibold text-white transition active:scale-[0.98]"
+        >
+          {action}
+        </button>
+      )}
     </div>
   )
 }
 
-/** Bottom sheet in stile iOS */
+const SHEET_EXIT_MS = 500
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+const FIELDS =
+  'input:not([disabled]):not([type="hidden"]):not([type="file"]), select:not([disabled]), textarea:not([disabled])'
+/** Fogli aperti, dal più vecchio al più recente: solo l'ultimo risponde a Esc e al focus trap. */
+const openSheets: symbol[] = []
+
+function syncSheetState() {
+  document.documentElement.classList.toggle('sheet-open', openSheets.length > 0)
+}
+
+/**
+ * Foglio dal basso su mobile, dialog centrato su desktop. Resta montato per l'animazione di uscita
+ * mostrando l'ultimo contenuto visto da aperto.
+ */
 export function Sheet({
   open,
   onClose,
   title,
   children,
+  footer,
 }: {
   open: boolean
   onClose: () => void
   title: string
   children: ReactNode
+  footer?: ReactNode
 }) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50">
-      <button
-        aria-label="Chiudi"
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-      />
-      <div className="absolute inset-x-0 bottom-0 max-h-[92dvh] overflow-y-auto rounded-t-3xl bg-card pb-safe shadow-2xl">
-        <div className="sticky top-0 flex items-center justify-between rounded-t-3xl border-b border-line bg-card px-5 py-4">
-          <h2 className="text-lg font-bold">{title}</h2>
-          <button
-            onClick={onClose}
-            aria-label="Chiudi"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-card-2 text-muted"
+  const [mounted, setMounted] = useState(open)
+  const [shown, setShown] = useState(false)
+  const [snapshot, setSnapshot] = useState({ title, children, footer })
+  const titleId = useId()
+  const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
+  // Da aperto mostra il contenuto vivo; alla chiusura resta l'ultimo, così l'uscita non si svuota.
+  if (open && (snapshot.title !== title || snapshot.children !== children || snapshot.footer !== footer)) {
+    setSnapshot({ title, children, footer })
+  }
+  const view = open ? { title, children, footer } : snapshot
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true)
+      let inner = 0
+      const outer = requestAnimationFrame(() => {
+        inner = requestAnimationFrame(() => setShown(true))
+      })
+      return () => {
+        cancelAnimationFrame(outer)
+        cancelAnimationFrame(inner)
+      }
+    }
+    setShown(false)
+    const timer = window.setTimeout(() => setMounted(false), SHEET_EXIT_MS)
+    return () => window.clearTimeout(timer)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const token = Symbol('sheet')
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const main = document.querySelector<HTMLElement>('.app-main')
+    if (main) {
+      const top = main.getBoundingClientRect().top
+      document.documentElement.style.setProperty('--sheet-origin-y', `${window.innerHeight / 2 - top}px`)
+    }
+    openSheets.push(token)
+    syncSheetState()
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (openSheets[openSheets.length - 1] !== token) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onCloseRef.current()
+        return
+      }
+      const panel = panelRef.current
+      if (event.key !== 'Tab' || !panel) return
+      const items = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null)
+      if (items.length === 0) {
+        event.preventDefault()
+        panel.focus()
+        return
+      }
+      const first = items[0]
+      const last = items[items.length - 1]
+      const focused = document.activeElement
+      if (event.shiftKey && (focused === first || !panel.contains(focused))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (focused === last || !panel.contains(focused))) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      const index = openSheets.indexOf(token)
+      if (index >= 0) openSheets.splice(index, 1)
+      syncSheetState()
+      if (previous && document.contains(previous)) previous.focus({ preventScroll: true })
+    }
+  }, [open])
+
+  const active = open && mounted
+  useEffect(() => {
+    if (!active) return
+    const panel = panelRef.current
+    if (!panel || panel.contains(document.activeElement)) return
+    // Su desktop il focus va sul primo campo; su mobile sul foglio, per non aprire la tastiera da sola.
+    const desktop = window.matchMedia('(min-width: 1024px)').matches
+    const field = desktop ? panel.querySelector<HTMLElement>(FIELDS) : null
+    ;(field ?? panel).focus({ preventScroll: true })
+  }, [active])
+
+  if (!mounted) return null
+  const state = open && shown ? 'open' : 'closed'
+  return createPortal(
+    <div
+      className="sheet-root fixed inset-0 z-50"
+      data-state={state}
+      style={open ? undefined : { pointerEvents: 'none' }}
+    >
+      <div className="sheet-backdrop absolute inset-0 bg-black/40" aria-hidden="true" onClick={onClose} />
+      <div className="pointer-events-none absolute inset-0 flex items-end justify-center lg:items-center lg:p-6">
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
+          className="sheet-panel pointer-events-auto flex max-h-[92dvh] w-full flex-col rounded-t-[28px] bg-card shadow-2xl outline-none lg:max-h-[min(760px,92dvh)] lg:w-[460px] lg:rounded-[28px]"
+        >
+          <div className="mx-auto mt-2.5 h-[5px] w-10 shrink-0 rounded-full bg-line lg:hidden" aria-hidden="true" />
+          <div className="flex shrink-0 items-center justify-between gap-3 px-5 pb-2 pt-3 lg:pt-5">
+            <h2 id={titleId} className="min-w-0 text-lg font-semibold leading-tight">{view.title}</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Chiudi"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-card-2 text-muted"
+            >
+              <X className="h-5 w-5" strokeWidth={1.9} />
+            </button>
+          </div>
+          <div
+            className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-2 ${
+              view.footer ? 'pb-4' : 'pb-[calc(env(safe-area-inset-bottom)+20px)] lg:pb-6'
+            }`}
           >
-            <X className="h-5 w-5" />
-          </button>
+            {view.children}
+          </div>
+          {view.footer && (
+            <div className="shrink-0 bg-card px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-3 lg:pb-6">
+              {view.footer}
+            </div>
+          )}
         </div>
-        <div className="px-5 py-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

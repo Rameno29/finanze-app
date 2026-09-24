@@ -19,6 +19,24 @@ esclusi da build e lint). Si procede una fase per branch `redesign/<n>-<nome>`, 
   `prefers-reduced-motion` che riduce animazioni e transizioni a dissolvenze di 150 ms;
   `theme-color` `#f6f4ed`/`#081b19` e manifest `#07382f`. Le schermate non sono ancora
   ridisegnate: `.display-type` resta finché le singole pagine non passano al titolo sans.
+- **Fase 2 — Componenti condivisi** (`redesign/2-componenti`):
+  - `Sheet` (`src/components/ui.tsx`) ha la stessa API più `footer`. È reso in un portal su
+    `document.body`. Su mobile è un foglio dal basso con maniglia: mentre è aperto `.app-main` si
+    rimpicciolisce e la pagina non scorre. Su desktop è un dialog centrato di 460px.
+  - Il foglio ha `role="dialog"`, `aria-modal` e `aria-labelledby`; Esc chiude solo il foglio più
+    recente e c'è il focus trap. Il focus iniziale va sul primo campo su desktop e sul foglio su
+    mobile, per non aprire la tastiera da sola. Alla chiusura il focus torna dove era.
+  - Il foglio resta montato 500 ms dopo la chiusura, per l'uscita animata, mostrando l'ultimo
+    contenuto. Lo sfondo non è più un pulsante "Chiudi": ne resta uno solo, la X.
+  - `PageHeader`: titolo sans 34px; su mobile scorre col contenuto, su desktop resta in alto.
+    `EmptyState` accetta `tone`, `action` e `onAction`.
+  - Nuovi componenti: `Toast` con `ToastProvider` montato in `App.tsx` e hook `useToast()`
+    (`toastContext.ts`), `Segmented`, `Switch` (`role="switch"`), `Chip` (filtro, scelta,
+    suggerimento), `Skeleton`/`SkeletonRow`, `TransactionRow` e `TaskRow`.
+  - `TransactionRow` e `TaskRow` supportano l'apertura evidenziata delle righe nuove (`isNew`).
+    Righe, chip e skeleton entrano nelle schermate dalle fasi 4–6.
+  - Nuovo `formatSignedCents` in `src/lib/format.ts`, con test: "− 46,80 €" con il segno U+2212.
+  - Con movimento ridotto fogli, toast e righe nuove usano solo dissolvenze.
 
 ## Inviti senza limite applicativo
 
