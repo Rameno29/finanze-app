@@ -46,7 +46,7 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webp,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,webp,webmanifest,woff2}'],
       },
       includeAssets: ['favicon-v3.png', 'apple-touch-icon-v3.png'],
       manifest: {
@@ -56,8 +56,8 @@ export default defineConfig({
         lang: 'it',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#03372f',
-        theme_color: '#03372f',
+        background_color: '#07382f',
+        theme_color: '#07382f',
         icons: [
           { src: 'pwa-192-v3.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512-v3.png', sizes: '512x512', type: 'image/png' },

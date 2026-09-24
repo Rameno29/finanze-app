@@ -2,7 +2,23 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **23 settembre 2026**.
+> Ultimo aggiornamento: **24 settembre 2026**.
+
+## Redesign "Flusso" — in corso per fasi
+
+La specifica è `design_handoff_aje_redesign/README.md` (i file `.dc.html` sono solo prototipi,
+esclusi da build e lint). Si procede una fase per branch `redesign/<n>-<nome>`, partendo da
+`redesign/handoff`.
+
+- **Fase 1 — Fondamenta** (`redesign/1-fondamenta`): token colore/movimento/ombre di
+  `tokens.css` in `src/index.css` (nomi invariati; `--nav-bg` più scuro, nuove `--warn-bg`,
+  `--warn-text`, `--warning`, `--skeleton`, `--ease-*`, `--shadow-*` e utility Tailwind
+  `bg-brand`, `bg-nav`, `text-warning`…); font **Geist** self-hosted con
+  `@fontsource-variable/geist` importato in `src/main.tsx` (CSP invariata, i file `woff2` entrano
+  nella precache del service worker per l'uso offline); classe `.tabular`; blocco
+  `prefers-reduced-motion` che riduce animazioni e transizioni a dissolvenze di 150 ms;
+  `theme-color` `#f6f4ed`/`#081b19` e manifest `#07382f`. Le schermate non sono ancora
+  ridisegnate: `.display-type` resta finché le singole pagine non passano al titolo sans.
 
 ## Inviti senza limite applicativo
 

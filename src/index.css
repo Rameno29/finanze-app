@@ -17,8 +17,25 @@
   --brand-deep: #07382f;
   --brand-soft: #e6f0ea;
   --brand-panel: #0b5145;
-  --nav-bg: #0a4239;
+  --nav-bg: #07382f;
   --nav-line: #1d5c51;
+  --warn-bg: #f6e7c1;
+  --warn-text: #4d3a00;
+  --warning: #d98a0b;
+  --skeleton: #ebe8df;
+
+  --ease-standard: cubic-bezier(.2, .8, .2, 1);
+  --ease-sheet: cubic-bezier(.32, .72, 0, 1);
+  --ease-spring: cubic-bezier(.3, 1.25, .5, 1);
+  --ease-pop: cubic-bezier(.3, 1.5, .5, 1);
+  --dur-fast: 250ms;
+  --dur-base: 450ms;
+  --dur-sheet: 500ms;
+
+  --shadow-nav: 0 12px 30px rgb(7 56 47 / .30);
+  --shadow-fab: 0 6px 16px rgb(98 83 232 / .45);
+  --shadow-float: 0 10px 30px rgb(21 44 41 / .12);
+  --shadow-paper: 0 1px 2px rgb(0 0 0 / .08), 0 8px 24px rgb(21 44 41 / .10);
 }
 
 .dark {
@@ -36,8 +53,13 @@
   --brand-deep: #061715;
   --brand-soft: #153a32;
   --brand-panel: #153b34;
-  --nav-bg: #061715;
+  --nav-bg: #153b34;
   --nav-line: #21453e;
+  --warn-bg: #3a2f12;
+  --warn-text: #f6e7c1;
+  --warning: #f0b44c;
+  --skeleton: #17332f;
+  --shadow-float: 0 10px 30px rgb(0 0 0 / .35);
 }
 
 @theme inline {
@@ -51,7 +73,14 @@
   --color-accent-soft: var(--accent-soft);
   --color-income: var(--income);
   --color-expense: var(--expense);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
   --color-brand-panel: var(--brand-panel);
+  --color-nav: var(--nav-bg);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-text: var(--warn-text);
+  --color-warning: var(--warning);
+  --font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 html,
@@ -60,9 +89,7 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family:
-    Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
-    sans-serif;
+  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -72,6 +99,8 @@ body {
 h1, h2, h3 {
   text-wrap: balance;
 }
+
+.tabular { font-variant-numeric: tabular-nums; }
 
 .display-type {
   font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif;
@@ -259,4 +288,15 @@ textarea {
 ::selection {
   background: var(--accent);
   color: #fff;
+}
+
+/* Movimento ridotto: niente scorrimenti né stagger, restano solo dissolvenze brevi. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 150ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 150ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
