@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Bot, Check, Mic, Send, X } from 'lucide-react'
 import { executeIntent, type Intent } from '../../lib/assistantActions'
 import { invokeFunction } from '../../lib/integrations'
@@ -134,6 +135,22 @@ export function AssistantPage() {
   }
 
   const ask = (question: string) => void submitText(question)
+
+  // Domanda arrivata dai suggerimenti della Home: si invia una volta e si toglie dalla cronologia.
+  const location = useLocation()
+  const navigate = useNavigate()
+  const routeQuestionSent = useRef(false)
+  const submitRef = useRef(submitText)
+  useEffect(() => {
+    submitRef.current = submitText
+  })
+  useEffect(() => {
+    const question = (location.state as { ask?: unknown } | null)?.ask
+    if (typeof question !== 'string' || routeQuestionSent.current) return
+    routeQuestionSent.current = true
+    navigate(location.pathname, { replace: true, state: null })
+    void submitRef.current(question)
+  }, [location.state, location.pathname, navigate])
 
   /** Ferma la registrazione, trascrive e mette il testo nel campo (modificabile). */
   async function stopRecording() {

@@ -289,6 +289,22 @@ textarea {
   color: #fff;
 }
 
+/* Home */
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  column-gap: 64px;
+  row-gap: 32px;
+  align-items: start;
+}
+
+.day-bar {
+  transition: height 700ms var(--ease-standard), background-color 250ms ease;
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 /* Shell: spazio per la barra flottante e transizione di pagina */
 .page-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 130px); }
 .app-main { overflow-x: clip; }

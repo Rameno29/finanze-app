@@ -62,6 +62,27 @@ esclusi da build e lint). Si procede una fase per branch `redesign/<n>-<nome>`, 
   - **Test e2e**: su mobile i test che partono da Impostazioni tornano alla Home con "Indietro";
     il test del microfono esce dall'Assistente con "Indietro"; `/altro` è nel giro delle pagine
     controllate.
+- **Fase 4 — Home** (`redesign/4-home`):
+  - Blocchi senza card: intestazione (wordmark su mobile, "Buongiorno" su desktop, data, tema e
+    avatar), patrimonio, spesa giorno per giorno, "Puoi spendere ancora oggi", ultimi 4
+    movimenti (`TransactionRow`), "Da fare oggi" (`TaskRow`) e domande "Chiedi ad AJE".
+  - **Patrimonio**: somma dei saldi dei conti (`fetchAccountBalances`, come in Conti). Il numero
+    scorre verso il nuovo valore quando cambia (`useAnimatedNumber` in `components/motion.ts`,
+    niente animazione al primo caricamento né con movimento ridotto). Sotto ci sono entrate e
+    uscite del mese.
+  - **Grafico giorno per giorno**: barre in `<button aria-label="Giorno N">`, altezza ∝ √spesa, i
+    giorni futuri sono fermi. Sostituisce il grafico "Ultimi 6 mesi".
+  - **Movimenti e attività**: le righe nuove si aprono evidenziate (`useNewIds`). Nelle attività
+    quelle completate oggi restano visibili e barrate.
+  - **Logica pura** in `src/lib/home.ts` con test: spesa giornaliera, altezze delle barre,
+    disponibile al giorno, meta delle attività, separazione dei decimali.
+  - **Chiedi ad AJE**: le chip aprono l'Assistente e inviano la domanda tramite lo stato della
+    rotta, non nell'URL; l'Assistente la invia una volta e la toglie dalla cronologia. La domanda
+    sull'obiettivo usa il primo obiettivo non raggiunto. "Report di <mese>" apre il report AI
+    esistente nella Home.
+  - "Uscite per categoria" e "Carica la busta paga" restano sotto i suggerimenti, senza card.
+  - **Corretto**: la legenda di "Uscite per categoria" usava il nome come chiave e poteva
+    duplicare le voci "Altro" quando le categorie arrivavano dopo i movimenti.
 
 ## Inviti senza limite applicativo
 
