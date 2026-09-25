@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_PAD_CENTS, budgetTone, dayGroupLabel, groupByDay, padAppend, padBackspace, sheetDateLabel } from './finance'
+import { MAX_PAD_CENTS, budgetTone, dayGroupLabel, groupByDay, lastUpdateLabel, padAppend, padBackspace, sheetDateLabel } from './finance'
 import type { Transaction } from '../types'
 
 function tx(partial: Partial<Transaction>): Transaction {
@@ -62,5 +62,14 @@ describe('budgetTone', () => {
     expect(budgetTone(8500, 10000)).toBe('warning')
     expect(budgetTone(10000, 10000)).toBe('warning')
     expect(budgetTone(10001, 10000)).toBe('expense')
+  })
+})
+
+describe('lastUpdateLabel', () => {
+  it('descrive l’ultimo aggiornamento riuscito', () => {
+    const now = new Date(2026, 8, 24, 15, 0).getTime()
+    expect(lastUpdateLabel(new Date(2026, 8, 24, 12, 40).getTime(), now)).toBe('oggi alle 12:40')
+    expect(lastUpdateLabel(new Date(2026, 8, 23, 9, 5).getTime(), now)).toBe('ieri alle 09:05')
+    expect(lastUpdateLabel(new Date(2026, 8, 22, 18, 0).getTime(), now)).toBe('22 set alle 18:00')
   })
 })

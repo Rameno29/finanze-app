@@ -197,6 +197,38 @@ esclusi da build e lint). Si procede una fase per branch `redesign/<n>-<nome>`, 
     - messaggio "Nessun risultato per …".
   - **`PageHeader narrow`**: allinea il titolo ai contenuti da 720px su desktop. Rimossa la
     vecchia griglia a due colonne di Impostazioni e Guida.
+- **Fase 9 — PWA, stati vuoti ed errori** (`redesign/9-pwa-stati`):
+  - **Installazione** (`src/lib/install.ts`, importato in `main.tsx` per non perdere
+    `beforeinstallprompt`):
+    - rileva se AJE è già installata (`display-mode: standalone` / `navigator.standalone`);
+    - su Android e desktop offre il prompt; su iOS mostra le istruzioni di Safari;
+    - la chiusura del banner vale 30 giorni (`aje-install-dismissed`);
+    - banner in Home (solo mobile), "Installa AJE sul computer" nella sidebar e toast "AJE
+      installata" (`InstallWatcher`);
+    - funzioni pure testate.
+  - **Home vuota** (nessun conto): saldo in grigio e blocco "Iniziamo dal tuo conto".
+    "Aggiungi un conto" apre Finanze → Conti con il foglio "Nuovo conto" già aperto (stato della
+    rotta); "Oppure importa un CSV della banca" porta ai Conti.
+  - **Caricamento**: `PageSkeleton` al posto dello spinner durante il caricamento delle pagine
+    lazy; lo spinner resta solo per l'autenticazione.
+  - **Errore di rete**:
+    - `loadWithOfflineCache` registra l'esito dell'ultimo caricamento online (`getLoadHealth`) e
+      l'ora dell'ultimo riuscito in `localStorage` (`aje-last-sync:<utente>:<raccolta>`); i dati
+      restituiti non cambiano;
+    - `useTransactions` espone `failed`/`lastSuccess`;
+    - in Finanze compare "Non riesco a caricare i movimenti" con "Riprova" e l'orario
+      dell'ultimo aggiornamento, oppure un avviso se c'è la copia offline.
+  - **Offline**: `listPendingChanges` / `describeMutation` (sola lettura, testata) elencano le
+    modifiche in coda in Impostazioni → Offline, con l'avvertenza di non cancellare i dati del
+    sito. Plurale corretto "1 modifica" anche nel banner.
+  - **Assistente senza chiave**: "Serve la tua chiave Gemini" con "Aggiungi la chiave"
+    (`/impostazioni#integrazioni`, con scorrimento alla sezione) e "Come ottenerla"
+    (`/guida?q=chiave`); il composer resta disponibile.
+  - **Documento non leggibile** nel foglio di caricamento: anteprima, tre consigli, "Scatta di
+    nuovo" / "Scegli un altro file", "Inserisci i dati a mano" (busta paga e scontrino aprono i
+    fogli di conferma vuoti). Senza chiave Gemini il file risulta solo archiviato.
+  - **Accesso sospeso** (`MembershipGate`): stato con `Lock` ed "Esci" con bordo; l'errore di
+    verifica ha `TriangleAlert`, "Riprova" e "Torna al login".
 
 ## Inviti senza limite applicativo
 

@@ -57,3 +57,17 @@ export function budgetTone(spent: number, limit: number): 'brand' | 'warning' | 
   if (limit <= 0 || spent > limit) return 'expense'
   return spent / limit >= 0.85 ? 'warning' : 'brand'
 }
+
+/** "oggi alle 12:40", "ieri alle 09:05", "22 set alle 18:00" (ora locale). */
+export function lastUpdateLabel(timestamp: number, now: number = Date.now()): string {
+  const date = new Date(timestamp)
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  const day = isoDay(date)
+  const today = isoDay(new Date(now))
+  if (day === today) return `oggi alle ${time}`
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (day === isoDay(yesterday)) return `ieri alle ${time}`
+  const short = date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }).replace('.', '')
+  return `${short} alle ${time}`
+}

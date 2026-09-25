@@ -2,6 +2,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/geist'
 import './index.css'
+// Registra subito beforeinstallprompt/appinstalled, prima che l'evento vada perso.
+import './lib/install'
 import App from './App.tsx'
 
 // Nessun reload forzato: può cancellare un modulo, una registrazione o un upload in corso.

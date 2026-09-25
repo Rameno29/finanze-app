@@ -21,6 +21,42 @@ function useDataChanged(reload: () => unknown) {
   }, [reload])
 }
 
+/** Esito dell'ultimo caricamento online di una raccolta: serve a mostrare l'errore di rete. */
+export interface LoadHealth {
+  failed: boolean
+  /** Ultimo caricamento online riuscito (ms), anche da una sessione precedente. */
+  lastSuccess: number | null
+}
+
+const loadHealth = new Map<string, LoadHealth>()
+
+function lastSuccessKey(userId: string, collection: string) {
+  return `aje-last-sync:${userId}:${collection}`
+}
+
+function storedLastSuccess(userId: string, collection: string): number | null {
+  try {
+    const value = Number(localStorage.getItem(lastSuccessKey(userId, collection)))
+    return Number.isFinite(value) && value > 0 ? value : null
+  } catch {
+    return null
+  }
+}
+
+function recordLoad(userId: string, collection: string, ok: boolean) {
+  if (ok) {
+    const now = Date.now()
+    loadHealth.set(collection, { failed: false, lastSuccess: now })
+    try { localStorage.setItem(lastSuccessKey(userId, collection), String(now)) } catch { /* storage non disponibile */ }
+  } else {
+    loadHealth.set(collection, { failed: true, lastSuccess: storedLastSuccess(userId, collection) })
+  }
+}
+
+export function getLoadHealth(collection: string): LoadHealth {
+  return loadHealth.get(collection) ?? { failed: false, lastSuccess: null }
+}
+
 async function loadWithOfflineCache<T>(
   collection: string,
   onlineLoad: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
@@ -38,8 +74,12 @@ async function loadWithOfflineCache<T>(
       const merged = await overlayPendingRows(userId, collection, data)
       sessionScope.assert(ticket)
       await cacheData(userId, collection, merged)
+      recordLoad(userId, collection, true)
       return merged
-    } catch { sessionScope.assert(ticket) }
+    } catch {
+      sessionScope.assert(ticket)
+      recordLoad(userId, collection, false)
+    }
   }
   const merged = await overlayPendingRows(userId, collection, (await readCachedData<T[]>(userId, collection)) ?? [])
   sessionScope.assert(ticket)
@@ -123,12 +163,14 @@ export function useCategories() {
 export function useTransactions(year: number, month: number) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [health, setHealth] = useState<LoadHealth>({ failed: false, lastSuccess: null })
   const requestSequence = useRef(0)
 
   const reload = useCallback(async () => {
     const request = ++requestSequence.current
     const { from, to } = monthRange(year, month)
-    const data = await loadWithOfflineCache<Transaction>(`transactions:${year}-${String(month).padStart(2, '0')}`, (offset,end) => supabase
+    const collection = `transactions:${year}-${String(month).padStart(2, '0')}`
+    const data = await loadWithOfflineCache<Transaction>(collection, (offset,end) => supabase
       .from('transactions')
       .select('*')
       .gte('date', from)
@@ -137,6 +179,7 @@ export function useTransactions(year: number, month: number) {
       .order('created_at', { ascending: false }).order('id').range(offset,end))
     if (request !== requestSequence.current) return
     setTransactions(data)
+    setHealth(getLoadHealth(collection))
     setLoading(false)
   }, [year, month])
 
@@ -146,7 +189,7 @@ export function useTransactions(year: number, month: number) {
   }, [reload])
   useDataChanged(reload)
 
-  return { transactions, loading, reload }
+  return { transactions, loading, reload, failed: health.failed, lastSuccess: health.lastSuccess }
 }
 
 export function useBudgets() {

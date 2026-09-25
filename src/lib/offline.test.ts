@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { sessionScope } from './sessionScope'
 
 const mocks = vi.hoisted(() => ({ session: { user: { id: 'A' }, access_token: 'token-A' }, writes: [] as Array<{ token: string; payload: unknown }>, pause: null as null | (() => Promise<void>), active: true, affected: [] as Array<{ id: string }> }))
@@ -17,7 +17,7 @@ vi.mock('./supabase', () => ({
     return query
   } }),
 }))
-import { cacheData, getOfflineStatus, mutateOffline, overlayPendingRows, readCachedData, syncOffline } from './offline'
+import { cacheData, describeMutation, getOfflineStatus, mutateOffline, overlayPendingRows, readCachedData, syncOffline } from './offline'
 import { fetchAccountBalances, fetchMonthlyTotals } from './data'
 
 beforeEach(() => {
@@ -117,4 +117,14 @@ it('stops replay on identity change and never borrows the new user token', async
   await Promise.all([syncOffline('A'), syncOffline('A')])
   expect((await getOfflineStatus('A')).pending).toBe(0)
   expect(mocks.writes).toHaveLength(3)
+})
+
+describe('describeMutation', () => {
+  it('descrive movimenti, attività e trasferimenti in coda', () => {
+    expect(describeMutation({ table: 'transactions', operation: 'insert', payload: { description: 'Pizza' } })).toBe('Nuovo movimento «Pizza»')
+    expect(describeMutation({ table: 'tasks', operation: 'insert', payload: { title: 'Bollo' } })).toBe('Nuova attività «Bollo»')
+    expect(describeMutation({ table: 'tasks', operation: 'update', payload: { done: true }, localRecord: { title: 'Bollo' } })).toBe('Modifica attività «Bollo»')
+    expect(describeMutation({ table: 'transactions', operation: 'delete', payload: {} })).toBe('Eliminazione movimento')
+    expect(describeMutation({ table: 'transactions', operation: 'transfer', payload: {} })).toBe('Trasferimento tra conti')
+  })
 })

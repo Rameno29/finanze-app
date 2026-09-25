@@ -1,8 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   Bell,
   BookOpen,
+  Clock,
   Bot,
   ChevronDown,
   ChevronRight,
@@ -35,7 +36,7 @@ import {
   sendTestNotification,
 } from '../../lib/push'
 import { callFunction, type IntegrationStatus } from '../../lib/integrations'
-import { subscribeOfflineStatus, syncOffline, type OfflineStatus } from '../../lib/offline'
+import { listPendingChanges, subscribeOfflineStatus, syncOffline, type OfflineStatus, type PendingChange } from '../../lib/offline'
 import { PageHeader, Spinner } from '../../components/ui'
 import { Segmented } from '../../components/Segmented'
 import { Switch } from '../../components/Switch'
@@ -175,6 +176,26 @@ export function SettingsPage() {
   }, [])
 
   useEffect(() => (userId ? subscribeOfflineStatus(userId, setOffline) : undefined), [userId])
+
+  // Da un collegamento con #integrazioni (es. Assistente senza chiave) si scorre alla sezione.
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (!hash) return
+    const timer = window.setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' }), 300)
+    return () => window.clearTimeout(timer)
+  }, [hash])
+
+  // Elenco delle modifiche in coda: si rilegge quando cambia il numero in attesa.
+  const [pendingList, setPendingList] = useState<PendingChange[]>([])
+  useEffect(() => {
+    if (!userId || offline.pending === 0) {
+      setPendingList([])
+      return
+    }
+    let alive = true
+    void listPendingChanges(userId).then((list) => { if (alive) setPendingList(list) }).catch(() => {})
+    return () => { alive = false }
+  }, [userId, offline.pending])
 
   function toggleSection(id: SectionId) {
     setOpen((current) => {
@@ -347,7 +368,7 @@ export function SettingsPage() {
         >
           <div className="flex min-h-[52px] items-center gap-3">
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px]">{offline.pending > 0 ? `${offline.pending} modifiche in attesa` : 'Tutto sincronizzato'}</span>
+              <span className="block text-[15px]">{offline.pending > 0 ? `${offline.pending} ${offline.pending === 1 ? 'modifica' : 'modifiche'} in attesa` : 'Tutto sincronizzato'}</span>
               <span className="block text-[13px] text-muted">{offline.online ? 'Connessione attiva' : 'Nessuna connessione: le modifiche restano in coda'}</span>
             </span>
             {offline.online && offline.pending > 0 && (
@@ -360,6 +381,24 @@ export function SettingsPage() {
               </button>
             )}
           </div>
+          {pendingList.length > 0 && (
+            <>
+              <ul className="mt-1">
+                {pendingList.map((change) => (
+                  <li key={change.id} className="flex min-h-11 items-center gap-2.5 border-b border-line text-sm">
+                    <Clock className="h-4 w-4 shrink-0 text-warning" strokeWidth={1.9} aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate">{change.label}</span>
+                    <span className="shrink-0 text-xs text-muted">
+                      {new Date(change.createdAt).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 rounded-[14px] bg-warn-bg px-3.5 py-2.5 text-[13px] leading-[1.5] text-warn-text">
+                Non cancellare i dati del sito né disinstallare AJE finché queste modifiche non sono sincronizzate: esistono solo su questo dispositivo.
+              </p>
+            </>
+          )}
           <p className="mt-2 flex gap-2 text-[13px] leading-[1.55] text-muted">
             <CloudOff className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.9} />
             Le ultime viste di Finanze e Agenda sono cifrate sul dispositivo. Senza rete puoi consultarle e modificare movimenti o attività; AJE sincronizza la coda appena torni online. Token, documenti e allegati non vengono duplicati nella cache offline.

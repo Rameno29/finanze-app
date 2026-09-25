@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { ArrowUp, Check, Mic, Sparkles, X } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowUp, Check, KeyRound, Mic, Sparkles, X } from 'lucide-react'
 import { executeIntent, type Intent } from '../../lib/assistantActions'
 import { callFunction, invokeFunction, type IntegrationStatus } from '../../lib/integrations'
 import { formatCents } from '../../lib/format'
@@ -250,7 +250,26 @@ export function AssistantPage() {
       />
 
       <div className="assistant-conversation mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-3 px-5 pb-28 pt-3 lg:px-10">
-        {messages.length === 0 && (
+        {messages.length === 0 && geminiReady === false && (
+          <div className="flex flex-col items-center py-10 text-center">
+            <KeyRound className="h-9 w-9 text-accent" strokeWidth={1.9} aria-hidden="true" />
+            <p className="mt-3 text-xl font-semibold">Serve la tua chiave Gemini</p>
+            <p className="mt-1.5 max-w-[320px] text-sm leading-[1.55] text-muted">
+              L’assistente risponde con la tua chiave personale. Aggiungila una volta nelle Impostazioni e sei pronto.
+            </p>
+            <Link
+              to="/impostazioni#integrazioni"
+              className="mt-5 flex min-h-12 items-center rounded-[16px] bg-accent px-6 text-[15px] font-semibold text-white"
+            >
+              Aggiungi la chiave
+            </Link>
+            <Link to="/guida?q=chiave" className="mt-2 flex min-h-11 items-center text-sm font-semibold text-accent">
+              Come ottenerla
+            </Link>
+          </div>
+        )}
+
+        {messages.length === 0 && geminiReady !== false && (
           <div className="flex flex-col gap-4 py-4">
             <p className="text-[17px] leading-[1.5]">
               Chiedimi dei tuoi soldi, dei documenti o dell’agenda. Rispondo usando i tuoi dati.

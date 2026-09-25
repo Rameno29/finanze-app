@@ -10,6 +10,7 @@ import { TransactionRow } from '../../components/TransactionRow'
 import { ThemeToggle } from '../../components/TabBar'
 import { useAnimatedNumber, useNewIds } from '../../components/motion'
 import { AiText } from '../../components/AiText'
+import { InstallBanner } from '../../components/InstallBanner'
 import {
   fetchAccountBalances,
   sumByKind,
@@ -148,6 +149,7 @@ export function HomePage() {
   }, [accounts, accountsLoading])
   const netWorth = accounts.reduce((sum, a) => sum + (balances?.get(a.id) ?? a.initial_balance_cents), 0)
   const netWorthReady = !accountsLoading && balances !== null
+  const noAccounts = !accountsLoading && accounts.length === 0
   const shownNetWorth = useAnimatedNumber(netWorth, netWorthReady)
   const netWorthParts = splitAmount(formatCents(shownNetWorth))
 
@@ -264,6 +266,10 @@ export function HomePage() {
         </Link>
       </header>
 
+      <div className="mt-5 empty:hidden lg:hidden">
+        <InstallBanner />
+      </div>
+
       {operationError && (
         <p role="alert" className="mt-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{operationError}</p>
       )}
@@ -276,7 +282,7 @@ export function HomePage() {
               Patrimonio · {accounts.length} {accounts.length === 1 ? 'conto' : 'conti'}
             </p>
             {netWorthReady ? (
-              <p className={`tabular mt-1 text-[58px] font-semibold leading-none tracking-[-0.035em] ${netWorth < 0 ? 'text-expense' : ''}`}>
+              <p className={`tabular mt-1 text-[58px] font-semibold leading-none tracking-[-0.035em] ${netWorth < 0 ? 'text-expense' : noAccounts ? 'text-muted' : ''}`}>
                 {netWorthParts.whole}
                 <span className="text-[28px] font-medium tracking-[-0.02em] text-muted">{netWorthParts.fraction}</span>
               </p>
@@ -294,6 +300,30 @@ export function HomePage() {
               </span>
             </div>
           </section>
+
+          {/* Home vuota: nessun conto ancora */}
+          {noAccounts && (
+            <section className="border-y border-line py-6">
+              <h2 className="text-xl font-semibold tracking-[-0.01em]">Iniziamo dal tuo conto</h2>
+              <p className="mt-1.5 text-sm leading-[1.55] text-muted">
+                Aggiungi il conto corrente, una carta o i contanti con il saldo di oggi: da lì AJE calcola patrimonio, spese del giorno e budget.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate('/finanze', { state: { view: 'conti', newAccount: true } })}
+                className="mt-4 flex min-h-14 w-full items-center justify-center rounded-[18px] bg-accent text-[16px] font-semibold text-white transition active:scale-[0.98]"
+              >
+                Aggiungi un conto
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/finanze', { state: { view: 'conti' } })}
+                className="mt-2 flex min-h-11 w-full items-center justify-center text-sm font-semibold text-accent"
+              >
+                Oppure importa un CSV della banca
+              </button>
+            </section>
+          )}
 
           {/* 4. Grafico del mese */}
           <section>

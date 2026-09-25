@@ -16,3 +16,21 @@ export function SkeletonRow({ height = 64 }: { height?: number }) {
     </div>
   )
 }
+
+/** Segnaposto di una pagina intera mentre il suo codice si carica: titolo, riga di sintesi e righe elenco. */
+export function PageSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="Caricamento"
+      className="mx-auto w-full max-w-[1120px] px-5 pt-[calc(env(safe-area-inset-top)+16px)] lg:px-10 lg:pt-8"
+    >
+      <Skeleton className="h-9 w-44 rounded-lg" />
+      <Skeleton className="mt-3 h-4 w-60" />
+      <Skeleton className="mt-8 h-14 w-56 rounded-xl" />
+      <div className="mt-8 space-y-1">
+        {[0, 1, 2, 3, 4].map((i) => <SkeletonRow key={i} />)}
+      </div>
+    </div>
+  )
+}

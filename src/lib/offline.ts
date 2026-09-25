@@ -401,3 +401,34 @@ export function subscribeOfflineStatus(userId: string, listener: (status: Offlin
     window.removeEventListener('offline', onOffline)
   }
 }
+
+export interface PendingChange {
+  id: string
+  label: string
+  createdAt: string
+}
+
+const OPERATION_LABELS: Record<OfflineOperation, string> = {
+  insert: 'Nuovo',
+  update: 'Modifica',
+  delete: 'Eliminazione',
+  transfer: 'Trasferimento',
+  'delete-transfer': 'Eliminazione trasferimento',
+}
+
+/** Descrizione breve di una modifica in coda, per l'elenco nelle Impostazioni (solo lettura). */
+export function describeMutation(mutation: Pick<OfflineMutation, 'table' | 'operation' | 'payload' | 'localRecord'>): string {
+  const record = { ...(mutation.localRecord ?? {}), ...mutation.payload } as Record<string, unknown>
+  const what = mutation.table === 'tasks'
+    ? `attività${typeof record.title === 'string' && record.title ? ` «${record.title}»` : ''}`
+    : mutation.operation === 'transfer' || mutation.operation === 'delete-transfer'
+      ? 'tra conti'
+      : `movimento${typeof record.description === 'string' && record.description ? ` «${record.description}»` : ''}`
+  return `${OPERATION_LABELS[mutation.operation]} ${what}`.replace('Nuovo attività', 'Nuova attività')
+}
+
+/** Modifiche ancora da sincronizzare, dalla più vecchia. */
+export async function listPendingChanges(userId: string): Promise<PendingChange[]> {
+  const queue = await queuedMutations(userId)
+  return queue.map((mutation) => ({ id: mutation.id, label: describeMutation(mutation), createdAt: mutation.createdAt }))
+}

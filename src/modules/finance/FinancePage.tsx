@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Moon, Sparkles } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Download, ListX, Mic, Moon, Sparkles, TriangleAlert } from 'lucide-react'
 import { EmptyState, PageHeader, Sheet, Spinner } from '../../components/ui'
 import { SkeletonRow } from '../../components/Skeleton'
 import { TransactionRow } from '../../components/TransactionRow'
@@ -19,7 +20,7 @@ import { AccountsView } from './AccountsView'
 import { useAccounts, useBudgets, useCategories, useGoals, useTransactions, sumByKind } from '../../lib/data'
 import { exportTransactionsCsv } from '../../lib/exportCsv'
 import { formatCents, formatSignedCents, monthLabel, todayISO } from '../../lib/format'
-import { dayGroupLabel, groupByDay } from '../../lib/finance'
+import { dayGroupLabel, groupByDay, lastUpdateLabel } from '../../lib/finance'
 import { CategoryIcon } from '../../lib/icons'
 import { formatCurrencyCents } from '../../lib/currency'
 import type { Transaction } from '../../types'
@@ -37,7 +38,15 @@ export function FinancePage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
-  const [view, setView] = useState<View>('movimenti')
+  const location = useLocation()
+  const navigate = useNavigate()
+  const routeState = location.state as { view?: View; newAccount?: boolean } | null
+  const [view, setView] = useState<View>(routeState?.view && VIEWS.some(([key]) => key === routeState.view) ? routeState.view : 'movimenti')
+  const [openNewAccount] = useState(Boolean(routeState?.newAccount))
+  useEffect(() => {
+    // Lo stato serve solo all'arrivo: si toglie dalla cronologia per non riaprire il foglio.
+    if (routeState) navigate(location.pathname, { replace: true, state: null })
+  }, [routeState, navigate, location.pathname])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [diaryOpen, setDiaryOpen] = useState(false)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
@@ -169,7 +178,7 @@ export function FinancePage() {
   }
 
   const { categories, reload: reloadCategories } = useCategories()
-  const { transactions, loading, reload } = useTransactions(year, month)
+  const { transactions, loading, reload, failed: loadFailed, lastSuccess } = useTransactions(year, month)
   const { budgets, reload: reloadBudgets } = useBudgets()
   const { goals, loading: goalsLoading, reload: reloadGoals } = useGoals()
   const { accounts, loading: accountsLoading, reload: reloadAccounts } = useAccounts()
@@ -365,9 +374,35 @@ export function FinancePage() {
               <p role="alert" className="mt-2 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{listError}</p>
             )}
 
+            {!loading && loadFailed && transactions.length > 0 && (
+              <p role="status" className="mt-3 flex items-center gap-2 rounded-[14px] bg-expense/10 px-4 py-2.5 text-[13px] text-expense">
+                <TriangleAlert className="h-4 w-4 shrink-0" strokeWidth={1.9} />
+                <span className="flex-1">Non riesco ad aggiornare i movimenti: vedi l’ultima copia salvata.</span>
+                <button onClick={() => void reload()} className="-my-2 min-h-11 font-semibold underline underline-offset-2">Riprova</button>
+              </p>
+            )}
+
             {loading ? (
               <div className="mt-4 space-y-1">
                 {[0, 1, 2, 3].map((i) => <SkeletonRow key={i} />)}
+              </div>
+            ) : loadFailed && transactions.length === 0 ? (
+              <div role="alert" className="flex flex-col items-center py-12 text-center">
+                <TriangleAlert className="h-10 w-10 text-expense" strokeWidth={1.9} aria-hidden="true" />
+                <p className="mt-3 text-xl font-semibold">Non riesco a caricare i movimenti</p>
+                <p className="mt-1.5 max-w-[300px] text-sm leading-[1.55] text-muted">
+                  Il server non risponde. Controlla la connessione e riprova: i dati salvati non si perdono.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void reload()}
+                  className="mt-5 min-h-12 rounded-[16px] bg-accent px-8 text-[15px] font-semibold text-white transition active:scale-[0.98]"
+                >
+                  Riprova
+                </button>
+                {lastSuccess && (
+                  <p className="mt-3 text-[13px] text-muted">Ultimo aggiornamento riuscito: {lastUpdateLabel(lastSuccess)}</p>
+                )}
               </div>
             ) : transactions.length === 0 ? (
               <EmptyState
@@ -465,6 +500,7 @@ export function FinancePage() {
               categories={categories}
               onChanged={reloadAccounts}
               onTransactionsChanged={reload}
+              openNewAccount={openNewAccount}
             />
           </section>
         </div>

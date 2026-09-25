@@ -62,6 +62,7 @@ export function DocumentsPage() {
   const [uploadError, setUploadError] = useState('')
   const [droppedFile, setDroppedFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
+  const previewUrlRef = useRef<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
   const uploadTypeRef = useRef<DocType>(uploadType)
@@ -190,6 +191,8 @@ export function DocumentsPage() {
       return
     }
     setDroppedFile(null)
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    previewUrlRef.current = file.type.startsWith('image/') ? URL.createObjectURL(file) : null
     setPhase({ kind: 'upload' })
     try {
       const doc = await uploadDocument(file, docType)
@@ -197,7 +200,17 @@ export function DocumentsPage() {
       setPhase({ kind: 'analyze' })
       const result = await runAnalysis(doc)
       if (!result.ok) {
-        setPhase({ kind: 'done', title: 'File archiviato', summary: `${result.message} Il file è nell’archivio: puoi riprovare l’analisi da lì.` })
+        if (result.message === 'Analisi AI non configurata.') {
+          setPhase({ kind: 'done', title: 'File archiviato', summary: 'La lettura automatica richiede la tua chiave Gemini: il file è nell’archivio e puoi analizzarlo quando l’avrai aggiunta.' })
+          return
+        }
+        // Documento non leggibile: consigli, nuova foto o dati inseriti a mano
+        const manual = docType === 'busta_paga'
+          ? () => { setUploadOpen(false); setPayslipData({ doc, analysis: { period_year: null, period_month: null, net_cents: null, gross_cents: null, deductions: {}, vacation_days: null, leave_hours: null, employer: null, notes: null } }) }
+          : docType === 'scontrino'
+            ? () => { setUploadOpen(false); setReceiptData({ doc, analysis: { total_cents: null, date: null, merchant: null, category_hint: null, notes: null } }) }
+            : undefined
+        setPhase({ kind: 'unreadable', fileName: file.name, previewUrl: previewUrlRef.current, detail: result.message, onManual: manual })
         return
       }
       if (result.kind === 'explain') {

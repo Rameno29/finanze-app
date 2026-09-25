@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { CloudOff, RefreshCw } from 'lucide-react'
 import { subscribeOfflineStatus, syncOffline, type OfflineStatus } from '../lib/offline'
 
+function pendingLabel(count: number) {
+  return `${count} ${count === 1 ? 'modifica' : 'modifiche'}`
+}
+
 export function OfflineBanner({ userId }: { userId: string }) {
   const [status, setStatus] = useState<OfflineStatus>({
     online: navigator.onLine, syncing: false, pending: 0, lastError: null,
@@ -23,12 +27,12 @@ export function OfflineBanner({ userId }: { userId: string }) {
         <span className="flex items-center justify-center gap-2 text-center">
           {status.syncing ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <CloudOff className="h-4 w-4 shrink-0" />}
           {!status.online
-            ? `Modalità offline${status.pending ? ` · ${status.pending} modifiche in attesa` : ''}`
+            ? `Modalità offline${status.pending ? ` · ${pendingLabel(status.pending)} in attesa` : ''}`
             : status.syncing
               ? 'Sincronizzazione in corso…'
               : status.lastError
                 ? `Sincronizzazione sospesa · ${status.pending} in attesa`
-                : `${status.pending} modifiche da sincronizzare`}
+                : `${pendingLabel(status.pending)} da sincronizzare`}
           {status.online && status.pending > 0 && !status.syncing && (
             <button onClick={() => void syncOffline(userId)} className="-my-2 min-h-11 px-1 font-semibold underline underline-offset-2">Riprova</button>
           )}

@@ -5,8 +5,10 @@ import { ThemeProvider } from './context/ThemeContext'
 import { TabBar } from './components/TabBar'
 import { ToastProvider } from './components/Toast'
 import { QuickActionProvider } from './components/QuickAction'
+import { InstallWatcher } from './components/InstallBanner'
 import { routeOrder } from './lib/navigation'
 import { FullPageSpinner } from './components/ui'
+import { PageSkeleton } from './components/Skeleton'
 import { LoginPage } from './modules/auth/LoginPage'
 import { OfflineBanner } from './components/OfflineBanner'
 import { AuthCallbackPage } from './modules/auth/AuthCallbackPage'
@@ -46,7 +48,7 @@ function Shell() {
     <MembershipGate key={session.user.id} userId={session.user.id}><QuickActionProvider><div className="min-h-dvh bg-bg">
       <OfflineBanner userId={session.user.id} />
       <div className="app-main page-bottom bg-bg lg:pl-[264px]">
-        <Suspense fallback={<FullPageSpinner />}>
+        <Suspense fallback={<PageSkeleton />}>
           <div
             key={location.pathname}
             className="page-enter"
@@ -68,6 +70,7 @@ function Shell() {
         </Suspense>
       </div>
       <TabBar />
+      <InstallWatcher />
     </div></QuickActionProvider></MembershipGate>
   )
 }

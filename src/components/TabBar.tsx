@@ -1,8 +1,9 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Bot, BookOpen, CalendarDays, FileText, Fuel, Home, Moon, Plus, Settings, Sun, Wallet } from 'lucide-react'
+import { Bot, BookOpen, CalendarDays, Download, FileText, Fuel, Home, Moon, Plus, Settings, Sun, Wallet } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { barColumn, isSecondaryRoute, quickActionLabel } from '../lib/navigation'
+import { promptInstall, useInstallState } from '../lib/install'
 import { useQuickActionTrigger } from './quickActionContext'
 
 const MOBILE_TABS = [
@@ -49,6 +50,7 @@ export function TabBar() {
   const label = quickActionLabel(pathname)
   const column = barColumn(pathname)
   const hidden = isSecondaryRoute(pathname)
+  const install = useInstallState()
 
   const [first, second, third, fourth] = MOBILE_TABS
   const mobileLink = ({ to, label: text, icon: Icon }: (typeof MOBILE_TABS)[number]) => (
@@ -139,6 +141,16 @@ export function TabBar() {
           {label}
         </button>
         <div className="mt-auto pt-6">
+          {install.canPrompt && !install.installed && (
+            <button
+              type="button"
+              onClick={() => void promptInstall()}
+              className="mb-3 flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-[15px] font-medium text-white/74 transition-colors hover:bg-white/7 hover:text-white"
+            >
+              <Download className="h-5 w-5" strokeWidth={1.9} aria-hidden="true" />
+              Installa AJE sul computer
+            </button>
+          )}
           <div className="flex items-center gap-3 border-t border-white/14 pt-4">
             <p className="min-w-0 flex-1 truncate text-[13px] text-white/80" title={session?.user.email ?? undefined}>
               {session?.user.email}

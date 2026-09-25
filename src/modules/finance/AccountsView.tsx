@@ -22,15 +22,18 @@ export function AccountsView({
   categories,
   onChanged,
   onTransactionsChanged,
+  openNewAccount = false,
 }: {
   accounts: Account[]
   loading: boolean
   categories: Category[]
   onChanged: () => void
   onTransactionsChanged: () => void
+  /** Apre subito "Nuovo conto" (arrivando dalla Home vuota). */
+  openNewAccount?: boolean
 }) {
   const [balances, setBalances] = useState<Map<string, number>>(new Map())
-  const [accountSheet, setAccountSheet] = useState(false)
+  const [accountSheet, setAccountSheet] = useState(openNewAccount)
   const [editing, setEditing] = useState<Account | null>(null)
   const [transferSheet, setTransferSheet] = useState(false)
   const [importAccount, setImportAccount] = useState<Account | null>(null)

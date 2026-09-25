@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { Camera, Check, FileText, Receipt, ReceiptText, Upload } from 'lucide-react'
+import { Camera, Check, FileText, Receipt, ReceiptText, TriangleAlert, Upload } from 'lucide-react'
 import { Sheet } from '../../components/ui'
 import type { DocumentRow } from '../../types'
 
@@ -10,6 +10,13 @@ export type UploadPhase =
   | { kind: 'upload' }
   | { kind: 'analyze' }
   | { kind: 'done'; title: string; summary: string; action?: { label: string; run: () => void } }
+  | { kind: 'unreadable'; fileName: string; previewUrl: string | null; detail: string; onManual?: () => void }
+
+const READING_TIPS = [
+  'Appoggia il foglio su un piano scuro, con buona luce.',
+  'Inquadra tutto il documento, senza ombre né riflessi.',
+  'Tieni il telefono dritto e fermo, o carica il PDF originale.',
+]
 
 const UPLOAD_TYPES: Array<{ type: DocType; label: string; hint: string; icon: ComponentType<{ className?: string; strokeWidth?: number }> }> = [
   { type: 'busta_paga', label: 'Busta paga', hint: 'PDF o foto', icon: ReceiptText },
@@ -48,7 +55,25 @@ export function UploadSheet({
   const busy = phase.kind === 'upload' || phase.kind === 'analyze'
 
   let footer = null
-  if (phase.kind === 'done') {
+  if (phase.kind === 'unreadable') {
+    footer = (
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={isDesktop ? onPickFile : onPickCamera}
+          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-accent text-[16px] font-semibold text-white transition active:scale-[0.98]"
+        >
+          {isDesktop ? <Upload className="h-5 w-5" strokeWidth={1.9} /> : <Camera className="h-5 w-5" strokeWidth={1.9} />}
+          {isDesktop ? 'Scegli un altro file' : 'Scatta di nuovo'}
+        </button>
+        {phase.onManual && (
+          <button type="button" onClick={phase.onManual} className="flex min-h-12 w-full items-center justify-center text-[15px] font-semibold text-accent">
+            Inserisci i dati a mano
+          </button>
+        )}
+      </div>
+    )
+  } else if (phase.kind === 'done') {
     footer = (
       <button
         type="button"
@@ -97,7 +122,31 @@ export function UploadSheet({
 
   return (
     <Sheet open={open} onClose={onClose} title="Carica documento" footer={footer}>
-      {phase.kind === 'done' ? (
+      {phase.kind === 'unreadable' ? (
+        <div className="py-2">
+          <div className="flex items-center gap-3.5">
+            {phase.previewUrl ? (
+              <img src={phase.previewUrl} alt="" className="h-20 w-16 shrink-0 rounded-md object-cover shadow-[var(--shadow-paper)]" />
+            ) : (
+              <span className="flex h-20 w-16 shrink-0 items-center justify-center rounded-md bg-card-2 text-muted">
+                <FileText className="h-7 w-7" strokeWidth={1.9} />
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-xl font-semibold">
+                <TriangleAlert className="h-5 w-5 shrink-0 text-expense" strokeWidth={1.9} aria-hidden="true" /> Non riesco a leggere il documento
+              </p>
+              <p className="mt-1 truncate text-[13px] text-muted">{phase.fileName} è nell’archivio.</p>
+            </div>
+          </div>
+          <ul className="mt-5 space-y-2 text-sm leading-[1.5]">
+            {READING_TIPS.map((tip) => (
+              <li key={tip} className="flex gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" strokeWidth={2.4} aria-hidden="true" /> {tip}</li>
+            ))}
+          </ul>
+          {phase.detail && <p className="mt-4 text-[13px] text-muted">Dettaglio: {phase.detail}</p>}
+        </div>
+      ) : phase.kind === 'done' ? (
         <div className="flex flex-col items-center py-6 text-center">
           <span className="upload-done flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand-soft text-brand">
             <Check className="h-7 w-7" strokeWidth={2.4} />
