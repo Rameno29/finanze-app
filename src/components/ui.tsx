@@ -25,12 +25,25 @@ function BackButton() {
   )
 }
 
-/** Intestazione di pagina: titolo sans 34px; su mobile scorre col contenuto, su desktop resta in alto. */
-export function PageHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
+/**
+ * Intestazione di pagina: titolo sans 34px; su mobile scorre col contenuto, su desktop resta in alto.
+ * `narrow` allinea il titolo ai contenuti da 720px (Assistente, Impostazioni, Guida); altrimenti 1120px.
+ */
+export function PageHeader({
+  title,
+  subtitle,
+  right,
+  narrow = false,
+}: {
+  title: string
+  subtitle?: string
+  right?: ReactNode
+  narrow?: boolean
+}) {
   return (
     <header className="page-header px-5 pb-2 pt-[calc(env(safe-area-inset-top)+16px)] lg:sticky lg:top-0 lg:z-30 lg:bg-bg lg:px-0 lg:pb-4 lg:pt-8">
       <BackButton />
-      <div className="page-header-inner mx-auto flex w-full max-w-[1320px] items-start justify-between gap-3">
+      <div className={`page-header-inner mx-auto flex w-full items-start justify-between gap-3 lg:px-10 ${narrow ? 'max-w-[720px]' : 'max-w-[1120px]'}`}>
         <div className="min-w-0">
           <h1 className="page-header-title text-[34px] font-semibold leading-[1.1] tracking-[-0.03em]">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}

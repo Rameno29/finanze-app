@@ -157,6 +157,46 @@ esclusi da build e lint). Si procede una fase per branch `redesign/<n>-<nome>`, 
     "Nuovo movimento".
   - **Test e2e**: i test che cercavano i tipi di caricamento sulla pagina ora aprono prima il
     foglio "Carica documento" (`openUploadSheet`).
+- **Fase 8 — Login, Assistente, Carburanti, Impostazioni, Guida** (`redesign/8-schermate`):
+  - **Login**:
+    - colonna unica con wordmark, "Bentornato." e label visibili;
+    - "Mostra/Nascondi" dentro il campo password, con `aria-label` "Mostra password"/"Nascondi
+      password";
+    - "Password dimenticata?", CTA "Accedi" e "Accedi con passkey" (solo con WebAuthn);
+    - il recupero resta nella vista con la conferma "Link inviato. Controlla anche lo spam.";
+    - il test unitario `LoginPage.test.ts` ora verifica il titolo "Bentornato." e il pulsante
+      "Accedi".
+  - **Assistente**:
+    - sotto il titolo lo stato della chiave (`user-credentials` list);
+    - stato vuoto con 3 suggerimenti; bolle da 20px con entrata animata;
+    - attesa "AJE sta controllando i tuoi dati…";
+    - composer flottante da 58px con "Parla" e invio `ArrowUp`;
+    - lo scroll in fondo parte solo quando c'è una conversazione.
+  - **Carburanti**:
+    - selettore carburante a segmented, mappa più bassa su mobile, "Cerca in quest’area" e
+      posizione sotto la mappa;
+    - righe da 64px con "più economico" e "Naviga";
+    - **"Registra rifornimento"** apre `TransactionSheet` con categoria Trasporti e descrizione
+      "Rifornimento";
+    - costo al km, statistiche e prezzo al litro del §7.9 **non sono realizzati**: non esistono
+      dati di litri e chilometri.
+  - **Impostazioni**:
+    - scorciatoie "Vai a" (Assistente, Carburanti, Guida) dentro `.settings-layout`;
+    - sezioni a fisarmonica con riepilogo: Account, Ospite (solo proprietario), Chiavi e
+      integrazioni, Aspetto, Notifiche, Offline;
+    - Chiavi e Ospite sono aperte di default e il contenuto resta montato (`inert` quando chiuso);
+    - `Switch` per le push (permesso chiesto solo al tocco), "Come fare" verso `/guida?q=install`
+      su iPhone non installato, chip "Bloccate" se il permesso è negato;
+    - stato della coda offline con "Sincronizza";
+    - "Esci" è una riga in fondo alla pagina.
+    - I pannelli inviti/integrazioni sono senza card e riportano i riepiloghi con callback.
+  - **Guida**:
+    - voci a domanda e risposta in `guideEntries.ts`, aggiornate alla nuova interfaccia;
+    - ricerca senza accenti (test), filtri per categoria, "+" che ruota;
+    - nuova voce "Installare AJE sul telefono", aperta da `/guida?q=install`;
+    - messaggio "Nessun risultato per …".
+  - **`PageHeader narrow`**: allinea il titolo ai contenuti da 720px su desktop. Rimossa la
+    vecchia griglia a due colonne di Impostazioni e Guida.
 
 ## Inviti senza limite applicativo
 

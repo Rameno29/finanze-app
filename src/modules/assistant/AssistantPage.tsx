@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Bot, Check, Mic, Send, X } from 'lucide-react'
+import { ArrowUp, Check, Mic, Sparkles, X } from 'lucide-react'
 import { executeIntent, type Intent } from '../../lib/assistantActions'
-import { invokeFunction } from '../../lib/integrations'
+import { callFunction, invokeFunction, type IntegrationStatus } from '../../lib/integrations'
 import { formatCents } from '../../lib/format'
 import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
 import { AiText } from '../../components/AiText'
-import { PageHeader, Spinner, inputClass } from '../../components/ui'
+import { PageHeader, Spinner } from '../../components/ui'
+import { Chip } from '../../components/Chip'
 
 interface Message {
   role: 'user' | 'ai'
@@ -16,10 +17,9 @@ interface Message {
 }
 
 const SUGGESTIONS = [
+  'Quanto ho speso questo mese?',
   'Ho speso 12 euro di pranzo',
   'Ricordami di pagare la bolletta venerdì alle 18',
-  'Quanto ho speso questo mese?',
-  'Metti 50 euro nelle vacanze',
 ]
 
 function formatDay(dateISO: string | null): string {
@@ -69,6 +69,7 @@ function intentDetails(i: Intent): Array<[string, string]> {
 
 export function AssistantPage() {
   const [messages, setMessages] = useState<Message[]>([])
+  const [geminiReady, setGeminiReady] = useState<boolean | null>(null)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -87,8 +88,19 @@ export function AssistantPage() {
   }, [])
 
   useEffect(() => {
+    // Solo quando c'è una conversazione: all'apertura la pagina resta in alto, con il titolo visibile.
+    if (messages.length === 0 && !busy) return
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, busy])
+
+  // Stato della chiave personale, mostrato sotto il titolo
+  useEffect(() => {
+    let alive = true
+    void callFunction<{ integrations: IntegrationStatus[] }>('user-credentials', { action: 'list' })
+      .then((data) => { if (alive) setGeminiReady(data.integrations.some((item) => item.provider === 'gemini')) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
 
   function pushAi(text: string) {
     setMessages((m) => [...m, { role: 'ai', text }])
@@ -231,29 +243,22 @@ export function AssistantPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <PageHeader title="Assistente" />
+      <PageHeader
+        narrow
+        title="Assistente"
+        subtitle={geminiReady === null ? undefined : geminiReady ? 'Gemini · chiave personale attiva' : 'Chiave Gemini non impostata'}
+      />
 
-      <div className="page-content assistant-conversation flex w-full max-w-5xl flex-1 flex-col gap-3 py-5">
+      <div className="assistant-conversation mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-3 px-5 pb-28 pt-3 lg:px-10">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center gap-4 py-8 text-center">
-            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-soft text-accent">
-              <Bot className="h-8 w-8" />
-            </span>
-            <p className="max-w-[300px] text-sm text-muted">
-              Posso <strong className="text-ink">rispondere</strong> sulle tue finanze e{' '}
-              <strong className="text-ink">agire</strong> per te: registrare spese ed entrate,
-              creare promemoria, obiettivi e budget. Prima di fare qualsiasi cosa ti chiedo
-              conferma. Prova:
+          <div className="flex flex-col gap-4 py-4">
+            <p className="text-[17px] leading-[1.5]">
+              Chiedimi dei tuoi soldi, dei documenti o dell’agenda. Rispondo usando i tuoi dati.
             </p>
-            <div className="flex flex-wrap justify-center gap-2">
+            <p className="text-[13px] text-muted">Se mi chiedi di registrare qualcosa, ti mostro cosa ho capito e aspetto la tua conferma.</p>
+            <div className="flex flex-col items-start gap-2">
               {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => void ask(s)}
-                  className="rounded-full border border-line bg-card px-4 py-2 text-sm font-medium transition active:scale-95"
-                >
-                  {s}
-                </button>
+                <Chip key={s} variant="suggestion" onClick={() => void ask(s)}>{s}</Chip>
               ))}
             </div>
           </div>
@@ -261,17 +266,14 @@ export function AssistantPage() {
 
         {messages.map((m, i) =>
           m.role === 'user' ? (
-            <div key={i} className="ml-10 self-end rounded-2xl rounded-br-md bg-accent px-4 py-2.5 text-white">
+            <div key={i} className="assistant-message max-w-[84%] self-end rounded-[20px_20px_6px_20px] bg-accent px-4 py-3 text-[15px] leading-[1.5] text-white">
               {m.text}
             </div>
           ) : (
-            <div
-              key={i}
-              className="mr-6 self-start rounded-2xl rounded-bl-md border border-line bg-card px-4 py-3 text-sm leading-relaxed"
-            >
+            <div key={i} className="assistant-message max-w-[84%] self-start rounded-[20px_20px_20px_6px] bg-card-2 px-4 py-3 text-[15px] leading-[1.5]">
               <AiText text={m.text} />
               {m.intent && (
-                <div className="mt-3 rounded-xl bg-card-2 p-3">
+                <div className="mt-3 rounded-[14px] bg-card p-3 text-sm">
                   {intentDetails(m.intent).map(([label, value]) => (
                     <p key={label} className="flex justify-between gap-3 py-0.5">
                       <span className="text-muted">{label}</span>
@@ -283,25 +285,21 @@ export function AssistantPage() {
                       <button
                         onClick={() => void confirmIntent(i, false)}
                         disabled={busy}
-                        className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-line font-semibold text-muted"
+                        className="flex min-h-11 items-center justify-center gap-1.5 rounded-[14px] border border-line font-semibold text-muted"
                       >
                         <X className="h-4 w-4" /> Annulla
                       </button>
                       <button
                         onClick={() => void confirmIntent(i, true)}
                         disabled={busy}
-                        className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-income font-semibold text-white transition active:scale-[0.98]"
+                        className="flex min-h-11 items-center justify-center gap-1.5 rounded-[14px] bg-accent font-semibold text-white transition active:scale-[0.98]"
                       >
                         <Check className="h-4 w-4" /> Conferma
                       </button>
                     </div>
                   )}
-                  {m.status === 'done' && (
-                    <p className="mt-2 text-xs font-semibold text-income">Eseguito ✓</p>
-                  )}
-                  {m.status === 'cancelled' && (
-                    <p className="mt-2 text-xs font-semibold text-muted">Annullato</p>
-                  )}
+                  {m.status === 'done' && <p className="mt-2 text-xs font-semibold text-income">Eseguito</p>}
+                  {m.status === 'cancelled' && <p className="mt-2 text-xs font-semibold text-muted">Annullato</p>}
                 </div>
               )}
             </div>
@@ -309,25 +307,29 @@ export function AssistantPage() {
         )}
 
         {busy && (
-          <div className="mr-6 flex items-center gap-2 self-start rounded-2xl rounded-bl-md border border-line bg-card px-4 py-3 text-sm text-muted">
-            <Spinner className="h-4 w-4" /> Un attimo…
+          <div role="status" className="assistant-message flex items-center gap-2 self-start rounded-[20px_20px_20px_6px] bg-card-2 px-4 py-3 text-sm text-muted">
+            <Sparkles className="h-4 w-4 animate-pulse text-accent" strokeWidth={1.9} /> AJE sta controllando i tuoi dati…
           </div>
         )}
         <div ref={endRef} />
       </div>
 
-      {/* Barra di input fissa in fondo: su questa pagina la barra di navigazione mobile è nascosta */}
-      <div className="assistant-composer fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/95 pb-safe backdrop-blur-lg">
-        <form onSubmit={handleSubmit} className="page-content mx-auto flex max-w-5xl gap-2 px-0 py-3">
+      {/* Composer flottante: su questa pagina la barra di navigazione mobile è nascosta */}
+      <div className="assistant-composer fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+14px)] z-30 lg:left-[calc(264px+40px)] lg:right-10">
+        <form
+          onSubmit={handleSubmit}
+          className="mx-auto flex h-[58px] max-w-[720px] items-center gap-1 rounded-[29px] border border-line bg-card pl-5 pr-1.5 shadow-[var(--shadow-float)]"
+        >
           <input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             maxLength={300}
-            className={inputClass}
+            aria-label="Messaggio per AJE"
+            className="h-full min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
             placeholder={
               recording
-                ? '🔴 Registrando… tocca ✓ per fermare'
+                ? 'Registrando… tocca ✓ per fermare'
                 : transcribing
                   ? 'Trascrivo…'
                   : 'Scrivi o tocca il microfono'
@@ -340,26 +342,22 @@ export function AssistantPage() {
               onClick={() => void toggleMic()}
               disabled={transcribing}
               aria-label={recording ? 'Ferma e trascrivi' : 'Parla'}
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-50 ${
-                recording ? 'animate-pulse bg-expense text-white' : 'bg-card-2 text-muted'
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition disabled:opacity-50 ${
+                recording ? 'animate-pulse bg-expense text-white' : 'text-muted'
               }`}
             >
-              {transcribing ? (
-                <Spinner className="h-5 w-5" />
-              ) : recording ? (
-                <Check className="h-5 w-5" />
-              ) : (
-                <Mic className="h-5 w-5" />
-              )}
+              {transcribing ? <Spinner className="h-5 w-5" /> : recording ? <Check className="h-5 w-5" /> : <Mic className="h-5 w-5" strokeWidth={1.9} />}
             </button>
           )}
           <button
             type="submit"
             disabled={busy || recording || transcribing || !input.trim()}
             aria-label="Invia"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent text-white disabled:opacity-50"
+            className={`assistant-send flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full bg-accent text-white disabled:opacity-50 ${
+              input.trim() ? 'scale-100' : 'scale-[.85]'
+            }`}
           >
-            <Send className="h-5 w-5" />
+            <ArrowUp className="h-5 w-5" strokeWidth={2.2} />
           </button>
         </form>
       </div>

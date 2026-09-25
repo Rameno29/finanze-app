@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Card, inputClass } from '../../components/ui'
+import { useEffect, useRef, useState } from 'react'
+import { inputClass } from '../../components/ui'
 import { callFunction, type IntegrationStatus, type Provider } from '../../lib/integrations'
 import { integrationGuides } from '../../lib/integrationGuides'
 const legacyNames: Record<Exclude<Provider, 'gemini'>, string> = {
@@ -8,12 +8,18 @@ const legacyNames: Record<Exclude<Provider, 'gemini'>, string> = {
   spotify: 'Client ID Spotify',
 }
 
-export function IntegrationsPanel() {
+export function IntegrationsPanel({ onStatus }: { onStatus?: (items: IntegrationStatus[]) => void } = {}) {
   const [items, setItems] = useState<IntegrationStatus[]>([])
   const [values, setValues] = useState<Partial<Record<Provider, string>>>({})
   const [busy, setBusy] = useState<Provider | null>(null)
   const [message, setMessage] = useState('')
-  const reload = async () => setItems((await callFunction<{ integrations: IntegrationStatus[] }>('user-credentials', { action: 'list' })).integrations)
+  const onStatusRef = useRef(onStatus)
+  useEffect(() => { onStatusRef.current = onStatus })
+  const reload = async () => {
+    const next = (await callFunction<{ integrations: IntegrationStatus[] }>('user-credentials', { action: 'list' })).integrations
+    setItems(next)
+    onStatusRef.current?.(next)
+  }
   useEffect(() => { void reload().catch(() => setMessage('La gestione delle integrazioni richiede la nuova configurazione server.')) }, [])
   async function run(provider: Provider, action: 'save' | 'delete' | 'verify') {
     if (action === 'delete' && !confirm('Rimuovere questa configurazione personale?')) return
@@ -28,14 +34,14 @@ export function IntegrationsPanel() {
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Operazione non riuscita.') }
     finally { setBusy(null) }
   }
-  return <section id="integrazioni" className="flex flex-col gap-3 scroll-mt-6">
-    <h2 className="text-lg font-bold">Le mie integrazioni</h2>
+  return <div id="integrazioni" className="flex flex-col gap-3 scroll-mt-6">
+    <h3 className="text-[15px] font-semibold">Le mie integrazioni</h3>
     <p className="text-sm text-muted">Le chiavi API sono salvate cifrate nel tuo account. Puoi sostituirle o rimuoverle; ogni richiesta usa soltanto la tua configurazione.</p>
     {message && <p role="status" className="rounded-xl bg-card-2 p-3 text-sm">{message}</p>}
     {integrationGuides.map(guide => {
       const status = items.find(item => item.provider === guide.provider)
-      return <Card key={guide.provider}>
-        <h3 className="font-semibold">{guide.title}</h3>
+      return <div key={guide.provider} className="border-t border-line pt-4">
+        <h4 className="font-semibold">{guide.title}</h4>
         <p className="my-2 text-sm text-muted">{guide.description}</p>
         <p className="text-sm">{status ? `Chiave salvata · ••••${status.suffix}` : 'Da configurare'}</p>
         <details className="my-3 text-sm"><summary className="cursor-pointer font-semibold text-accent">Come ottenere la tua configurazione</summary>
@@ -48,20 +54,20 @@ export function IntegrationsPanel() {
           <input className={inputClass} type="password" autoComplete="off" spellCheck={false} value={values[guide.provider] ?? ''} onChange={e => setValues(previous => ({ ...previous, [guide.provider]: e.target.value }))} />
         </label>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button disabled={busy !== null || !values[guide.provider]?.trim()} onClick={() => void run(guide.provider, 'save')} className="min-h-11 rounded-xl bg-accent px-4 text-white disabled:opacity-50">{busy === guide.provider ? 'Attendi…' : 'Salva'}</button>
+          <button disabled={busy !== null || !values[guide.provider]?.trim()} onClick={() => void run(guide.provider, 'save')} className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-white disabled:opacity-50">{busy === guide.provider ? 'Attendi…' : 'Salva'}</button>
           {status && <button disabled={busy !== null} onClick={() => void run(guide.provider, 'delete')} className="min-h-11 rounded-xl border border-line px-4 text-expense">Rimuovi</button>}
           {status && <button disabled={busy !== null} onClick={() => void run(guide.provider, 'verify')} className="min-h-11 rounded-xl border border-line px-4">Verifica</button>}
         </div>
         <p className="mt-2 text-xs text-muted">La verifica effettua una richiesta al provider e può consumare una piccola quota.</p>
-      </Card>
+      </div>
     })}
-    {items.filter(item => item.provider !== 'gemini').length > 0 && <Card>
-      <h3 className="font-semibold">Configurazioni di funzioni precedenti</h3>
+    {items.filter(item => item.provider !== 'gemini').length > 0 && <div className="border-t border-line pt-4">
+      <h4 className="font-semibold">Configurazioni di funzioni precedenti</h4>
       <p className="my-2 text-sm text-muted">Queste configurazioni non sono più usate dall’app. Rimangono salvate finché non scegli di rimuoverle.</p>
       {items.filter(item => item.provider !== 'gemini').map(item => <div key={item.provider} className="flex items-center justify-between gap-3 py-2">
         <span className="text-sm">{legacyNames[item.provider as Exclude<Provider, 'gemini'>]}</span>
         <button disabled={busy !== null} onClick={() => void run(item.provider, 'delete')} className="min-h-11 rounded-xl border border-line px-3 text-expense">Rimuovi</button>
       </div>)}
-    </Card>}
-  </section>
+    </div>}
+  </div>
 }

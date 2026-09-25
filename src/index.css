@@ -211,16 +211,9 @@ a:focus-visible {
   .dashboard-main > .dashboard-balance,
   .dashboard-main > .dashboard-actions { grid-column: 1 / -1; }
   .dashboard-chart .relative.h-40 { height: 10rem; }
-  .settings-layout,
-  .guide-layout {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
 }
 
 @media (min-width: 1024px) {
-  .page-header-inner { width: min(100% - 3.5rem, 1320px); }
   .agenda-rail {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -240,10 +233,10 @@ a:focus-visible {
     grid-template-columns: minmax(0, 1fr) minmax(340px, .8fr);
     align-items: start;
   }
+  .fuel-layout { column-gap: 32px; }
   .fuel-layout > :first-child { grid-column: 1 / -1; }
   .fuel-map { grid-column: 1; grid-row: 2; }
   .fuel-results { grid-column: 2; grid-row: 2; min-width: 0; }
-  .assistant-composer { left: 264px; }
 }
 
 /* Safe area (Dynamic Island / barra home iPhone) */
@@ -369,6 +362,41 @@ textarea {
 
 .amount-shake {
   animation: amount-shake 300ms linear;
+}
+
+/* Impostazioni e Guida: sezioni a fisarmonica */
+.settings-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--dur-sheet) var(--ease-standard), opacity var(--dur-sheet) var(--ease-standard);
+}
+
+.settings-panel[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.settings-chevron,
+.guide-plus {
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+
+/* Login e Assistente */
+@keyframes soft-rise {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+.recovery-sent { animation: soft-rise 350ms var(--ease-standard); }
+
+@keyframes message-rise {
+  from { opacity: 0; transform: translateY(12px); }
+}
+
+.assistant-message { animation: message-rise var(--dur-sheet) var(--ease-standard) backwards; }
+
+.assistant-send {
+  transition: transform 300ms var(--ease-pop), opacity 200ms ease;
 }
 
 /* Shell: spazio per la barra flottante e transizione di pagina */
@@ -577,6 +605,8 @@ html.sheet-open { overflow: hidden; }
   .pdf-radio-dot,
   .upload-done { animation: none; }
   .pdf-paper { animation: page-fade 150ms ease backwards; }
+  .recovery-sent,
+  .assistant-message { animation: page-fade 150ms ease backwards; }
   .agenda-panel[data-active='false'] { display: none; }
   .amount-shake { animation: none; }
 }

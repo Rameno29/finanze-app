@@ -1,20 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Bell,
   BookOpen,
   Bot,
+  ChevronDown,
   ChevronRight,
+  CircleUser,
+  CloudOff,
   Fingerprint,
   Fuel,
+  KeyRound,
   LogOut,
   Moon,
+  Palette,
   Plus,
+  RefreshCw,
   Smartphone,
   Sparkles,
   Sun,
-  CloudOff,
   Trash2,
+  UserPlus,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { passkeyErrorMessage, passkeySupported, type Passkey } from '../../lib/passkeys'
@@ -28,7 +34,11 @@ import {
   pushSupported,
   sendTestNotification,
 } from '../../lib/push'
-import { Card, PageHeader, Spinner } from '../../components/ui'
+import { callFunction, type IntegrationStatus } from '../../lib/integrations'
+import { subscribeOfflineStatus, syncOffline, type OfflineStatus } from '../../lib/offline'
+import { PageHeader, Spinner } from '../../components/ui'
+import { Segmented } from '../../components/Segmented'
+import { Switch } from '../../components/Switch'
 import { IntegrationsPanel } from './IntegrationsPanel'
 import { InvitesPanel } from './InvitesPanel'
 import { signOutEverywhere } from '../../lib/signOut'
@@ -147,204 +157,284 @@ export function SettingsPage() {
     }
   }
 
+  const userId = session?.user.id ?? ''
+  const [open, setOpen] = useState<ReadonlySet<SectionId>>(() => new Set<SectionId>(['chiavi', 'ospite']))
+  const [owner, setOwner] = useState(false)
+  const [guestSummary, setGuestSummary] = useState('')
+  const [logoutError, setLogoutError] = useState('')
+  const [integrations, setIntegrations] = useState<IntegrationStatus[] | null>(null)
+  const [offline, setOffline] = useState<OfflineStatus>({ online: navigator.onLine, syncing: false, pending: 0, lastError: null })
+  const permission = typeof Notification === 'undefined' ? 'default' : Notification.permission
+
+  useEffect(() => {
+    let alive = true
+    void callFunction<{ role: string }>('manage-invites', { action: 'status' })
+      .then((data) => { if (alive) setOwner(data.role === 'owner') })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
+
+  useEffect(() => (userId ? subscribeOfflineStatus(userId, setOffline) : undefined), [userId])
+
+  function toggleSection(id: SectionId) {
+    setOpen((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const geminiActive = integrations?.some((item) => item.provider === 'gemini') ?? false
+  const themeLabel = THEME_OPTIONS.find((option) => option.value === setting)?.label ?? 'Sistema'
+  const pushSummary = pushOn ? 'Attive' : permission === 'denied' ? 'Bloccate' : 'Spente'
+  const offlineSummary = offline.pending > 0 ? `${offline.pending} in attesa` : offline.online ? 'Sincronizzato' : 'Offline'
+
   return (
     <div>
-      <PageHeader title="Impostazioni" />
+      <PageHeader narrow title="Impostazioni" subtitle="Tocca una sezione per aprirla" />
 
-      <div className="page-content settings-layout flex flex-col gap-4 py-5">
-        <InvitesPanel />
-        <IntegrationsPanel />
-        <Card className="divide-y divide-line p-0">
-          <Link to="/assistente" className="flex min-h-[52px] items-center gap-3 px-4">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent">
-              <Bot className="h-4 w-4" />
-            </span>
-            <span className="flex-1 font-medium">Assistente</span>
-            <ChevronRight className="h-4 w-4 text-muted" />
-          </Link>
-          <Link to="/carburanti" className="flex min-h-[52px] items-center gap-3 px-4">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15 text-amber-600">
-              <Fuel className="h-4 w-4" />
-            </span>
-            <span className="flex-1 font-medium">Carburanti</span>
-            <ChevronRight className="h-4 w-4 text-muted" />
-          </Link>
-          <Link to="/guida" className="flex min-h-[52px] items-center gap-3 px-4">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-expense/15 text-expense">
-              <BookOpen className="h-4 w-4" />
-            </span>
-            <span className="flex-1 font-medium">Guida all'uso</span>
-            <ChevronRight className="h-4 w-4 text-muted" />
-          </Link>
-        </Card>
+      <div className="page-content settings-layout mx-auto w-full max-w-[720px] px-5 pt-2 lg:px-10">
+        {/* Scorciatoie verso le pagine secondarie */}
+        <nav aria-label="Vai a" className="mb-4">
+          <p className="mb-1 text-[13px] font-semibold text-muted">Vai a</p>
+          {[
+            { to: '/assistente', label: 'Assistente', icon: Bot },
+            { to: '/carburanti', label: 'Carburanti', icon: Fuel },
+            { to: '/guida', label: 'Guida', icon: BookOpen },
+          ].map(({ to, label, icon: Icon }) => (
+            <Link key={to} to={to} className="flex min-h-[52px] items-center gap-3.5 border-b border-line">
+              <Icon className="h-[22px] w-[22px] text-brand" strokeWidth={1.9} aria-hidden="true" />
+              <span className="flex-1 text-[15px] font-medium">{label}</span>
+              <ChevronRight className="h-4 w-4 text-muted" strokeWidth={1.9} aria-hidden="true" />
+            </Link>
+          ))}
+        </nav>
 
-        <Card>
-          <h2 className="mb-3 font-semibold">Tema</h2>
-          <div className="grid grid-cols-3 gap-2">
-            {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                onClick={() => setSetting(value)}
-                className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border text-sm font-medium ${
-                  setting === value
-                    ? 'border-accent bg-accent-soft text-accent'
-                    : 'border-line bg-card-2 text-muted'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                {label}
-              </button>
-            ))}
-          </div>
-        </Card>
+        <SettingsSection id="account" icon={CircleUser} title="Account" summary={session?.user.email ?? ''} open={open.has('account')} onToggle={toggleSection}>
+          <p className="break-all text-[15px]">{session?.user.email}</p>
+          <p className="mt-1 text-[13px] text-muted">Account personale · accesso su invito</p>
 
-        <Card>
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-              <Bell className="h-4 w-4" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-semibold">Notifiche promemoria</span>
-              <span className="block text-xs text-muted">
-                Un avviso quando un'attività dell'agenda è in scadenza
-              </span>
-            </span>
-            {pushSupported() && !needsInstallForPush() ? (
-              <button
-                onClick={() => void togglePush()}
-                disabled={pushBusy}
-                role="switch"
-                aria-checked={pushOn}
-                aria-label="Attiva o disattiva le notifiche"
-                className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${
-                  pushOn ? 'bg-income' : 'bg-card-2 border border-line'
-                }`}
-              >
-                {pushBusy ? (
-                  <Spinner className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2" />
-                ) : (
-                  <span
-                    className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${
-                      pushOn ? 'left-7' : 'left-1'
-                    }`}
-                  />
-                )}
-              </button>
-            ) : null}
-          </div>
-          {!pushSupported() && (
-            <p className="mt-3 text-xs text-muted">Questo browser non supporta le notifiche push.</p>
-          )}
-          {pushSupported() && needsInstallForPush() && (
-            <p className="mt-3 rounded-xl bg-accent-soft px-3 py-2.5 text-xs text-accent">
-              Su iPhone le notifiche funzionano solo con l'app installata: Safari → Condividi →
-              "Aggiungi a schermata Home", poi attivale da qui.
+          <div className="mt-5">
+            <p className="flex items-center gap-2 text-[15px] font-medium">
+              <Fingerprint className="h-[18px] w-[18px] text-brand" strokeWidth={1.9} /> Passkey e Face ID
             </p>
+            <p className="mt-1 text-[13px] leading-[1.55] text-muted">
+              Accedi senza password: la passkey usa Face ID, l’impronta o il PIN e resta sul tuo dispositivo o nel portachiavi iCloud.
+            </p>
+            {!passkeySupported() ? (
+              <p className="mt-2 text-[13px] text-muted">Questo browser non supporta le passkey.</p>
+            ) : (
+              <>
+                {passkeys.length > 0 && (
+                  <ul className="mt-2">
+                    {passkeys.map((p) => (
+                      <li key={p.id} className="flex min-h-[52px] items-center gap-3 border-b border-line">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[15px]">{p.friendly_name || 'Passkey'}</span>
+                          <span className="block text-[13px] text-muted">
+                            creata il {new Date(p.created_at).toLocaleDateString('it-IT')}
+                            {p.last_used_at ? ` · ultimo uso ${new Date(p.last_used_at).toLocaleDateString('it-IT')}` : ''}
+                          </span>
+                        </span>
+                        <button
+                          onClick={() => void removePasskey(p)}
+                          disabled={passkeyBusy}
+                          aria-label={`Elimina passkey ${p.friendly_name ?? ''}`}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-expense disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <button
+                  onClick={() => void addPasskey()}
+                  disabled={passkeyBusy}
+                  className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border border-line px-4 text-sm font-medium disabled:opacity-60"
+                >
+                  {passkeyBusy ? <Spinner className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  Crea una passkey su questo dispositivo
+                </button>
+              </>
+            )}
+            {passkeyMsg && <p className="mt-3 rounded-xl bg-card-2 px-3 py-2.5 text-[13px]">{passkeyMsg}</p>}
+          </div>
+
+        </SettingsSection>
+
+        {owner && (
+          <SettingsSection id="ospite" icon={UserPlus} title="Ospite" summary={guestSummary} open={open.has('ospite')} onToggle={toggleSection}>
+            <InvitesPanel onSummary={setGuestSummary} />
+          </SettingsSection>
+        )}
+
+        <SettingsSection
+          id="chiavi"
+          icon={KeyRound}
+          title="Chiavi e integrazioni"
+          summary={integrations === null ? '' : geminiActive ? 'Gemini attiva' : 'Da configurare'}
+          open={open.has('chiavi')}
+          onToggle={toggleSection}
+        >
+          <IntegrationsPanel onStatus={setIntegrations} />
+          <p className="mt-4 flex gap-2 text-[13px] leading-[1.55] text-muted">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" strokeWidth={1.9} />
+            Analisi di documenti, voce e riassunti usano la tua chiave Gemini personale. La chiave viene inviata al server al salvataggio, cifrata e usata solo per il tuo account; non viene restituita all’app.
+          </p>
+        </SettingsSection>
+
+        <SettingsSection id="aspetto" icon={Palette} title="Aspetto" summary={themeLabel} open={open.has('aspetto')} onToggle={toggleSection}>
+          <Segmented
+            label="Tema"
+            value={setting}
+            onChange={setSetting}
+            options={THEME_OPTIONS.map(({ value, label }) => ({ value, label }))}
+          />
+        </SettingsSection>
+
+        <SettingsSection id="notifiche" icon={Bell} title="Notifiche" summary={pushSummary} open={open.has('notifiche')} onToggle={toggleSection}>
+          {!pushSupported() ? (
+            <p className="text-[13px] text-muted">Questo browser non supporta le notifiche push.</p>
+          ) : needsInstallForPush() ? (
+            <div className="flex min-h-[52px] items-center gap-3">
+              <p className="min-w-0 flex-1 text-[15px]">Su iPhone funzionano solo con AJE installata sulla schermata Home</p>
+              <Link to="/guida?q=install" className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-line px-4 text-sm font-medium">
+                Come fare
+              </Link>
+            </div>
+          ) : permission === 'denied' && !pushOn ? (
+            <div className="flex min-h-[52px] items-center gap-3">
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px]">Promemoria delle attività</span>
+                <span className="block text-[13px] text-muted">Riattivale dalle impostazioni del browser</span>
+              </span>
+              <span className="shrink-0 rounded-[10px] bg-expense/14 px-2 py-1 text-xs font-semibold text-expense">Bloccate</span>
+            </div>
+          ) : (
+            <div className="flex min-h-[52px] items-center gap-3">
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px]">Promemoria delle attività</span>
+                <span className="block text-[13px] text-muted">Un avviso quando un’attività dell’agenda è in scadenza</span>
+              </span>
+              {pushBusy ? <Spinner className="h-5 w-5" /> : (
+                <Switch checked={pushOn} onChange={() => void togglePush()} label="Attiva o disattiva le notifiche" disabled={pushBusy} />
+              )}
+            </div>
           )}
           {pushOn && (
             <button
               onClick={() => void testPush()}
               disabled={testBusy}
-              className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-line text-sm font-semibold text-accent disabled:opacity-60"
+              className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-full border border-line px-4 text-sm font-medium disabled:opacity-60"
             >
-              {testBusy ? <Spinner className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+              {testBusy ? <Spinner className="h-4 w-4" /> : <Bell className="h-4 w-4" strokeWidth={1.9} />}
               Invia notifica di prova
             </button>
           )}
-          {pushMsg && <p className="mt-3 rounded-xl bg-card-2 px-3 py-2.5 text-xs">{pushMsg}</p>}
-        </Card>
+          {pushMsg && <p className="mt-3 rounded-xl bg-card-2 px-3 py-2.5 text-[13px]">{pushMsg}</p>}
+        </SettingsSection>
 
-        <Card>
-          <h2 className="mb-2 flex items-center gap-2 font-semibold">
-            <CloudOff className="h-4 w-4 text-accent" /> Modalità offline automatica
-          </h2>
-          <p className="text-sm text-muted">
-            Le ultime viste di Finanze e Agenda sono cifrate sul dispositivo. Senza rete puoi
-            consultarle e modificare movimenti o attività; AJE sincronizza la coda appena torni online.
-            Token, documenti e allegati non vengono duplicati nella cache offline.
-          </p>
-        </Card>
-
-        <Card>
-          <h2 className="mb-2 flex items-center gap-2 font-semibold">
-            <Sparkles className="h-4 w-4 text-accent" /> Funzioni AI
-          </h2>
-          <p className="text-sm text-muted">
-            Analisi di documenti, voce e riassunti usano la tua chiave Gemini personale.
-            Configurala in Le mie integrazioni. La chiave viene inviata al server al salvataggio,
-            cifrata e usata solo per il tuo account; non viene restituita all’app.
-          </p>
-        </Card>
-
-        <Card>
-          <h2 className="mb-2 flex items-center gap-2 font-semibold">
-            <Fingerprint className="h-4 w-4 text-accent" /> Passkey e Face ID
-          </h2>
-          <p className="mb-3 text-sm text-muted">
-            Accedi senza password: la passkey usa Face ID (o Touch ID) e resta salvata solo sul tuo
-            dispositivo o nel portachiavi iCloud.
-          </p>
-          {!passkeySupported() ? (
-            <p className="text-xs text-muted">Questo browser non supporta le passkey.</p>
-          ) : (
-            <>
-              {passkeys.length > 0 && (
-                <ul className="mb-3 divide-y divide-line rounded-xl border border-line">
-                  {passkeys.map((p) => (
-                    <li key={p.id} className="flex items-center gap-3 px-3 py-2.5">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">
-                          {p.friendly_name || 'Passkey'}
-                        </span>
-                        <span className="block text-xs text-muted">
-                          creata il {new Date(p.created_at).toLocaleDateString('it-IT')}
-                          {p.last_used_at
-                            ? ` · ultimo uso ${new Date(p.last_used_at).toLocaleDateString('it-IT')}`
-                            : ''}
-                        </span>
-                      </span>
-                      <button
-                        onClick={() => void removePasskey(p)}
-                        disabled={passkeyBusy}
-                        aria-label={`Elimina passkey ${p.friendly_name ?? ''}`}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-expense disabled:opacity-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+        <SettingsSection
+          id="offline"
+          icon={RefreshCw}
+          title="Offline"
+          summary={offlineSummary}
+          summaryTone={offline.pending > 0 ? 'text-warning' : undefined}
+          open={open.has('offline')}
+          onToggle={toggleSection}
+        >
+          <div className="flex min-h-[52px] items-center gap-3">
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px]">{offline.pending > 0 ? `${offline.pending} modifiche in attesa` : 'Tutto sincronizzato'}</span>
+              <span className="block text-[13px] text-muted">{offline.online ? 'Connessione attiva' : 'Nessuna connessione: le modifiche restano in coda'}</span>
+            </span>
+            {offline.online && offline.pending > 0 && (
               <button
-                onClick={() => void addPasskey()}
-                disabled={passkeyBusy}
-                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-line text-sm font-semibold text-accent disabled:opacity-60"
+                onClick={() => void syncOffline(userId)}
+                disabled={offline.syncing}
+                className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border border-line px-4 text-sm font-medium disabled:opacity-60"
               >
-                {passkeyBusy ? <Spinner className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                Crea una passkey su questo dispositivo
+                {offline.syncing ? <Spinner className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" strokeWidth={1.9} />} Sincronizza
               </button>
-            </>
-          )}
-          {passkeyMsg && <p className="mt-3 rounded-xl bg-card-2 px-3 py-2.5 text-xs">{passkeyMsg}</p>}
-        </Card>
+            )}
+          </div>
+          <p className="mt-2 flex gap-2 text-[13px] leading-[1.55] text-muted">
+            <CloudOff className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.9} />
+            Le ultime viste di Finanze e Agenda sono cifrate sul dispositivo. Senza rete puoi consultarle e modificare movimenti o attività; AJE sincronizza la coda appena torni online. Token, documenti e allegati non vengono duplicati nella cache offline.
+          </p>
+        </SettingsSection>
 
-        <Card>
-          <h2 className="mb-1 font-semibold">Account</h2>
-          <p className="mb-4 text-sm text-muted">{session?.user.email}</p>
-          <button
-            onClick={() => { void signOutEverywhere().then((ok) => { if (!ok) setPushMsg('Uscita non riuscita. Controlla la connessione e riprova.') }) }}
-            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-line font-semibold text-expense"
-          >
-            <LogOut className="h-5 w-5" /> Esci
-          </button>
-        </Card>
+        <button
+          onClick={() => {
+            setLogoutError('')
+            void signOutEverywhere().then((ok) => { if (!ok) setLogoutError('Uscita non riuscita. Controlla la connessione e riprova.') })
+          }}
+          className="flex min-h-16 w-full items-center gap-3.5 border-b border-line text-left text-base font-medium text-expense"
+        >
+          <LogOut className="h-[22px] w-[22px]" strokeWidth={1.9} aria-hidden="true" /> Esci
+        </button>
+        {logoutError && <p role="alert" className="mt-2 text-sm text-expense">{logoutError}</p>}
 
-        <p className="pb-4 text-center text-xs text-muted">
+        <p className="py-6 text-center text-xs text-muted">
           AJE · v1.0
           <br />
           Account personali · Accesso su invito
         </p>
       </div>
     </div>
+  )
+}
+
+type SectionId = 'account' | 'ospite' | 'chiavi' | 'aspetto' | 'notifiche' | 'offline'
+
+/** Sezione a fisarmonica: il contenuto resta montato e si apre con altezza e opacità. */
+function SettingsSection({
+  id,
+  icon: Icon,
+  title,
+  summary,
+  summaryTone,
+  open,
+  onToggle,
+  children,
+}: {
+  id: SectionId
+  icon: typeof Bell
+  title: string
+  summary: string
+  summaryTone?: string
+  open: boolean
+  onToggle: (id: SectionId) => void
+  children: ReactNode
+}) {
+  const panelId = `settings-${id}`
+  return (
+    <section className="border-b border-line">
+      <h2>
+        <button
+          type="button"
+          onClick={() => onToggle(id)}
+          aria-expanded={open}
+          aria-controls={panelId}
+          className="flex min-h-16 w-full items-center gap-3.5 text-left"
+        >
+          <Icon className="h-[22px] w-[22px] shrink-0 text-brand" strokeWidth={1.9} aria-hidden="true" />
+          <span className="flex-1 text-base font-medium">{title}</span>
+          <span className={`max-w-[45%] truncate text-[13px] ${summaryTone ?? 'text-muted'}`}>{summary}</span>
+          <ChevronDown
+            className={`settings-chevron h-5 w-5 shrink-0 text-muted ${open ? 'rotate-180' : ''}`}
+            strokeWidth={1.9}
+            aria-hidden="true"
+          />
+        </button>
+      </h2>
+      <div id={panelId} className="settings-panel" data-open={open} inert={!open}>
+        <div className="min-h-0 overflow-hidden">
+          <div className="pb-5 pl-9">{children}</div>
+        </div>
+      </div>
+    </section>
   )
 }

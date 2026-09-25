@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Crosshair, Fuel, Navigation, Search } from 'lucide-react'
-import { Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
+import { Crosshair, Fuel as FuelIcon, Navigation, Search } from 'lucide-react'
+import { EmptyState, PageHeader, Spinner } from '../../components/ui'
+import { Segmented } from '../../components/Segmented'
+import { useAccounts, useCategories } from '../../lib/data'
+import { TransactionSheet, type TransactionDraft } from '../finance/TransactionSheet'
 import { invokeFunction } from '../../lib/integrations'
 
 const FUEL_OPTIONS = ['Benzina', 'Gasolio', 'GPL', 'Metano'] as const
@@ -184,107 +187,123 @@ export function FuelPage() {
     if (center && (located || stations.length > 0)) void search(center.lat, center.lng, next)
   }
 
+  // "Registra rifornimento": foglio movimento con categoria Trasporti e descrizione precompilate
+  const { categories } = useCategories()
+  const { accounts } = useAccounts()
+  const [refuelOpen, setRefuelOpen] = useState(false)
+  const refuelDraft = useMemo<TransactionDraft>(() => {
+    const transport = categories.find((c) => c.kind === 'expense' && c.name.trim().toLowerCase() === 'trasporti')
+    return { kind: 'expense', category_id: transport?.id ?? null, description: 'Rifornimento' }
+  }, [categories])
+
   return (
     <div>
-      <PageHeader title="Carburanti" />
+      <PageHeader title="Carburanti" subtitle="Prezzi dei distributori vicini" />
 
-      <div className="page-content fuel-layout flex flex-col gap-4 py-5">
-        {/* Selettore carburante */}
-        <div className="grid grid-cols-4 gap-1 rounded-xl bg-card-2 p-1">
-          {FUEL_OPTIONS.map((option) => (
-            <button
-              key={option}
-              onClick={() => changeFuel(option)}
-              className={`min-h-[40px] rounded-lg text-[12px] font-semibold transition ${
-                fuel === option ? 'bg-card shadow text-ink' : 'text-muted'
-              }`}
-            >
-              {option}
-            </button>
-          ))}
+      <div className="fuel-layout mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-5 pt-4 lg:px-10 lg:pt-2">
+        <div>
+          <h2 className="mb-3 text-[15px] font-semibold">Distributori vicini</h2>
+          <Segmented
+            label="Carburante"
+            size="sm"
+            value={fuel}
+            onChange={changeFuel}
+            options={FUEL_OPTIONS.map((option) => ({ value: option, label: option }))}
+          />
         </div>
 
         {/* Mappa interattiva (trascinabile e zoomabile) */}
-        <div className="fuel-map relative overflow-hidden rounded-2xl border border-line">
-          <div ref={mapDivRef} className="h-[320px] w-full" />
-          <div className="absolute bottom-3 left-1/2 z-[1000] flex -translate-x-1/2 gap-2">
+        <div className="fuel-map">
+          <div className="relative z-0 overflow-hidden rounded-2xl border border-line">
+            <div ref={mapDivRef} className="h-[130px] w-full lg:h-[420px]" />
+          </div>
+          <div className="mt-3 flex gap-2">
             <button
               onClick={searchHere}
               disabled={busy}
-              className="flex min-h-[40px] items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-white shadow-lg disabled:opacity-60"
+              className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full border border-line text-sm font-medium disabled:opacity-60"
             >
-              {busy ? <Spinner className="h-4 w-4 text-white" /> : <Search className="h-4 w-4" />}
+              {busy ? <Spinner className="h-4 w-4" /> : <Search className="h-4 w-4" strokeWidth={1.9} />}
               Cerca in quest'area
             </button>
             <button
               onClick={locate}
               disabled={busy}
               aria-label="Vai alla mia posizione"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-card text-accent shadow-lg disabled:opacity-60"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-accent disabled:opacity-60"
             >
-              <Crosshair className="h-5 w-5" />
+              <Crosshair className="h-5 w-5" strokeWidth={1.9} />
             </button>
           </div>
+          <button
+            onClick={() => setRefuelOpen(true)}
+            className="mt-4 hidden min-h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-accent text-[16px] font-semibold text-white transition active:scale-[0.98] lg:flex"
+          >
+            <FuelIcon className="h-5 w-5" strokeWidth={1.9} /> Registra rifornimento
+          </button>
         </div>
 
-        <div className="fuel-results flex flex-col gap-4">
-        {message && <p className="rounded-xl bg-accent-soft px-4 py-3 text-sm text-accent">{message}</p>}
+        <div className="fuel-results flex flex-col">
+          {message && <p role="status" className="mb-3 rounded-[14px] bg-accent-soft px-4 py-3 text-sm text-accent">{message}</p>}
 
-        {/* Classifica per prezzo */}
-        {stations.length > 0 && (
-          <Card className="divide-y divide-line p-0">
-            {stations.slice(0, 12).map((station, index) => (
-              <div key={station.id} className="flex items-center gap-3 px-4 py-3">
-                <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white ${
-                    index === 0 ? 'bg-income' : 'bg-card-2 !text-muted'
-                  }`}
-                >
-                  <Fuel className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">
-                    {station.brand}
-                    {index === 0 && (
-                      <span className="ml-2 rounded-full bg-income/15 px-2 py-0.5 text-[10px] font-bold text-income">
-                        PIÙ ECONOMICO
-                      </span>
-                    )}
+          {stations.length > 0 && (
+            <div>
+              {stations.slice(0, 12).map((station, index) => (
+                <div key={station.id} className="flex min-h-16 items-center gap-3 border-b border-line">
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline gap-2">
+                      <span className="truncate text-[15px] font-medium">{station.brand}</span>
+                      {index === 0 && <span className="shrink-0 text-xs font-semibold text-income">più economico</span>}
+                    </span>
+                    <span className="block truncate text-[13px] text-muted">
+                      {station.is_self ? 'Self' : 'Servito'} · {station.distance_km.toFixed(1).replace('.', ',')} km
+                      {station.address || station.comune ? ` · ${station.address || station.comune}` : ''}
+                    </span>
                   </span>
-                  <span className="block truncate text-xs text-muted">
-                    {station.address || station.comune} · {station.distance_km.toFixed(1).replace('.', ',')} km
-                    {station.is_self ? ' · self' : ''}
-                  </span>
-                </span>
-                <span className="shrink-0 text-right">
-                  <span className="block font-bold">{station.price.toFixed(3).replace('.', ',')} €</span>
+                  <span className="tabular shrink-0 text-[17px] font-semibold">{station.price.toFixed(3).replace('.', ',')} €</span>
                   <a
                     href={navigationUrl(station)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-accent"
+                    aria-label={`Naviga verso ${station.brand}`}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-accent"
                   >
-                    <Navigation className="h-3 w-3" /> Naviga
+                    <Navigation className="h-[18px] w-[18px]" strokeWidth={1.9} />
                   </a>
-                </span>
-              </div>
-            ))}
-          </Card>
-        )}
+                </div>
+              ))}
+            </div>
+          )}
 
-        {!busy && stations.length === 0 && !message && (
-          <EmptyState
-            icon={<Fuel className="h-10 w-10" />}
-            title="Nessun risultato"
-            hint="Sposta la mappa sulla zona che ti interessa e tocca «Cerca in quest'area»."
-          />
-        )}
+          {!busy && stations.length === 0 && !message && (
+            <EmptyState
+              icon={<FuelIcon />}
+              title="Nessun risultato"
+              hint="Sposta la mappa sulla zona che ti interessa e tocca «Cerca in quest'area»."
+            />
+          )}
 
-        <p className="pb-2 text-center text-[11px] text-muted">
-          Prezzi comunicati dai gestori al MIMIT (aggiornati ogni mattina) · Mappa © OpenStreetMap
-        </p>
+          <button
+            onClick={() => setRefuelOpen(true)}
+            className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-accent text-[16px] font-semibold text-white transition active:scale-[0.98] lg:hidden"
+          >
+            <FuelIcon className="h-5 w-5" strokeWidth={1.9} /> Registra rifornimento
+          </button>
+
+          <p className="mt-4 text-center text-[11px] text-muted">
+            Prezzi comunicati dai gestori al MIMIT (aggiornati ogni mattina) · Mappa © OpenStreetMap
+          </p>
         </div>
       </div>
+
+      <TransactionSheet
+        open={refuelOpen}
+        onClose={() => setRefuelOpen(false)}
+        categories={categories}
+        accounts={accounts}
+        editing={null}
+        draft={refuelDraft}
+      />
     </div>
   )
 }
