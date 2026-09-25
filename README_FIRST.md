@@ -111,6 +111,25 @@ esclusi da build e lint). Si procede una fase per branch `redesign/<n>-<nome>`, 
   - **Accessibilità**: le chip di categorie, icone e colori non sono più dentro un `<label>`, che
     dava a tutte il nome "Categoria …".
   - **Test e2e**: l'apertura del CSV tocca la sub-tab "Conti" solo su mobile.
+- **Fase 6 — Agenda e nuova attività** (`redesign/6-agenda`):
+  - **Intestazione**: "Agenda" con il riepilogo "N da fare · N in ritardo". Su mobile c'è il
+    segmented Attività/Calendario con binario orizzontale; su desktop due colonne. `.agenda-panel`
+    non ha più bordo, ombra né sfondo.
+  - **Elenco**: gruppi "In ritardo", "Oggi", "Prossimi giorni", "Senza data" con il conteggio e
+    `TaskRow` (meta "Domani · 10:00", "In ritardo · ieri", "Fatto"). Le attività spuntate durante
+    la sessione restano nel loro gruppo, barrate. Le completate in precedenza restano nella
+    sezione richiudibile "Completate".
+  - **Calendario**: griglia con lunedì come primo giorno e celle da 46px; stati selezionato, oggi e
+    passato; pallino per i giorni con attività aperte. Sotto ci sono "Oggi · gio 24 settembre" e le
+    attività del giorno.
+  - **`TaskSheet`**: titolo 56px che trema se vuoto; chip "Quando" (Oggi, Domani, Sabato N, Senza
+    data, Altra data) e "Orario" (Nessun orario, 09:00, 15:30, 20:00, Altro orario) sui selettori
+    nativi. Note invariate. La nota sulle notifiche compare solo con push attive
+    (`getPushSubscription`). CTA "Aggiungi all’agenda".
+  - **Dopo il salvataggio**: toast "Attività aggiunta: domani" e riga nuova evidenziata. Su desktop
+    la nuova attività parte dal giorno selezionato nel calendario.
+  - **Logica pura** in `src/lib/agenda.ts` con test: gruppi, settimane del calendario, prossimo
+    sabato, etichette.
 
 ## Inviti senza limite applicativo
 

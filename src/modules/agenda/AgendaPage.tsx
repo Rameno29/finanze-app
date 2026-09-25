@@ -1,9 +1,16 @@
-import { useMemo, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react'
+import { useMemo, useState, type CSSProperties } from 'react'
+import { ChevronDown, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react'
 import { mutateOffline } from '../../lib/offline'
 import { useTasks } from '../../lib/data'
-import { MONTH_NAMES, formatDay, todayISO } from '../../lib/format'
-import { Card, EmptyState, PageHeader, Spinner } from '../../components/ui'
+import { MONTH_NAMES, todayISO } from '../../lib/format'
+import { taskMeta } from '../../lib/home'
+import { agendaSummary, calendarDayLabel, calendarWeeks, groupTasks } from '../../lib/agenda'
+import { EmptyState, PageHeader } from '../../components/ui'
+import { Segmented } from '../../components/Segmented'
+import { SkeletonRow } from '../../components/Skeleton'
+import { TaskRow } from '../../components/TaskRow'
+import { useNewIds } from '../../components/motion'
+import { useIsDesktop } from '../../components/useIsDesktop'
 import { TaskSheet } from './TaskSheet'
 import { useQuickAction } from '../../components/quickActionContext'
 import type { Task } from '../../types'
@@ -12,49 +19,10 @@ type View = 'attivita' | 'calendario'
 
 const WEEKDAYS = ['L', 'M', 'M', 'G', 'V', 'S', 'D']
 
-function TaskRow({
-  task,
-  onToggle,
-  onEdit,
-  showDate,
-}: {
-  task: Task
-  onToggle: (t: Task) => void
-  onEdit: (t: Task) => void
-  showDate?: boolean
-}) {
-  const overdue = !task.done && task.due_date !== null && task.due_date < todayISO()
-  return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <button
-        onClick={() => onToggle(task)}
-        aria-label={task.done ? 'Segna da fare' : 'Segna completata'}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
-          task.done ? 'border-income bg-income text-white' : 'border-line'
-        }`}
-      >
-        {task.done && <Check className="h-4 w-4" strokeWidth={3} />}
-      </button>
-      <button onClick={() => onEdit(task)} className="min-w-0 flex-1 text-left">
-        <span className={`block truncate font-medium ${task.done ? 'text-muted line-through' : ''}`}>
-          {task.title}
-        </span>
-        {(task.due_time || task.notes || (showDate && task.due_date)) && (
-          <span className={`block truncate text-xs ${overdue ? 'text-expense' : 'text-muted'}`}>
-            {showDate && task.due_date ? `${formatDay(task.due_date)} ` : ''}
-            {task.due_time ? `ore ${task.due_time.slice(0, 5)}` : ''}
-            {task.notes && (task.due_time || (showDate && task.due_date)) ? ' · ' : ''}
-            {task.notes}
-          </span>
-        )}
-      </button>
-    </div>
-  )
-}
-
 export function AgendaPage() {
   const today = todayISO()
   const now = new Date()
+  const isDesktop = useIsDesktop()
   const [view, setView] = useState<View>('attivita')
   const [calYear, setCalYear] = useState(now.getFullYear())
   const [calMonth, setCalMonth] = useState(now.getMonth() + 1)
@@ -63,8 +31,10 @@ export function AgendaPage() {
   const [editing, setEditing] = useState<Task | null>(null)
   const [showDone, setShowDone] = useState(false)
   const [operationError, setOperationError] = useState('')
+  const [completedNow, setCompletedNow] = useState<ReadonlySet<string>>(() => new Set())
 
   const { tasks, loading, reload } = useTasks()
+  const newIds = useNewIds(tasks.map((t) => t.id), !loading)
 
   // "+" della barra e CTA della sidebar: nuova attività
   useQuickAction(() => {
@@ -75,6 +45,7 @@ export function AgendaPage() {
   async function toggleTask(t: Task) {
     try {
       await mutateOffline('tasks', 'update', t.id, { done: !t.done }, { ...t, done: !t.done })
+      if (!t.done) setCompletedNow((previous) => new Set(previous).add(t.id))
       setOperationError('')
       void reload()
     } catch {
@@ -87,32 +58,8 @@ export function AgendaPage() {
     setSheetOpen(true)
   }
 
-  const groups = useMemo(() => {
-    const open = tasks.filter((t) => !t.done)
-    return {
-      overdue: open.filter((t) => t.due_date !== null && t.due_date < today),
-      today: open.filter((t) => t.due_date === today),
-      upcoming: open.filter((t) => t.due_date !== null && t.due_date > today),
-      noDate: open.filter((t) => t.due_date === null),
-      done: tasks.filter((t) => t.done),
-    }
-  }, [tasks, today])
-
-  // Griglia del mese: settimane che iniziano di lunedì
-  const weeks = useMemo(() => {
-    const first = new Date(calYear, calMonth - 1, 1)
-    const startOffset = (first.getDay() + 6) % 7
-    const daysInMonth = new Date(calYear, calMonth, 0).getDate()
-    const cells: Array<string | null> = []
-    for (let i = 0; i < startOffset; i++) cells.push(null)
-    for (let d = 1; d <= daysInMonth; d++) {
-      cells.push(`${calYear}-${String(calMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`)
-    }
-    while (cells.length % 7 !== 0) cells.push(null)
-    const out: Array<Array<string | null>> = []
-    for (let i = 0; i < cells.length; i += 7) out.push(cells.slice(i, i + 7))
-    return out
-  }, [calYear, calMonth])
+  const groups = useMemo(() => groupTasks(tasks, today, completedNow), [tasks, today, completedNow])
+  const weeks = useMemo(() => calendarWeeks(calYear, calMonth), [calYear, calMonth])
 
   const tasksByDay = useMemo(() => {
     const map = new Map<string, Task[]>()
@@ -122,6 +69,7 @@ export function AgendaPage() {
       list.push(t)
       map.set(t.due_date, list)
     }
+    for (const list of map.values()) list.sort((a, b) => (a.due_time ?? '99').localeCompare(b.due_time ?? '99'))
     return map
   }, [tasks])
 
@@ -131,148 +79,151 @@ export function AgendaPage() {
     const d = new Date(calYear, calMonth - 1 + delta, 1)
     setCalYear(d.getFullYear())
     setCalMonth(d.getMonth() + 1)
-    setSelectedDay(
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`,
+    setSelectedDay(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`)
+  }
+
+  function renderRow(t: Task) {
+    const meta = taskMeta(t, today)
+    const text = t.notes && !t.done ? [meta.text, t.notes].filter(Boolean).join(' · ') : meta.text
+    return (
+      <TaskRow
+        key={t.id}
+        title={t.title}
+        meta={text || undefined}
+        overdue={meta.overdue}
+        done={t.done}
+        isNew={newIds.has(t.id)}
+        onToggle={() => void toggleTask(t)}
+        onOpen={() => openEdit(t)}
+      />
     )
   }
 
   const sections: Array<[string, Task[], boolean]> = [
     ['In ritardo', groups.overdue, true],
     ['Oggi', groups.today, false],
-    ['Prossime', groups.upcoming, false],
+    ['Prossimi giorni', groups.upcoming, false],
     ['Senza data', groups.noDate, false],
   ]
+  const summary = agendaSummary(groups.openCount, groups.overdueCount)
+
+  function panelProps(key: View) {
+    const active = isDesktop || view === key
+    return { 'data-active': active, 'aria-hidden': active ? undefined : true, inert: !active }
+  }
 
   const activityPanel = (
-    <section className={`agenda-panel agenda-activities ${view === 'attivita' ? '' : 'hidden lg:block'}`}>
-      <div className="agenda-panel-heading">
-        <div>
-          <h2 className="display-type text-2xl">Le mie attività</h2>
-        </div>
-        <span className="agenda-count">{groups.overdue.length + groups.today.length + groups.upcoming.length + groups.noDate.length} aperte</span>
-      </div>
+    <section className="agenda-panel" aria-label="Attività" {...panelProps('attivita')}>
       {tasks.length === 0 && (
         <EmptyState
-          icon={<ClipboardList className="h-10 w-10" />}
+          icon={<ClipboardList />}
+          tone="brand"
           title="Nessuna attività"
-          hint="Tocca il bottone + per aggiungere la tua prima attività o promemoria."
+          hint={isDesktop
+            ? 'Usa Nuova attività per aggiungere la tua prima attività o promemoria.'
+            : 'Tocca il bottone + per aggiungere la tua prima attività o promemoria.'}
         />
       )}
-      {sections.map(
-        ([label, list, danger]) =>
-          list.length > 0 && (
-            <section key={label} className="mt-5">
-              <h3 className={`mb-2 text-sm font-semibold ${danger ? 'text-expense' : 'text-muted'}`}>
-                {label} · {list.length}
-              </h3>
-              <Card className="divide-y divide-line p-0">
-                {list.map((t) => (
-                  <TaskRow key={t.id} task={t} onToggle={toggleTask} onEdit={openEdit} showDate />
-                ))}
-              </Card>
-            </section>
-          ),
-      )}
-      {groups.done.length > 0 && (
-        <section className="mt-5">
-          <button
-            onClick={() => setShowDone(!showDone)}
-            className="mb-2 text-sm font-semibold text-muted"
-          >
-            Completate · {groups.done.length} {showDone ? '▾' : '▸'}
-          </button>
-          {showDone && (
-            <Card className="divide-y divide-line p-0">
-              {groups.done.slice(0, 30).map((t) => (
-                <TaskRow key={t.id} task={t} onToggle={toggleTask} onEdit={openEdit} showDate />
-              ))}
-            </Card>
-          )}
-        </section>
-      )}
+      <div className="flex flex-col gap-[22px]">
+        {sections.map(([label, list, danger]) => list.length > 0 && (
+          <section key={label} aria-label={label}>
+            <h3 className="flex items-baseline justify-between text-[13px] font-semibold">
+              <span className={danger ? 'text-expense' : 'text-ink'}>{label}</span>
+              <span className="font-normal text-muted">{list.length}</span>
+            </h3>
+            <div>{list.map(renderRow)}</div>
+          </section>
+        ))}
+        {groups.done.length > 0 && (
+          <section>
+            <button
+              type="button"
+              onClick={() => setShowDone(!showDone)}
+              aria-expanded={showDone}
+              className="flex min-h-11 w-full items-center justify-between text-[13px] font-semibold text-muted"
+            >
+              <span>Completate</span>
+              <span className="flex items-center gap-1 font-normal">
+                {groups.done.length}
+                <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${showDone ? 'rotate-180' : ''}`} strokeWidth={1.9} />
+              </span>
+            </button>
+            {showDone && <div>{groups.done.slice(0, 30).map(renderRow)}</div>}
+          </section>
+        )}
+      </div>
     </section>
   )
 
   const calendarPanel = (
-    <section className={`agenda-panel agenda-calendar ${view === 'calendario' ? '' : 'hidden lg:block'}`}>
-      <div className="agenda-panel-heading">
-        <div>
-          <h2 className="display-type text-2xl">Calendario</h2>
-        </div>
-        <span className="agenda-count">{tasksByDay.get(selectedDay)?.length ?? 0} per il giorno</span>
-      </div>
-      <div className="mt-4 flex items-center justify-between">
-        <button
-          onClick={() => shiftCalMonth(-1)}
-          aria-label="Mese precedente"
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-card-2"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <span className="font-semibold">
-          {MONTH_NAMES[calMonth - 1]} {calYear}
+    <section className="agenda-panel" aria-label="Calendario" {...panelProps('calendario')}>
+      <h2 className="mb-2 hidden text-[15px] font-semibold lg:block">Calendario</h2>
+      <div className="flex items-center justify-between">
+        <span className="text-[17px] font-semibold">{MONTH_NAMES[calMonth - 1]} {calYear}</span>
+        <span className="flex">
+          <button onClick={() => shiftCalMonth(-1)} aria-label="Mese precedente" className="flex h-11 w-11 items-center justify-center rounded-full">
+            <ChevronLeft className="h-5 w-5" strokeWidth={1.9} />
+          </button>
+          <button onClick={() => shiftCalMonth(1)} aria-label="Mese successivo" className="flex h-11 w-11 items-center justify-center rounded-full">
+            <ChevronRight className="h-5 w-5" strokeWidth={1.9} />
+          </button>
         </span>
-        <button
-          onClick={() => shiftCalMonth(1)}
-          aria-label="Mese successivo"
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-card-2"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
       </div>
 
-      <Card className="mt-3 p-3">
-        <div className="mb-1 grid grid-cols-7 text-center text-xs font-semibold text-muted">
-          {WEEKDAYS.map((d, i) => (
-            <span key={i} className="py-1">
-              {d}
-            </span>
-          ))}
-        </div>
+      <div className="mt-2 grid grid-cols-7 text-center text-xs font-medium text-muted" aria-hidden="true">
+        {WEEKDAYS.map((d, i) => <span key={i} className="py-1.5">{d}</span>)}
+      </div>
+      <div role="grid" aria-label={`${MONTH_NAMES[calMonth - 1]} ${calYear}`}>
         {weeks.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7">
+          <div key={wi} role="row" className="grid grid-cols-7">
             {week.map((day, di) => {
-              if (!day) return <span key={di} />
-              const has = (tasksByDay.get(day) ?? []).some((t) => !t.done)
-              const isSelected = day === selectedDay
+              if (!day) return <span key={di} role="gridcell" className="h-[46px]" />
+              const hasOpen = (tasksByDay.get(day) ?? []).some((t) => !t.done)
+              const selected = day === selectedDay
               const isToday = day === today
+              const past = day < today
               return (
-                <button
-                  key={di}
-                  onClick={() => setSelectedDay(day)}
-                  className={`mx-auto flex h-11 w-11 flex-col items-center justify-center rounded-full text-sm transition ${
-                    isSelected
-                      ? 'bg-accent font-bold text-white'
-                      : isToday
-                        ? 'font-bold text-accent'
-                        : ''
-                  }`}
-                >
-                  {Number(day.slice(8))}
-                  <span
-                    className={`mt-0.5 h-1.5 w-1.5 rounded-full ${
-                      has ? (isSelected ? 'bg-white' : 'bg-accent') : 'bg-transparent'
-                    }`}
-                  />
-                </button>
+                <span key={di} role="gridcell" className="flex h-[46px] justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDay(day)}
+                    aria-pressed={selected}
+                    aria-label={`${calendarDayLabel(day)}${isToday ? ', oggi' : ''}${hasOpen ? ', con attività' : ''}`}
+                    className="relative flex h-[46px] w-11 flex-col items-center"
+                  >
+                    <span
+                      className={`tabular flex h-9 w-9 items-center justify-center rounded-full text-[15px] transition-colors duration-[250ms] ${
+                        selected
+                          ? 'bg-ink font-semibold text-bg'
+                          : isToday
+                            ? 'font-semibold text-ink shadow-[inset_0_0_0_1.5px_var(--accent)]'
+                            : past ? 'text-muted' : 'text-ink'
+                      }`}
+                    >
+                      {Number(day.slice(8))}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className={`mt-0.5 h-1 w-1 rounded-full ${hasOpen ? (selected ? 'bg-accent' : 'bg-brand') : 'bg-transparent'}`}
+                    />
+                  </button>
+                </span>
               )
             })}
           </div>
         ))}
-      </Card>
+      </div>
 
-      <section className="mt-5">
-        <h3 className="mb-2 text-sm font-semibold capitalize text-muted">{formatDay(selectedDay)}</h3>
+      <section className="mt-4 border-t border-line pt-4" aria-label="Attività del giorno">
+        <h3 className="text-[15px] font-semibold">
+          {selectedDay === today ? 'Oggi · ' : ''}{calendarDayLabel(selectedDay)}
+        </h3>
         {dayTasks.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
-            Nessuna attività in questo giorno.
+          <p className="mt-2 text-sm leading-[1.55] text-muted">
+            Niente in programma. {isDesktop ? 'Usa Nuova attività' : 'Tocca +'} per aggiungere un’attività a questo giorno.
           </p>
         ) : (
-          <Card className="divide-y divide-line p-0">
-            {dayTasks.map((t) => (
-              <TaskRow key={t.id} task={t} onToggle={toggleTask} onEdit={openEdit} />
-            ))}
-          </Card>
+          <div className="mt-1">{dayTasks.map(renderRow)}</div>
         )}
       </section>
     </section>
@@ -280,37 +231,34 @@ export function AgendaPage() {
 
   return (
     <div>
-      <PageHeader title="Agenda" />
-
-      <div className="page-content max-w-[1320px] px-0">
-        {operationError && (
-          <p className="mt-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{operationError}</p>
-        )}
-        <div className="agenda-tabs mt-4 grid grid-cols-2 gap-1 rounded-xl bg-card-2 p-1 lg:hidden">
-          {(
-            [
-              ['attivita', 'Attività'],
-              ['calendario', 'Calendario'],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setView(key)}
-              className={`min-h-[40px] rounded-lg text-sm font-semibold transition ${
-                view === key ? 'bg-card shadow text-ink' : 'text-muted'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Spinner />
+      <PageHeader
+        title="Agenda"
+        subtitle={loading ? undefined : summary}
+        right={
+          <div className="lg:hidden">
+            <Segmented
+              label="Vista agenda"
+              size="sm"
+              value={view}
+              onChange={setView}
+              className="w-[184px]"
+              options={[
+                { value: 'attivita', label: 'Attività' },
+                { value: 'calendario', label: 'Calendario' },
+              ]}
+            />
           </div>
+        }
+      />
+
+      <div className="mx-auto w-full max-w-[1120px] overflow-hidden px-5 pt-4 lg:overflow-visible lg:px-10 lg:pt-2">
+        {operationError && (
+          <p role="alert" className="mb-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{operationError}</p>
+        )}
+        {loading ? (
+          <div className="space-y-1">{[0, 1, 2, 3].map((i) => <SkeletonRow key={i} height={60} />)}</div>
         ) : (
-          <div className="agenda-layout">
+          <div className="agenda-rail" style={{ '--agenda-index': view === 'attivita' ? 0 : 1 } as CSSProperties}>
             {activityPanel}
             {calendarPanel}
           </div>
@@ -322,7 +270,7 @@ export function AgendaPage() {
         onClose={() => setSheetOpen(false)}
         onSaved={reload}
         editing={editing}
-        defaultDate={view === 'calendario' ? selectedDay : today}
+        defaultDate={isDesktop || view === 'calendario' ? selectedDay : today}
       />
     </div>
   )

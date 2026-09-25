@@ -163,47 +163,25 @@ a:focus-visible {
   display: flex;
 }
 
-.agenda-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
+/* Agenda: binario a due pannelli su mobile, due colonne da lg (senza bordi né sfondo) */
+.agenda-rail {
+  display: flex;
+  align-items: flex-start;
+  width: 200%;
+  transform: translateX(calc(-50% * var(--agenda-index, 0)));
+  transition: transform var(--dur-sheet) var(--ease-standard);
 }
 
 .agenda-panel {
+  width: 50%;
   min-width: 0;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 1.25rem;
-  background: var(--card);
-  box-shadow: 0 2px 8px rgb(21 44 41 / 4%), 0 1px 2px rgb(21 44 41 / 3%);
+  transition: opacity 350ms ease;
 }
 
-.agenda-panel-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .75rem;
-  padding-bottom: .8rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.agenda-eyebrow {
-  margin-bottom: .15rem;
-  color: var(--brand);
-  font-size: .65rem;
-  font-weight: 700;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-}
-
-.agenda-count {
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: var(--brand-soft);
-  padding: .35rem .65rem;
-  color: var(--brand);
-  font-size: .7rem;
-  font-weight: 600;
+.agenda-panel[data-active='false'] {
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
 }
 
 @media (min-width: 900px) {
@@ -218,12 +196,18 @@ a:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
   }
-  .agenda-layout { grid-template-columns: minmax(0, 1.1fr) minmax(380px, .9fr); gap: 1.25rem; }
-  .agenda-panel { padding: 1.35rem; }
 }
 
 @media (min-width: 1024px) {
   .page-header-inner { width: min(100% - 3.5rem, 1320px); }
+  .agenda-rail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 32px;
+    width: auto;
+    transform: none;
+  }
+  .agenda-panel { width: auto; }
   .document-layout {
     display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr);
@@ -570,5 +554,7 @@ html.sheet-open { overflow: hidden; }
 
   .finance-rail { transform: none; }
   .finance-panel[data-active='false'] { display: none; }
+  .agenda-rail { transform: none; }
+  .agenda-panel[data-active='false'] { display: none; }
   .amount-shake { animation: none; }
 }
