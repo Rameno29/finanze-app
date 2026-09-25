@@ -4,11 +4,23 @@
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
 > Ultimo aggiornamento: **24 settembre 2026**.
 
-## Redesign "Flusso" — in corso per fasi
+## Redesign "Flusso" — completato e pubblicato
 
 La specifica è `design_handoff_aje_redesign/README.md` (i file `.dc.html` sono solo prototipi,
-esclusi da build e lint). Si procede una fase per branch `redesign/<n>-<nome>`, partendo da
-`redesign/handoff`.
+esclusi da build e lint). Il lavoro è stato fatto in 9 fasi, una per branch `redesign/<n>-<nome>`,
+partendo da `redesign/handoff`.
+
+**Rilascio del 25 settembre 2026.**
+- **Merge**: le 9 fasi sono entrate in `main` con un fast-forward fino a `624f3bd`.
+- **Verifiche prima del push**, eseguite su `main`: lint, 151 test Vitest, build e 40 test
+  browser desktop/mobile, tutti verdi.
+- **Deploy**: workflow GitHub Pages `36139098991` riuscito (build e deploy).
+- **Controllo online**:
+  - l'asset principale online (`index-CWBrHQKY.js`) è identico alla build locale;
+  - il font Geist è servito dal sito e il manifest ha `theme_color` `#07382f`;
+  - la pagina di accesso non mostra errori in console.
+- **Da verificare sul dispositivo**: le funzioni autenticate con dati reali e l'installazione
+  sull'iPhone restano da collaudare di persona.
 
 - **Fase 1 — Fondamenta** (`redesign/1-fondamenta`): token colore/movimento/ombre di
   `tokens.css` in `src/index.css` (nomi invariati; `--nav-bg` più scuro, nuove `--warn-bg`,
