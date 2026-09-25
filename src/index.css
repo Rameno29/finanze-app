@@ -158,10 +158,31 @@ a:focus-visible {
   scroll-margin-top: 6rem;
 }
 
-.document-layout,
 .fuel-layout {
   display: flex;
 }
+
+/* Documenti: generatore e archivio in colonna, affiancati da lg (senza card) */
+.document-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.pdf-step-fill { transition: width var(--dur-sheet) var(--ease-standard); }
+
+@keyframes pdf-radio-pop {
+  from { transform: scale(0); }
+}
+
+.pdf-radio-dot { animation: pdf-radio-pop 300ms var(--ease-pop); }
+
+@keyframes pdf-paper-enter {
+  from { opacity: 0; transform: translateY(20px) scale(.96); }
+}
+
+.pdf-paper { animation: pdf-paper-enter 600ms var(--ease-standard); }
+.upload-done { animation: pdf-radio-pop 300ms var(--ease-pop); }
 
 /* Agenda: binario a due pannelli su mobile, due colonne da lg (senza bordi né sfondo) */
 .agenda-rail {
@@ -210,12 +231,10 @@ a:focus-visible {
   .agenda-panel { width: auto; }
   .document-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 48px;
     align-items: start;
   }
-  .document-upload-actions { grid-column: 1 / -1; }
-  .document-generator { grid-column: 2; grid-row: 2; }
-  .document-archive { grid-column: 1; grid-row: 2; min-width: 0; }
   .fuel-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(340px, .8fr);
@@ -555,6 +574,9 @@ html.sheet-open { overflow: hidden; }
   .finance-rail { transform: none; }
   .finance-panel[data-active='false'] { display: none; }
   .agenda-rail { transform: none; }
+  .pdf-radio-dot,
+  .upload-done { animation: none; }
+  .pdf-paper { animation: page-fade 150ms ease backwards; }
   .agenda-panel[data-active='false'] { display: none; }
   .amount-shake { animation: none; }
 }

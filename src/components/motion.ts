@@ -69,3 +69,23 @@ export function useNewIds(ids: readonly string[], ready: boolean, scope = ''): R
 
   return fresh
 }
+
+/**
+ * Avanzamento stimato (0–92%) mentre un'operazione senza progresso reale è in corso:
+ * sale in fretta all'inizio e rallenta; torna a 0 quando `active` è falso.
+ */
+export function useEstimatedProgress(active: boolean): number {
+  const [value, setValue] = useState(0)
+  useEffect(() => {
+    if (!active) {
+      setValue(0)
+      return
+    }
+    setValue(4)
+    const timer = window.setInterval(() => {
+      setValue((current) => Math.min(92, current + Math.max(0.4, (92 - current) * 0.06)))
+    }, 200)
+    return () => window.clearInterval(timer)
+  }, [active])
+  return Math.round(value)
+}

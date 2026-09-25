@@ -118,12 +118,22 @@ async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean;
 test('document upload preserves a committed file when the database response is lost',async({page})=>{
   const {documents,files}=await mockBackend(page,{uploadLostResponse:true})
   await page.goto('impostazioni');await login(page);await page.goto('documenti')
+  await openUploadSheet(page)
   await page.getByRole('button',{name:'Documento Spiegazione AI',exact:true}).click()
   await page.locator('input[type=file]').first().setInputFiles({name:'contratto-prova.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 synthetic test')})
   await expect(page.getByText('contratto-prova.pdf',{exact:true})).toBeVisible()
   expect(documents.size).toBe(1)
   expect(files.size).toBe(1)
 })
+/** I tipi di caricamento stanno nel foglio "Carica documento": "+" su mobile, CTA della sidebar su desktop. */
+async function openUploadSheet(page:Page) {
+  const trigger = test.info().project.name === 'mobile'
+    ? page.getByRole('navigation',{name:'Navigazione principale'}).getByRole('button',{name:'Carica documento'})
+    : page.locator('aside').getByRole('button',{name:'Carica documento'})
+  await trigger.click()
+  await expect(page.getByRole('dialog',{name:'Carica documento'})).toBeVisible()
+}
+
 /** Su mobile le pagine secondarie nascondono la barra: si torna alla Home con "Indietro" (Impostazioni → Altro → Home). */
 async function leaveSecondaryPage(page:Page) {
   if (test.info().project.name !== 'mobile') return
@@ -157,6 +167,7 @@ test('navigazione focalizzata conserva agenda documenti e carburanti', async ({p
     await expect(page.getByRole('button', {name: 'Calendario'})).toBeVisible()
   }
   await page.getByRole('link', {name: 'Documenti', exact: true}).click()
+  await openUploadSheet(page)
   await expect(page.getByRole('button', {name: /Busta paga/})).toBeVisible()
 })
 
@@ -166,8 +177,12 @@ test('documenti conserva caricamento e creazione PDF senza scanner', async ({pag
   await login(page)
   await leaveSecondaryPage(page)
   await page.getByRole('link', {name: 'Documenti', exact: true}).click()
+  await openUploadSheet(page)
   await expect(page.getByRole('button', {name: /Busta paga/})).toBeVisible()
   await expect(page.getByRole('button', {name: /Scontrino/})).toBeVisible()
+  await expect(page.locator('input[type=file]').first()).toBeAttached()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByRole('heading', {name: 'Crea un documento PDF'})).toBeVisible()
   await expect(page.getByRole('button', {name: /Scanner documenti/})).toHaveCount(0)
 })

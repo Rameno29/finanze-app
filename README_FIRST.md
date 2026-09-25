@@ -130,6 +130,33 @@ esclusi da build e lint). Si procede una fase per branch `redesign/<n>-<nome>`, 
     la nuova attività parte dal giorno selezionato nel calendario.
   - **Logica pura** in `src/lib/agenda.ts` con test: gruppi, settimane del calendario, prossimo
     sabato, etichette.
+- **Fase 7 — Documenti, PDF e caricamento** (`redesign/7-documenti`):
+  - **Layout**: sottotitolo "Buste paga, scontrini e PDF generati"; generatore e archivio in colonna
+    su mobile, affiancati da `lg` e senza card.
+  - **Crea un documento PDF**:
+    - indicatore a 4 passi (Fonte, Formato, Genera, Anteprima) che avanza con lo stato;
+    - fonte a righe radio e formato a chip, con i `<select aria-label="Fonte/Formato">` collegati
+      e nascosti (sr-only);
+    - formati invariati `sintesi`/`appunti`/`schema`, perché sono quelli accettati dal server;
+    - durante la generazione un avanzamento stimato in percentuale;
+    - anteprima su foglio bianco nella pagina, modificabile, con "Chiudi", "Scarica PDF",
+      "Salva nell’archivio privato" e "Ricomincia";
+    - l'anteprima scorre in vista quando è pronta.
+  - **Carica documento** (`UploadSheet.tsx`):
+    - si apre dal "+" su mobile e dalla CTA della sidebar su desktop;
+    - tipi "Busta paga…", "Scontrino…", "Documento Spiegazione AI";
+    - "Scatta foto" (`capture="environment"`) solo su mobile, "Scegli file", drag & drop sulla
+      pagina su desktop;
+    - avanzamento "Carico il file cifrato…" / "Leggo il documento…" e risultato con spunta;
+    - busta paga e scontrino aprono i fogli di conferma esistenti;
+    - gli `input[type=file]` restano nel DOM.
+  - **Archivio**: filtri a pill, righe da 72px con icona per tipo e chip di stato
+    (Analizzato/Caricato/Non leggibile); ricerca, "Analizza" e "Andamento stipendio" invariati.
+  - **Corretto — "+" durante il caricamento della pagina**: se si tocca "+" su Agenda o Documenti
+    prima che la pagina registri la sua azione, il tocco resta in attesa invece di aprire
+    "Nuovo movimento".
+  - **Test e2e**: i test che cercavano i tipi di caricamento sulla pagina ora aprono prima il
+    foglio "Carica documento" (`openUploadSheet`).
 
 ## Inviti senza limite applicativo
 
