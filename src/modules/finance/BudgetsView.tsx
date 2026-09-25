@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { PiggyBank, RefreshCw } from 'lucide-react'
+import { ChevronRight, PiggyBank, RefreshCw, Tags } from 'lucide-react'
 import { requireUserId, supabase } from '../../lib/supabase'
 import { useRecurring } from '../../lib/data'
 import { formatCents, parseAmountToCents } from '../../lib/format'
+import { budgetTone } from '../../lib/finance'
+import { ProgressBar } from '../../components/ProgressBar'
 import { CategoryIcon } from '../../lib/icons'
-import { Card, EmptyState, Field, PrimaryButton, Sheet, inputClass } from '../../components/ui'
+import { EmptyState, Field, PrimaryButton, Sheet, inputClass } from '../../components/ui'
 import type { Budget, Category, Transaction } from '../../types'
 
 /** Equivalente mensile in centesimi di un movimento ricorrente. */
@@ -19,11 +21,16 @@ export function BudgetsView({
   budgets,
   transactions,
   onChanged,
+  visible = true,
+  onManageCategories,
 }: {
   categories: Category[]
   budgets: Budget[]
   transactions: Transaction[]
   onChanged: () => void
+  /** Le barre partono da 0 quando la vista diventa visibile. */
+  visible?: boolean
+  onManageCategories?: () => void
 }) {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [amount, setAmount] = useState('')
@@ -85,92 +92,130 @@ export function BudgetsView({
     }
   }
 
+  function openEditor(c: Category) {
+    const budget = budgetByCategory.get(c.id)
+    setEditingCategory(c)
+    setAmount(budget ? (budget.monthly_cents / 100).toFixed(2).replace('.', ',') : '')
+    setError('')
+  }
+
+  const manageCategories = onManageCategories && (
+    <button
+      type="button"
+      onClick={onManageCategories}
+      className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-line text-[15px] font-medium"
+    >
+      <Tags className="h-5 w-5" strokeWidth={1.9} /> Gestisci categorie
+    </button>
+  )
+
   if (expenseCategories.length === 0) {
     return (
-      <EmptyState
-        icon={<PiggyBank className="h-10 w-10" />}
-        title="Nessuna categoria di spesa"
-        hint="Crea prima le categorie nella scheda Categorie."
-      />
+      <div>
+        <EmptyState
+          icon={<PiggyBank />}
+          tone="brand"
+          title="Nessuna categoria di spesa"
+          hint="Crea prima le categorie di spesa, poi imposta un limite mensile."
+        />
+        {manageCategories}
+      </div>
     )
   }
 
+  const withBudget = expenseCategories.filter((c) => budgetByCategory.has(c.id))
+  const withoutBudget = expenseCategories.filter((c) => !budgetByCategory.has(c.id))
+  const totalLimit = withBudget.reduce((sum, c) => sum + (budgetByCategory.get(c.id)?.monthly_cents ?? 0), 0)
+  const totalSpent = withBudget.reduce((sum, c) => sum + (spentByCategory.get(c.id) ?? 0), 0)
+
   return (
-    <div className="mt-4 flex flex-col gap-3">
-      <p className="text-sm text-muted">
-        Imposta un limite mensile per categoria: la barra mostra quanto hai già speso questo mese.
-      </p>
-      {expenseCategories.map((c) => {
-        const budget = budgetByCategory.get(c.id)
-        const spent = spentByCategory.get(c.id) ?? 0
-        const pct = budget ? Math.min(100, Math.round((spent / budget.monthly_cents) * 100)) : 0
-        const over = budget ? spent > budget.monthly_cents : false
-        return (
-          <Card key={c.id} className="p-3">
+    <div>
+      {withBudget.length > 0 ? (
+        <>
+          <p className="text-sm text-muted">Budget del mese</p>
+          <p className="tabular mt-0.5 text-[30px] font-semibold leading-tight tracking-[-0.02em]">
+            {formatCents(totalSpent)} di {formatCents(totalLimit)}
+          </p>
+          <div className="mt-1">
+            {withBudget.map((c, index) => {
+              const limit = budgetByCategory.get(c.id)!.monthly_cents
+              const spent = spentByCategory.get(c.id) ?? 0
+              const left = limit - spent
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => openEditor(c)}
+                  className="block w-full border-b border-line py-[18px] text-left"
+                >
+                  <span className="mb-2.5 flex items-center gap-2.5">
+                    <span style={{ color: c.color }} aria-hidden="true"><CategoryIcon icon={c.icon} className="h-5 w-5" /></span>
+                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{c.name}</span>
+                    <span className="tabular shrink-0 text-sm">{formatCents(spent)} / {formatCents(limit)}</span>
+                  </span>
+                  <ProgressBar
+                    percent={limit > 0 ? (spent / limit) * 100 : 100}
+                    tone={budgetTone(spent, limit)}
+                    visible={visible}
+                    delay={index * 90}
+                    label={`Budget ${c.name}`}
+                  />
+                  <span className={`tabular mt-2 block text-[13px] ${left < 0 ? 'text-expense' : 'text-muted'}`}>
+                    {left < 0 ? `Superato di ${formatCents(-left)}` : `Restano ${formatCents(left)}`}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-muted">Tocca una categoria per impostare un limite mensile: vedrai quanto hai già speso.</p>
+      )}
+
+      {withoutBudget.length > 0 && (
+        <div className="mt-6">
+          <h3 className="mb-1 text-[13px] font-semibold text-muted">Senza budget</h3>
+          {withoutBudget.map((c) => (
             <button
-              className="flex w-full items-center gap-3 text-left"
-              onClick={() => {
-                setEditingCategory(c)
-                setAmount(budget ? (budget.monthly_cents / 100).toFixed(2).replace('.', ',') : '')
-                setError('')
-              }}
+              key={c.id}
+              type="button"
+              onClick={() => openEditor(c)}
+              className="flex min-h-[52px] w-full items-center gap-2.5 border-b border-line text-left"
             >
-              <span
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
-                style={{ backgroundColor: c.color }}
-              >
-                <CategoryIcon icon={c.icon} className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="truncate font-medium">{c.name}</span>
-                  <span className={`text-sm font-semibold ${over ? 'text-expense' : 'text-muted'}`}>
-                    {budget
-                      ? `${formatCents(spent)} / ${formatCents(budget.monthly_cents)}`
-                      : 'Nessun budget'}
-                  </span>
-                </span>
-                {budget && (
-                  <span className="mt-2 block h-2 overflow-hidden rounded-full bg-card-2">
-                    <span
-                      className={`block h-full rounded-full transition-all ${over ? 'bg-expense' : 'bg-accent'}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </span>
-                )}
-              </span>
+              <span style={{ color: c.color }} aria-hidden="true"><CategoryIcon icon={c.icon} className="h-5 w-5" /></span>
+              <span className="min-w-0 flex-1 truncate text-[15px]">{c.name}</span>
+              <span className="text-[13px] text-muted">Imposta</span>
+              <ChevronRight className="h-4 w-4 text-muted" strokeWidth={1.9} aria-hidden="true" />
             </button>
-          </Card>
-        )
-      })}
+          ))}
+        </div>
+      )}
 
       {/* Scadenzario: spese fisse e abbonamenti (movimenti con ricorrenza) */}
       {recurringExpenses.length > 0 && (
-        <Card className="mt-2 p-4">
+        <section className="mt-7">
           <div className="mb-1 flex items-baseline justify-between gap-2">
-            <h3 className="flex items-center gap-2 font-semibold">
-              <RefreshCw className="h-4 w-4 text-accent" /> Spese fisse e abbonamenti
+            <h3 className="flex items-center gap-2 text-[15px] font-semibold">
+              <RefreshCw className="h-4 w-4 text-brand" strokeWidth={1.9} /> Spese fisse e abbonamenti
             </h3>
-            <span className="text-sm font-bold text-expense">
-              {formatCents(recurringMonthlyTotal)}/mese
-            </span>
+            <span className="tabular text-sm font-semibold">{formatCents(recurringMonthlyTotal)}/mese</span>
           </div>
-          <p className="mb-2 text-xs text-muted">
+          <p className="tabular mb-1 text-[13px] text-muted">
             Pari a {formatCents(recurringMonthlyTotal * 12)} all'anno · si rinnovano da soli
           </p>
-          <ul className="divide-y divide-line">
+          <ul>
             {recurringExpenses.map((t) => (
-              <li key={t.id} className="flex items-baseline gap-2 py-2 text-sm">
-                <span className="min-w-0 flex-1 truncate font-medium">
-                  {t.description || 'Spesa ricorrente'}
-                </span>
-                <span className="text-xs text-muted">{t.recurrence}</span>
-                <span className="font-semibold">{formatCents(t.amount_cents)}</span>
+              <li key={t.id} className="flex min-h-[52px] items-center gap-2 border-b border-line text-sm">
+                <span className="min-w-0 flex-1 truncate font-medium">{t.description || 'Spesa ricorrente'}</span>
+                <span className="text-[13px] text-muted">{t.recurrence}</span>
+                <span className="tabular font-semibold">{formatCents(t.amount_cents)}</span>
               </li>
             ))}
           </ul>
-        </Card>
+        </section>
       )}
+
+      {manageCategories}
 
       <Sheet
         open={editingCategory !== null}

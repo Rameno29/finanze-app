@@ -83,6 +83,34 @@ esclusi da build e lint). Si procede una fase per branch `redesign/<n>-<nome>`, 
   - "Uscite per categoria" e "Carica la busta paga" restano sotto i suggerimenti, senza card.
   - **Corretto**: la legenda di "Uscite per categoria" usava il nome come chiave e poteva
     duplicare le voci "Altro" quando le categorie arrivavano dopo i movimenti.
+- **Fase 5 — Finanze e nuovo movimento** (`redesign/5-finanze`):
+  - **`TransactionSheet`**: segmented Uscita/Entrata, importo 52px con tastierino stile POS
+    (`padAppend`/`padBackspace` in `src/lib/finance.ts`, massimo 999.999,99; cifre, Backspace e
+    Invio anche dalla tastiera fisica), chip delle categorie scorrevoli, descrizione e pulsante che
+    passa al conto successivo.
+  - **Meta del foglio**: la riga "Oggi, 25 set · EUR · Nessuna ricorrenza" apre data, valuta e
+    ricorrenza con i controlli nativi esistenti. Il cambio BCE, la bozza AI, la modifica e
+    l'eliminazione restano invariati.
+  - **Salvataggio**: con importo 0 il numero trema e non si salva. Dopo il salvataggio compare il
+    toast "Uscita di … salvata" con "Annulla", che cancella tramite `mutateOffline` e quindi
+    passa anche dalla coda offline.
+  - **Aggiornamento delle viste**: il foglio chiama sempre `notifyDataChanged()`, così si
+    aggiornano lista, Home, budget e saldi dei conti; `onSaved` è facoltativo.
+  - **Finanze su mobile**: sub-tab Movimenti · Budget · Obiettivi · Conti con indicatore e binario
+    orizzontale; i pannelli non attivi sono `inert` e senza altezza.
+  - **Finanze su desktop**: griglia a due colonne, Movimenti a sinistra e gli altri a destra.
+  - **Movimenti**: raggruppati per giorno ("Oggi", "Ieri", "22 settembre") con il netto del giorno
+    e `TransactionRow`; la riga nuova si apre evidenziata (`useNewIds` riparte al cambio mese).
+  - **Invariati, solo restilizzati**: aggiunta rapida, voce, Diario, export CSV e What-if.
+  - **Budget**: totale del mese, barre animate (`ProgressBar`) con `--warning` da 85% ed
+    `--expense` oltre il 100%. Le categorie senza budget si impostano da "Senza budget";
+    scadenzario invariato. Le Categorie si aprono in un foglio da "Gestisci categorie".
+  - **Obiettivi**: percentuale grande, scadenza e "Aggiungi risparmio".
+  - **Conti**: righe da 72px con icone Landmark/CreditCard/Banknote (`AccountIcon.tsx`),
+    "Trasferisci tra conti", "Nuovo conto" e import CSV per conto invariato.
+  - **Accessibilità**: le chip di categorie, icone e colori non sono più dentro un `<label>`, che
+    dava a tutte il nome "Categoria …".
+  - **Test e2e**: l'apertura del CSV tocca la sub-tab "Conti" solo su mobile.
 
 ## Inviti senza limite applicativo
 

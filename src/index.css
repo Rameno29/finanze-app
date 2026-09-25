@@ -305,6 +305,69 @@ textarea {
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* Finanze: binario orizzontale su mobile, griglia su desktop */
+.finance-rail {
+  display: flex;
+  align-items: flex-start;
+  width: 400%;
+  transform: translateX(calc(-25% * var(--finance-index, 0)));
+  transition: transform var(--dur-sheet) var(--ease-standard);
+}
+
+.finance-panel {
+  width: 25%;
+  min-width: 0;
+  transition: opacity 350ms ease;
+}
+
+.finance-panel[data-active='false'] {
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.finance-tab-indicator {
+  transition: left 400ms var(--ease-standard);
+}
+
+@media (min-width: 1024px) {
+  .finance-rail {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    column-gap: 32px;
+    row-gap: 24px;
+    width: auto;
+    transform: none;
+  }
+
+  .finance-panel { width: auto; }
+  .finance-panel-main { grid-row: span 3; }
+  .finance-panel:not(.finance-panel-main) { grid-column: 2; }
+}
+
+/* Foglio movimento: tastierino e importo */
+.pad-key {
+  transition: transform 150ms ease, background-color 150ms ease;
+}
+
+.pad-key:active {
+  background-color: var(--card-2);
+  transform: scale(.94);
+}
+
+@keyframes amount-shake {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(8px); }
+  40% { transform: translateX(-8px); }
+  60% { transform: translateX(6px); }
+  80% { transform: translateX(-6px); }
+  100% { transform: translateX(0); }
+}
+
+.amount-shake {
+  animation: amount-shake 300ms linear;
+}
+
 /* Shell: spazio per la barra flottante e transizione di pagina */
 .page-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 130px); }
 .app-main { overflow-x: clip; }
@@ -504,4 +567,8 @@ html.sheet-open { overflow: hidden; }
   .offline-banner { animation: page-fade 150ms ease backwards; }
 
   .mobile-tabbar[data-hidden] { transform: none; opacity: 0; }
+
+  .finance-rail { transform: none; }
+  .finance-panel[data-active='false'] { display: none; }
+  .amount-shake { animation: none; }
 }

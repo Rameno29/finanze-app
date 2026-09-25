@@ -1,11 +1,28 @@
 import { useState } from 'react'
-import { Minus, PiggyBank, Plus, Target, Trash2 } from 'lucide-react'
+import { Minus, PiggyBank, Plus, Trash2 } from 'lucide-react'
 import { requireUserId, supabase } from '../../lib/supabase'
 import { formatCents, parseAmountToCents } from '../../lib/format'
-import { Card, EmptyState, Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
+import { EmptyState, Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
+import { ProgressBar } from '../../components/ProgressBar'
 import type { Goal } from '../../types'
 
-export function GoalsView({ goals, loading, onChanged }: { goals: Goal[]; loading: boolean; onChanged: () => void }) {
+function deadlineLabel(deadline: string | null) {
+  if (!deadline) return 'senza scadenza'
+  return new Date(`${deadline}T12:00:00`).toLocaleDateString('it-IT', { month: 'short', year: 'numeric' }).replace('.', '')
+}
+
+export function GoalsView({
+  goals,
+  loading,
+  onChanged,
+  visible = true,
+}: {
+  goals: Goal[]
+  loading: boolean
+  onChanged: () => void
+  /** Le barre partono da 0 quando la vista diventa visibile. */
+  visible?: boolean
+}) {
   const [createOpen, setCreateOpen] = useState(false)
   const [name, setName] = useState('')
   const [target, setTarget] = useState('')
@@ -88,57 +105,69 @@ export function GoalsView({ goals, loading, onChanged }: { goals: Goal[]; loadin
     )
   }
 
+  function openGoal(g: Goal) {
+    setActive(g)
+    setAmount('')
+    setError('')
+  }
+
   return (
-    <div className="mt-4 flex flex-col gap-3">
+    <div>
       {goals.length === 0 ? (
         <EmptyState
-          icon={<PiggyBank className="h-10 w-10" />}
+          icon={<PiggyBank />}
+          tone="brand"
           title="Nessun obiettivo di risparmio"
           hint="Crea un obiettivo (es. Vacanze, Fondo emergenze) e aggiungi i risparmi man mano."
         />
       ) : (
-        goals.map((g) => {
-          const pct = Math.min(100, Math.round((g.saved_cents / g.target_cents) * 100))
+        goals.map((g, index) => {
+          const pct = g.target_cents > 0 ? Math.min(100, Math.round((g.saved_cents / g.target_cents) * 100)) : 0
           const done = g.saved_cents >= g.target_cents
           return (
-            <Card key={g.id} className="p-4">
-              <button className="w-full text-left" onClick={() => { setActive(g); setAmount(''); setError('') }}>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white ${
-                      done ? 'bg-income' : 'bg-accent'
-                    }`}
-                  >
-                    <Target className="h-5 w-5" />
+            <div key={g.id} className="border-b border-line py-5">
+              <button type="button" className="block w-full text-left" onClick={() => openGoal(g)}>
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 truncate text-[17px] font-semibold">{g.name}</span>
+                  <span className="shrink-0 text-sm text-muted">{deadlineLabel(g.deadline)}</span>
+                </span>
+                <span className="mt-1 flex items-baseline gap-2.5">
+                  <span className={`tabular text-[32px] font-semibold tracking-[-0.03em] ${done ? 'text-income' : ''}`}>{pct}%</span>
+                  <span className="tabular text-sm text-muted">
+                    {formatCents(g.saved_cents)} di {formatCents(g.target_cents)}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-baseline justify-between gap-2">
-                      <span className="truncate font-semibold">{g.name}</span>
-                      <span className={`text-sm font-bold ${done ? 'text-income' : ''}`}>{pct}%</span>
-                    </span>
-                    <span className="text-sm text-muted">
-                      {formatCents(g.saved_cents)} di {formatCents(g.target_cents)}
-                      {g.deadline &&
-                        ` · entro ${new Date(g.deadline + 'T00:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })}`}
-                    </span>
-                  </span>
-                </div>
-                <span className="mt-3 block h-2.5 overflow-hidden rounded-full bg-card-2">
-                  <span
-                    className={`block h-full rounded-full transition-all ${done ? 'bg-income' : 'bg-accent'}`}
-                    style={{ width: `${pct}%` }}
+                </span>
+                <span className="mt-2 block">
+                  <ProgressBar
+                    percent={pct}
+                    tone={done ? 'income' : 'brand'}
+                    visible={visible}
+                    delay={index * 120}
+                    duration={1000}
+                    label={`Avanzamento ${g.name}`}
                   />
                 </span>
-                {done && <span className="mt-2 block text-sm font-semibold text-income">🎉 Obiettivo raggiunto!</span>}
+                {done && <span className="mt-2 block text-sm font-semibold text-income">Obiettivo raggiunto!</span>}
               </button>
-            </Card>
+              <button
+                type="button"
+                onClick={() => openGoal(g)}
+                className="mt-3.5 inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 text-sm font-medium"
+              >
+                <Plus className="h-4 w-4" strokeWidth={1.9} /> Aggiungi risparmio
+              </button>
+            </div>
           )
         })
       )}
 
-      <PrimaryButton onClick={() => setCreateOpen(true)}>
-        <Plus className="h-5 w-5" /> Nuovo obiettivo
-      </PrimaryButton>
+      <button
+        type="button"
+        onClick={() => setCreateOpen(true)}
+        className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-line text-[15px] font-medium"
+      >
+        <Plus className="h-5 w-5" strokeWidth={1.9} /> Nuovo obiettivo
+      </button>
 
       {/* Creazione */}
       <Sheet open={createOpen} onClose={() => setCreateOpen(false)} title="Nuovo obiettivo di risparmio">

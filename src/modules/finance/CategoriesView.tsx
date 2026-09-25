@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { requireUserId, supabase } from '../../lib/supabase'
 import { CATEGORY_ICONS, CategoryIcon } from '../../lib/icons'
-import { Card, Field, PrimaryButton, Sheet, inputClass } from '../../components/ui'
+import { Field, PrimaryButton, Sheet, inputClass } from '../../components/ui'
 import type { Category, Kind } from '../../types'
 
 const COLORS = [
@@ -65,23 +65,23 @@ export function CategoriesView({
   ]
 
   return (
-    <div className="mt-4">
+    <div>
       {error && !open && (
         <p className="mb-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>
       )}
       {groups.map(([label, list]) => (
         <section key={label} className="mb-5">
-          <h3 className="mb-2 text-sm font-semibold text-muted">{label}</h3>
-          <Card className="divide-y divide-line p-0">
+          <h3 className="mb-1 text-[13px] font-semibold text-muted">{label}</h3>
+          <div>
             {list.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 px-4 py-3">
+              <div key={c.id} className="flex min-h-14 items-center gap-3 border-b border-line">
                 <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
-                  style={{ backgroundColor: c.color }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                  style={{ backgroundColor: `color-mix(in srgb, ${c.color} 12%, transparent)`, color: c.color }}
                 >
-                  <CategoryIcon icon={c.icon} className="h-4 w-4" />
+                  <CategoryIcon icon={c.icon} className="h-5 w-5" />
                 </span>
-                <span className="flex-1 truncate font-medium">{c.name}</span>
+                <span className="flex-1 truncate text-[15px] font-medium">{c.name}</span>
                 <button
                   onClick={() => deleteCategory(c)}
                   aria-label={`Elimina ${c.name}`}
@@ -91,7 +91,7 @@ export function CategoriesView({
                 </button>
               </div>
             ))}
-          </Card>
+          </div>
         </section>
       ))}
 
@@ -124,7 +124,8 @@ export function CategoriesView({
           />
         </Field>
 
-        <Field label="Icona">
+        <div role="group" aria-label="Icona" className="mb-4">
+          <span className="mb-1.5 block text-sm font-medium text-muted">Icona</span>
           <div className="grid grid-cols-6 gap-2">
             {Object.keys(CATEGORY_ICONS).map((key) => (
               <button
@@ -139,9 +140,10 @@ export function CategoriesView({
               </button>
             ))}
           </div>
-        </Field>
+        </div>
 
-        <Field label="Colore">
+        <div role="group" aria-label="Colore" className="mb-4">
+          <span className="mb-1.5 block text-sm font-medium text-muted">Colore</span>
           <div className="grid grid-cols-7 gap-2">
             {COLORS.map((c) => (
               <button
@@ -154,7 +156,7 @@ export function CategoriesView({
               />
             ))}
           </div>
-        </Field>
+        </div>
 
       <PrimaryButton onClick={addCategory} disabled={busy || !name.trim()}>
           Crea categoria

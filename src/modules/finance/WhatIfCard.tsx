@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import { Sparkles, TrendingUp } from 'lucide-react'
-import { Card, Field, Spinner, inputClass } from '../../components/ui'
+import { Field, Spinner, inputClass } from '../../components/ui'
 import { AiText } from '../../components/AiText'
 import { invokeFunction } from '../../lib/integrations'
 import { fetchAccountBalances, fetchMonthlyTotals } from '../../lib/data'
@@ -96,9 +96,9 @@ export function WhatIfCard({ accounts }: { accounts: Account[] }) {
   }
 
   return (
-    <Card className="mt-4">
-      <h2 className="mb-1 flex items-center gap-2 font-semibold">
-        <TrendingUp className="h-4 w-4 text-accent" /> Simulatore what-if
+    <section className="mt-8">
+      <h2 className="mb-1 flex items-center gap-2 text-[15px] font-semibold">
+        <TrendingUp className="h-4 w-4 text-brand" strokeWidth={1.9} /> Simulatore what-if
       </h2>
       <p className="mb-3 text-sm text-muted">
         "E se mettessi via 100 € in più al mese?" — proiezione basata sul tuo ritmo reale
@@ -240,6 +240,6 @@ export function WhatIfCard({ accounts }: { accounts: Account[] }) {
           )}
         </>
       )}
-    </Card>
+    </section>
   )
 }

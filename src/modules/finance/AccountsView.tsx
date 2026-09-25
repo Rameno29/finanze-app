@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { ArrowLeftRight, CreditCard, Landmark, Plus, Trash2, Upload, Wallet } from 'lucide-react'
-import { Card, EmptyState, Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
+import { ArrowLeftRight, Landmark, Plus, Trash2, Upload } from 'lucide-react'
+import { EmptyState, Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { fetchAccountBalances } from '../../lib/data'
 import { currentUserId, mutateOffline } from '../../lib/offline'
 import { parseSignedAmountCents } from '../../lib/csvImport'
 import { formatCents, parseAmountToCents, todayISO } from '../../lib/format'
 import { ImportSheet } from './ImportSheet'
+import { AccountIcon } from './AccountIcon'
 import type { Account, AccountKind, Category } from '../../types'
 
 const ACCOUNT_KINDS: Array<[AccountKind, string]> = [
@@ -14,11 +15,6 @@ const ACCOUNT_KINDS: Array<[AccountKind, string]> = [
   ['banca', 'Banca'],
   ['carta', 'Carta'],
 ]
-
-export function AccountIcon({ kind, className }: { kind: AccountKind; className?: string }) {
-  const Icon = kind === 'contanti' ? Wallet : kind === 'carta' ? CreditCard : Landmark
-  return <Icon className={className} />
-}
 
 export function AccountsView({
   accounts,
@@ -58,6 +54,8 @@ export function AccountsView({
     void reloadBalances()
   }
 
+  const kindLabel: Record<Account['kind'], string> = { banca: 'Conto bancario', carta: 'Carta', contanti: 'Contanti' }
+
   return (
     <>
       {loading ? (
@@ -66,75 +64,74 @@ export function AccountsView({
         </div>
       ) : accounts.length === 0 ? (
         <EmptyState
-          icon={<Landmark className="h-10 w-10" />}
+          icon={<Landmark />}
+          tone="brand"
           title="Nessun conto"
           hint="Crea conti separati per contanti, banca e carte: ogni movimento potrà essere assegnato a un conto."
         />
       ) : (
         <>
-          <Card className="mt-4 bg-accent text-white border-transparent">
-            <p className="text-sm text-white/80">Patrimonio sui conti</p>
-            <p className="mt-1 text-3xl font-bold tracking-tight">{formatCents(total)}</p>
-          </Card>
-
-          <Card className="mt-4 divide-y divide-line p-0">
-            {accounts.map((account) => (
-              <div key={account.id} className="flex items-center gap-3 px-4 py-3">
-                <button
-                  onClick={() => {
-                    setEditing(account)
-                    setAccountSheet(true)
-                  }}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-                    <AccountIcon kind={account.kind} className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{account.name}</span>
-                    <span className="block text-xs capitalize text-muted">{account.kind}</span>
-                  </span>
-                  <span
-                    className={`shrink-0 font-bold ${
-                      (balances.get(account.id) ?? 0) >= 0 ? 'text-ink' : 'text-expense'
-                    }`}
+          <p className="tabular text-sm text-muted">
+            Patrimonio sui conti · <span className="font-semibold text-ink">{formatCents(total)}</span>
+          </p>
+          <div className="mt-2">
+            {accounts.map((account) => {
+              const balance = balances.get(account.id) ?? account.initial_balance_cents
+              return (
+                <div key={account.id} className="flex min-h-[72px] items-center gap-3 border-b border-line">
+                  <button
+                    onClick={() => {
+                      setEditing(account)
+                      setAccountSheet(true)
+                    }}
+                    className="flex min-h-[72px] min-w-0 flex-1 items-center gap-3.5 text-left"
                   >
-                    {formatCents(balances.get(account.id) ?? account.initial_balance_cents)}
-                  </span>
-                </button>
-                <button
-                  onClick={() => setImportAccount(account)}
-                  aria-label={`Importa estratto conto CSV su ${account.name}`}
-                  title="Importa estratto conto CSV"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card-2 text-muted"
-                >
-                  <Upload className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </Card>
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+                      <AccountIcon kind={account.kind} className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-medium">{account.name}</span>
+                      <span className="block text-[13px] text-muted">{kindLabel[account.kind]}</span>
+                    </span>
+                    <span className={`tabular shrink-0 text-base font-semibold ${balance >= 0 ? 'text-ink' : 'text-expense'}`}>
+                      {formatCents(balance)}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setImportAccount(account)}
+                    aria-label={`Importa estratto conto CSV su ${account.name}`}
+                    title="Importa estratto conto CSV"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-card-2"
+                  >
+                    <Upload className="h-[18px] w-[18px]" strokeWidth={1.9} />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         </>
       )}
 
-      <div className="mt-4 flex gap-3">
-        <PrimaryButton
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        {accounts.length >= 2 && (
+          <button
+            onClick={() => setTransferSheet(true)}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-line text-[15px] font-medium transition active:scale-[0.98]"
+          >
+            <ArrowLeftRight className="h-5 w-5" strokeWidth={1.9} /> Trasferisci tra conti
+          </button>
+        )}
+        <button
           onClick={() => {
             setEditing(null)
             setAccountSheet(true)
           }}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-line text-[15px] font-medium transition active:scale-[0.98]"
         >
-          <Plus className="h-5 w-5" /> Nuovo conto
-        </PrimaryButton>
-        {accounts.length >= 2 && (
-          <button
-            onClick={() => setTransferSheet(true)}
-            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-card-2 font-semibold text-ink transition active:scale-[0.98]"
-          >
-            <ArrowLeftRight className="h-5 w-5" /> Trasferimento
-          </button>
-        )}
+          <Plus className="h-5 w-5" strokeWidth={1.9} /> Nuovo conto
+        </button>
       </div>
-      <p className="mt-3 text-xs text-muted">
+      <p className="mt-3 text-[13px] text-muted">
         I trasferimenti tra conti spostano il saldo ma non contano come entrate o uscite.
       </p>
 

@@ -1,4 +1,4 @@
-import { notifyDataChanged, useAccounts, useCategories } from '../../lib/data'
+import { useAccounts, useCategories } from '../../lib/data'
 import { TransactionSheet } from './TransactionSheet'
 
 /** "Nuovo movimento" dal "+" sulle pagine che non hanno un foglio proprio (Home, pagine secondarie). */
@@ -9,7 +9,6 @@ export function GlobalTransactionSheet({ open, onClose }: { open: boolean; onClo
     <TransactionSheet
       open={open}
       onClose={onClose}
-      onSaved={notifyDataChanged}
       categories={categories}
       accounts={accounts}
       editing={null}

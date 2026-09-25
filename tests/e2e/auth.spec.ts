@@ -383,7 +383,9 @@ test('logout propagates to a second tab and authenticated modules render without
 
 async function openCsv(page: Page, csv: string) {
   await page.goto('impostazioni');await login(page)
-  await page.goto('finanze');await page.getByRole('button',{name:'Conti',exact:true}).click()
+  await page.goto('finanze')
+  // Su desktop Conti è sempre visibile nella colonna destra; su mobile si apre la sub-tab.
+  if (test.info().project.name === 'mobile') await page.getByRole('button',{name:'Conti',exact:true}).click()
   await page.getByRole('button',{name:'Importa estratto conto CSV su Banca prova'}).click()
   await page.locator('input[type=file]').setInputFiles({name:'statement.csv',mimeType:'text/csv',buffer:Buffer.from(csv)})
 }

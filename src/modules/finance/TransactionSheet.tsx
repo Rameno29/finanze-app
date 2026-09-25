@@ -1,7 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Trash2 } from 'lucide-react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { Delete, Trash2, Wallet } from 'lucide-react'
 import { currentUserId, mutateOffline } from '../../lib/offline'
-import { parseAmountToCents, todayISO } from '../../lib/format'
+import { todayISO } from '../../lib/format'
+import { padAppend, padBackspace, sheetDateLabel } from '../../lib/finance'
+import { notifyDataChanged } from '../../lib/data'
 import {
   SUPPORTED_CURRENCIES,
   convertToEurCents,
@@ -12,7 +14,11 @@ import {
   type ExchangeRate,
 } from '../../lib/currency'
 import { CategoryIcon } from '../../lib/icons'
-import { Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
+import { Sheet, Spinner } from '../../components/ui'
+import { Chip } from '../../components/Chip'
+import { Segmented } from '../../components/Segmented'
+import { useToast } from '../../components/toastContext'
+import { AccountIcon } from './AccountIcon'
 import type { Account, Category, Kind, Transaction } from '../../types'
 
 export interface TransactionDraft {
@@ -22,6 +28,19 @@ export interface TransactionDraft {
   date?: string | null
   description?: string
   currency_code?: CurrencyCode
+}
+
+const RECURRENCE_LABELS: Record<string, string> = {
+  '': 'Nessuna ricorrenza',
+  mensile: 'Ogni mese',
+  settimanale: 'Ogni settimana',
+  annuale: 'Ogni anno',
+}
+
+const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'back'] as const
+
+function isTypingTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
 }
 
 export function TransactionSheet({
@@ -35,14 +54,16 @@ export function TransactionSheet({
 }: {
   open: boolean
   onClose: () => void
-  onSaved: () => void
+  /** Facoltativo: le viste montate si aggiornano comunque tramite `notifyDataChanged()`. */
+  onSaved?: () => void
   categories: Category[]
   accounts: Account[]
   editing: Transaction | null
   draft?: TransactionDraft | null
 }) {
+  const toast = useToast()
   const [kind, setKind] = useState<Kind>('expense')
-  const [amount, setAmount] = useState('')
+  const [cents, setCents] = useState(0)
   const [categoryId, setCategoryId] = useState<string>('')
   const [accountId, setAccountId] = useState<string>('')
   const [date, setDate] = useState(todayISO())
@@ -54,6 +75,9 @@ export function TransactionSheet({
   const [rateError, setRateError] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [shakes, setShakes] = useState(0)
+  const formRef = useRef<HTMLFormElement>(null)
+  const formId = useId()
 
   useEffect(() => {
     if (!open) return
@@ -61,7 +85,7 @@ export function TransactionSheet({
       const editingCurrency = isCurrencyCode(editing.currency_code) ? editing.currency_code : 'EUR'
       setKind(editing.kind)
       setCurrency(editingCurrency)
-      setAmount(((editing.original_amount_cents ?? editing.amount_cents) / 100).toFixed(2).replace('.', ','))
+      setCents(editing.original_amount_cents ?? editing.amount_cents)
       setCategoryId(editing.category_id ?? '')
       setAccountId(editing.account_id ?? '')
       setDate(editing.date)
@@ -78,7 +102,7 @@ export function TransactionSheet({
     } else if (draft) {
       // Precompilato dall'AI (spesa a voce/frase): l'utente controlla e salva
       setKind(draft.kind ?? 'expense')
-      setAmount(draft.amount_cents ? (draft.amount_cents / 100).toFixed(2).replace('.', ',') : '')
+      setCents(draft.amount_cents ?? 0)
       setCategoryId(draft.category_id ?? '')
       setAccountId('')
       setDate(draft.date ?? todayISO())
@@ -88,7 +112,7 @@ export function TransactionSheet({
       setRate(null)
     } else {
       setKind('expense')
-      setAmount('')
+      setCents(0)
       setCategoryId('')
       setAccountId('')
       setDate(todayISO())
@@ -98,11 +122,11 @@ export function TransactionSheet({
       setRate(null)
     }
     setError('')
+    setShakes(0)
   }, [open, editing, draft])
 
   useEffect(() => {
     if (!open) return
-    const cents = parseAmountToCents(amount)
     if (currency === 'EUR') {
       setRate({
         currency: 'EUR', requested_date: date, observed_on: date,
@@ -122,21 +146,63 @@ export function TransactionSheet({
         .finally(() => { if (!cancelled) setRateBusy(false) })
     }, 400)
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [open, amount, currency, date])
+  }, [open, cents, currency, date])
+
+  // Tastiera fisica: cifre e Backspace (fuori dai campi di testo), Invio salva. Esc lo gestisce il foglio.
+  useEffect(() => {
+    if (!open) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return
+      if (/^[0-9]$/.test(event.key)) {
+        event.preventDefault()
+        setCents((value) => padAppend(value, event.key))
+      } else if (event.key === 'Backspace') {
+        event.preventDefault()
+        setCents((value) => padBackspace(value))
+      } else if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) {
+        event.preventDefault()
+        formRef.current?.requestSubmit()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
 
   const visibleCategories = categories.filter((c) => c.kind === kind)
+  const amountLabel = formatCurrencyCents(cents, currency)
+  const kindWord = kind === 'expense' ? 'uscita' : 'entrata'
+  const account = accounts.find((a) => a.id === accountId)
+
+  function cycleAccount() {
+    const order = ['', ...accounts.map((a) => a.id)]
+    setAccountId(order[(order.indexOf(accountId) + 1) % order.length])
+  }
+
+  function pressKey(key: (typeof KEYS)[number]) {
+    setCents((value) => (key === 'back' ? padBackspace(value) : padAppend(value, key)))
+  }
+
+  async function undoInsert(id: string) {
+    try {
+      await mutateOffline('transactions', 'delete', id, {}, null)
+      notifyDataChanged()
+    } catch {
+      toast({ text: 'Annullamento non riuscito, riprova dalla lista dei movimenti.' })
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    const cents = parseAmountToCents(amount)
+    if (busy) return
     if (!cents) {
-      setError('Inserisci un importo valido (es. 12,50)')
+      setShakes((count) => count + 1)
       return
     }
     setBusy(true)
+    setError('')
     try {
       const userId = await currentUserId()
-      const appliedRate = currency === 'EUR' ? await getExchangeRate('EUR', date) : await getExchangeRate(currency, date)
+      const appliedRate = await getExchangeRate(currency, date)
       const eurCents = convertToEurCents(cents, appliedRate.rate_to_eur)
       const values = {
         amount_cents: eurCents,
@@ -166,8 +232,11 @@ export function TransactionSheet({
         editing ? values : insertPayload,
         localRecord,
       )
-      onSaved()
       onClose()
+      onSaved?.()
+      notifyDataChanged()
+      if (editing) toast({ text: 'Movimento aggiornato' })
+      else toast({ text: `${kind === 'expense' ? 'Uscita' : 'Entrata'} di ${amountLabel} salvata`, onUndo: () => void undoInsert(recordId) })
     } catch (cause) {
       setError(cause instanceof Error && cause.message.includes('Cambio BCE')
         ? cause.message
@@ -184,174 +253,186 @@ export function TransactionSheet({
     try {
       await mutateOffline('transactions', 'delete', editing.id, {}, null)
       setBusy(false)
-      onSaved()
       onClose()
+      onSaved?.()
+      notifyDataChanged()
+      toast({ text: 'Movimento eliminato' })
     } catch {
       setBusy(false)
       setError('Eliminazione non riuscita, riprova.')
     }
   }
 
+  const saveDisabled = busy || rateBusy || Boolean(rateError && currency !== 'EUR')
+  const footer = (
+    <div className="flex flex-col gap-2">
+      <button
+        type="submit"
+        form={formId}
+        disabled={saveDisabled}
+        className="tabular flex min-h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-accent text-[16px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-50"
+      >
+        {busy ? <Spinner className="h-5 w-5 text-white" /> : cents ? `Salva ${kindWord} · ${amountLabel}` : 'Inserisci un importo'}
+      </button>
+      {editing && (
+        <button
+          type="button"
+          onClick={() => void handleDelete()}
+          disabled={busy}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] font-semibold text-expense"
+        >
+          <Trash2 className="h-5 w-5" /> Elimina movimento
+        </button>
+      )}
+    </div>
+  )
+
   return (
-    <Sheet open={open} onClose={onClose} title={editing ? 'Modifica movimento' : 'Nuovo movimento'}>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl bg-card-2 p-1">
-          {(['expense', 'income'] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => {
-                setKind(k)
-                setCategoryId('')
-              }}
-              className={`min-h-[44px] rounded-lg font-semibold transition ${
-                kind === k
-                  ? k === 'expense'
-                    ? 'bg-expense text-white'
-                    : 'bg-income text-white'
-                  : 'text-muted'
-              }`}
+    <Sheet open={open} onClose={onClose} title={editing ? 'Modifica movimento' : 'Nuovo movimento'} footer={footer}>
+      <form id={formId} ref={formRef} onSubmit={handleSubmit} noValidate>
+        <Segmented
+          label="Tipo di movimento"
+          value={kind}
+          onChange={(next) => {
+            if (next === kind) return
+            setKind(next)
+            setCategoryId('')
+          }}
+          options={[
+            { value: 'expense', label: 'Uscita', color: 'var(--expense)' },
+            { value: 'income', label: 'Entrata', color: 'var(--income)' },
+          ]}
+        />
+
+        <output
+          key={shakes}
+          aria-label="Importo"
+          aria-live="polite"
+          className={`tabular mt-[18px] block text-center text-[52px] font-semibold leading-tight tracking-[-0.035em] ${
+            shakes ? 'amount-shake' : ''
+          } ${!cents ? 'text-muted' : kind === 'income' ? 'text-income' : 'text-ink'}`}
+        >
+          {amountLabel}
+        </output>
+
+        <div role="group" aria-label="Categoria" className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5">
+          {visibleCategories.map((c) => (
+            <Chip
+              key={c.id}
+              variant="choice"
+              selected={categoryId === c.id}
+              onClick={() => setCategoryId(categoryId === c.id ? '' : c.id)}
+              icon={<span style={{ color: c.color }}><CategoryIcon icon={c.icon} className="h-[18px] w-[18px]" /></span>}
             >
-              {k === 'expense' ? 'Uscita' : 'Entrata'}
-            </button>
+              {c.name}
+            </Chip>
           ))}
         </div>
 
-        <div className="grid grid-cols-[1fr_112px] gap-3">
-        <Field label={`Importo (${currency})`}>
+        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
           <input
-            inputMode="decimal"
-            required
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className={`${inputClass} text-2xl font-bold`}
-            placeholder="0,00"
+            aria-label="Descrizione (facoltativa)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={200}
+            className="h-11 min-w-0 rounded-xl border border-line bg-card-2 px-3.5 outline-none focus:border-accent"
+            placeholder="Descrizione (facoltativa)"
           />
-        </Field>
-        <Field label="Valuta">
-          <select
-            value={currency}
-            onChange={(e) => {
-              const next = e.target.value
-              if (isCurrencyCode(next)) {
-                setCurrency(next)
-                if (next !== 'EUR') setRecurrence('')
-              }
-            }}
-            className={inputClass}
-          >
-            {SUPPORTED_CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}
-          </select>
-        </Field>
+          {accounts.length > 0 && (
+            <button
+              type="button"
+              onClick={cycleAccount}
+              aria-label={`Conto: ${account?.name ?? 'nessun conto'}. Tocca per cambiare`}
+              className="flex h-11 max-w-[40vw] items-center gap-2 rounded-xl border border-line bg-card-2 px-3 text-sm font-medium lg:max-w-[160px]"
+            >
+              {account ? <AccountIcon kind={account.kind} className="h-[18px] w-[18px] shrink-0" /> : <Wallet className="h-[18px] w-[18px] shrink-0" />}
+              <span className="truncate">{account?.name ?? 'Nessun conto'}</span>
+            </button>
+          )}
+        </div>
+
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-1 text-[13px] text-muted">
+          <label className="relative inline-flex min-h-11 cursor-pointer items-center">
+            <span>{sheetDateLabel(date, todayISO())}</span>
+            <input
+              type="date"
+              aria-label="Data"
+              required
+              value={date}
+              onChange={(e) => { if (e.target.value) setDate(e.target.value) }}
+              onClick={(e) => { try { e.currentTarget.showPicker?.() } catch { /* il browser apre il suo selettore */ } }}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+          </label>
+          <span aria-hidden="true">·</span>
+          <label className="relative inline-flex min-h-11 cursor-pointer items-center">
+            <span>{currency}</span>
+            <select
+              aria-label="Valuta"
+              value={currency}
+              onChange={(e) => {
+                const next = e.target.value
+                if (isCurrencyCode(next)) {
+                  setCurrency(next)
+                  if (next !== 'EUR') setRecurrence('')
+                }
+              }}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            >
+              {SUPPORTED_CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}
+            </select>
+          </label>
+          <span aria-hidden="true">·</span>
+          <label className={`relative inline-flex min-h-11 items-center ${currency !== 'EUR' ? 'opacity-50' : 'cursor-pointer'}`}>
+            <span>{RECURRENCE_LABELS[recurrence] ?? recurrence}</span>
+            <select
+              aria-label="Ricorrenza"
+              value={recurrence}
+              onChange={(e) => setRecurrence(e.target.value)}
+              disabled={currency !== 'EUR'}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            >
+              <option value="">Nessuna (una tantum)</option>
+              <option value="mensile">Mensile</option>
+              <option value="settimanale">Settimanale</option>
+              <option value="annuale">Annuale</option>
+            </select>
+          </label>
         </div>
 
         {currency !== 'EUR' && (
-          <div className="mb-4 rounded-xl bg-card-2 px-4 py-3 text-sm">
+          <div className="mt-1 rounded-xl bg-card-2 px-4 py-3 text-sm">
             {rateBusy ? (
               <span className="flex items-center gap-2 text-muted"><Spinner className="h-4 w-4" /> Recupero cambio BCE…</span>
-            ) : rate && rate.currency === currency && parseAmountToCents(amount) ? (
+            ) : rate && rate.currency === currency && cents ? (
               <>
                 <p className="font-semibold">
-                  Controvalore: {formatCurrencyCents(convertToEurCents(parseAmountToCents(amount)!, rate.rate_to_eur), 'EUR')}
+                  Controvalore: {formatCurrencyCents(convertToEurCents(cents, rate.rate_to_eur), 'EUR')}
                 </p>
                 <p className="mt-1 text-xs text-muted">
                   BCE {rate.observed_on} · 1 {currency} = {rate.rate_to_eur.toFixed(6)} EUR
                 </p>
               </>
             ) : <p className="text-xs text-expense">{rateError || 'Inserisci importo e data per calcolare il cambio.'}</p>}
+            <p className="mt-1 text-xs text-muted">Le ricorrenze multivaluta non sono ancora automatiche.</p>
           </div>
         )}
 
-        <Field label="Categoria">
-          <div className="grid grid-cols-4 gap-2">
-            {visibleCategories.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setCategoryId(c.id)}
-                className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border p-1 text-[11px] font-medium transition ${
-                  categoryId === c.id
-                    ? 'border-accent bg-accent-soft text-accent'
-                    : 'border-line bg-card-2 text-muted'
-                }`}
-              >
-                <span
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-white"
-                  style={{ backgroundColor: c.color }}
-                >
-                  <CategoryIcon icon={c.icon} className="h-4 w-4" />
-                </span>
-                <span className="truncate max-w-full">{c.name}</span>
-              </button>
-            ))}
-          </div>
-        </Field>
+        {error && <p role="alert" className="mt-3 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>}
 
-        {accounts.length > 0 && (
-          <Field label="Conto">
-            <select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              className={inputClass}
+        <div className="mt-2 grid grid-cols-3 grid-rows-[repeat(4,minmax(44px,56px))] gap-1">
+          {KEYS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => pressKey(key)}
+              aria-label={key === 'back' ? 'Cancella' : undefined}
+              className="pad-key flex items-center justify-center rounded-2xl text-[26px] font-medium"
             >
-              <option value="">Nessun conto</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-          </Field>
-        )}
-
-        <Field label="Data">
-          <input
-            type="date"
-            required
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className={inputClass}
-          />
-        </Field>
-
-        <Field label="Descrizione (facoltativa)">
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className={inputClass}
-            placeholder="Es. spesa al supermercato"
-          />
-        </Field>
-
-        <Field label="Ricorrenza">
-          <select
-            value={recurrence}
-            onChange={(e) => setRecurrence(e.target.value)}
-            disabled={currency !== 'EUR'}
-            className={`${inputClass} disabled:opacity-50`}
-          >
-            <option value="">Nessuna (una tantum)</option>
-            <option value="mensile">Mensile</option>
-            <option value="settimanale">Settimanale</option>
-            <option value="annuale">Annuale</option>
-          </select>
-          {currency !== 'EUR' && <p className="mt-1 text-xs text-muted">Le ricorrenze multivaluta non sono ancora automatiche.</p>}
-        </Field>
-
-        {error && <p className="mb-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>}
-
-        <PrimaryButton type="submit" disabled={busy || rateBusy || Boolean(rateError && currency !== 'EUR')}>
-          {busy ? <Spinner className="h-5 w-5 text-white" /> : 'Salva'}
-        </PrimaryButton>
-
-        {editing && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={busy}
-            className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl font-semibold text-expense"
-          >
-            <Trash2 className="h-5 w-5" /> Elimina movimento
-          </button>
-        )}
+              {key === 'back' ? <Delete className="h-6 w-6" strokeWidth={1.9} /> : key}
+            </button>
+          ))}
+        </div>
       </form>
     </Sheet>
   )

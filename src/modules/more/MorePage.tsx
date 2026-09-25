@@ -1,23 +1,11 @@
-import { useEffect, useState, useSyncExternalStore, type ComponentType } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { BookOpen, Bot, ChevronRight, CircleUser, Fuel, LogOut, Settings } from 'lucide-react'
 import { PageHeader } from '../../components/ui'
+import { useIsDesktop } from '../../components/useIsDesktop'
 import { useAuth } from '../../context/AuthContext'
 import { callFunction, type IntegrationStatus } from '../../lib/integrations'
 import { signOutEverywhere } from '../../lib/signOut'
-
-const DESKTOP_QUERY = '(min-width: 1024px)'
-
-function useIsDesktop() {
-  return useSyncExternalStore(
-    (onChange) => {
-      const query = window.matchMedia(DESKTOP_QUERY)
-      query.addEventListener('change', onChange)
-      return () => query.removeEventListener('change', onChange)
-    },
-    () => window.matchMedia(DESKTOP_QUERY).matches,
-  )
-}
 
 function MoreRow({
   to,
