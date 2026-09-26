@@ -86,19 +86,19 @@ describe('conto proposto per un nuovo movimento', () => {
     })
   }
 
-  it('usa l’ultimo conto se esiste ancora, altrimenti il primo', () => {
+  it('usa l’ultimo conto se esiste ancora, altrimenti nessuno', () => {
     stubStorage()
-    expect(defaultAccountId(accounts)).toBe('a')
+    expect(defaultAccountId(accounts)).toBe('')
     rememberLastAccount('b')
     expect(defaultAccountId(accounts)).toBe('b')
     rememberLastAccount('eliminato')
-    expect(defaultAccountId(accounts)).toBe('a')
+    expect(defaultAccountId(accounts)).toBe('')
     expect(defaultAccountId([])).toBe('')
   })
 
   it('funziona anche senza storage', () => {
     vi.stubGlobal('localStorage', undefined)
-    expect(defaultAccountId(accounts)).toBe('a')
+    expect(defaultAccountId(accounts)).toBe('')
     expect(() => rememberLastAccount('b')).not.toThrow()
   })
 

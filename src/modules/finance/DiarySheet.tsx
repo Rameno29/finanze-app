@@ -56,6 +56,7 @@ export function DiarySheet({
   const voiceStartingRef = useRef(false)
   const autoStopRef = useRef<number | null>(null)
   const accountChosenRef = useRef(false)
+  const [accountAlert, setAccountAlert] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -63,6 +64,7 @@ export function DiarySheet({
     setRows(null)
     setAccountId('')
     accountChosenRef.current = false
+    setAccountAlert(false)
     setError('')
     setSavedCount(null)
     setAttempted(false)
@@ -181,6 +183,10 @@ export function DiarySheet({
     const chosen = rows.filter((row) => row.selected)
     if (chosen.length === 0) {
       setError('Seleziona almeno un movimento.')
+      return
+    }
+    if (accounts.length > 0 && !accounts.some((a) => a.id === accountId)) {
+      setAccountAlert(true)
       return
     }
     setSaving(true)
@@ -337,14 +343,15 @@ export function DiarySheet({
               </div>
 
               {accounts.length > 0 && (
-                <Field label="Conto (per tutti i movimenti)">
+                <Field label={accountAlert && !accountId ? 'Seleziona un conto per salvare' : 'Conto (per tutti i movimenti)'}>
                   <select
                     value={accountId}
                     disabled={attempted}
+                    aria-invalid={(accountAlert && !accountId) || undefined}
                     onChange={(e) => { accountChosenRef.current = true; setAccountId(e.target.value) }}
-                    className={inputClass}
+                    className={`${inputClass} ${accountAlert && !accountId ? '!border-expense text-expense' : ''}`}
                   >
-                    <option value="">Nessun conto</option>
+                    <option value="" disabled>Seleziona conto</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>{a.name}</option>
                     ))}
@@ -352,9 +359,11 @@ export function DiarySheet({
                 </Field>
               )}
 
-              <PrimaryButton onClick={() => void save()} disabled={saving} className="mt-3">
+              <PrimaryButton onClick={() => void save()} disabled={saving} className={`mt-3 ${accountAlert && !accountId ? '!bg-expense' : ''}`}>
                 {saving ? (
                   <Spinner className="h-5 w-5 text-white" />
+                ) : accountAlert && !accountId ? (
+                  'Scegli un conto'
                 ) : (
                   `Registra ${rows.filter((r) => r.selected).length} movimenti`
                 )}

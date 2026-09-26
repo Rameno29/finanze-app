@@ -4,17 +4,23 @@
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
 > Ultimo aggiornamento: **26 settembre 2026**.
 
-## Conto predefinito nei nuovi movimenti (26 settembre 2026)
+## Conto obbligatorio nei nuovi movimenti (26 settembre 2026)
 
 Alcuni movimenti erano stati salvati per sbaglio senza conto. Erano quindi esclusi dal
 patrimonio e dai saldi dei conti, mentre contavano nel saldo mensile di Finanze.
-- **Nuovo movimento e Diario del giorno** propongono l'ultimo conto usato, o il primo conto se
-  non ce n'è uno memorizzato. "Nessun conto" resta selezionabile a mano.
-- L'ultimo conto è ricordato solo sul dispositivo (`localStorage`, chiave `aje:last-account`),
-  e viene ignorato se quel conto non esiste più.
-- Nelle liste di Home e Finanze, un movimento senza conto mostra **"Senza conto"** nel
-  sottotitolo, quando esiste almeno un conto.
-- Helper e test: `defaultAccountId`, `rememberLastAccount`, `accountLabel` in `src/lib/finance.ts`.
+- **Nuovo/Modifica movimento**: la scelta del conto è una riga di chip ("Seleziona conto") sotto
+  l'importo; "Nessun conto" non esiste più. Se si preme Salva senza conto, il riquadro dei conti
+  e il pulsante diventano rossi ("Scegli un conto") finché non se ne sceglie uno.
+- **Diario del giorno**: il menu del conto parte da "Seleziona conto" e il salvataggio è bloccato
+  allo stesso modo.
+- Se l'utente non ha nessun conto, i movimenti si possono ancora salvare senza conto.
+- Viene preselezionato l'ultimo conto usato, ricordato solo sul dispositivo (`localStorage`,
+  chiave `aje:last-account`) e ignorato se il conto non esiste più; altrimenti nessuna preselezione.
+- Nelle liste di Home e Finanze, un movimento senza conto (vecchio o creato da AI/documenti) mostra
+  **"Senza conto"** nel sottotitolo.
+- Restano senza conto obbligatorio i movimenti creati dall'assistente e da buste paga/scontrini.
+- Helper e test: `defaultAccountId`, `rememberLastAccount`, `accountLabel` in `src/lib/finance.ts`;
+  il test e2e del diario verifica il blocco senza conto.
 
 ## Redesign "Flusso" — completato e pubblicato
 

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import { Delete, Trash2, Wallet } from 'lucide-react'
+import { Delete, Trash2 } from 'lucide-react'
 import { currentUserId, mutateOffline } from '../../lib/offline'
 import { todayISO } from '../../lib/format'
 import { defaultAccountId, padAppend, padBackspace, rememberLastAccount, sheetDateLabel } from '../../lib/finance'
@@ -76,6 +76,8 @@ export function TransactionSheet({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [shakes, setShakes] = useState(0)
+  /** Conteggio dei tentativi di salvataggio senza conto: > 0 evidenzia la scelta in rosso. */
+  const [accountShakes, setAccountShakes] = useState(0)
   const formRef = useRef<HTMLFormElement>(null)
   /** true quando il conto è stato scelto dall'utente o viene da un movimento esistente. */
   const accountChosenRef = useRef(false)
@@ -128,6 +130,7 @@ export function TransactionSheet({
     }
     setError('')
     setShakes(0)
+    setAccountShakes(0)
   }, [open, editing, draft])
 
   // Nuovo movimento: propone l'ultimo conto usato (anche se i conti arrivano dopo l'apertura del foglio)
@@ -182,12 +185,12 @@ export function TransactionSheet({
   const visibleCategories = categories.filter((c) => c.kind === kind)
   const amountLabel = formatCurrencyCents(cents, currency)
   const kindWord = kind === 'expense' ? 'uscita' : 'entrata'
-  const account = accounts.find((a) => a.id === accountId)
+  const accountMissing = accounts.length > 0 && !accounts.some((a) => a.id === accountId)
+  const accountAlert = accountShakes > 0 && accountMissing
 
-  function cycleAccount() {
+  function chooseAccount(id: string) {
     accountChosenRef.current = true
-    const order = ['', ...accounts.map((a) => a.id)]
-    setAccountId(order[(order.indexOf(accountId) + 1) % order.length])
+    setAccountId(id)
   }
 
   function pressKey(key: (typeof KEYS)[number]) {
@@ -208,6 +211,10 @@ export function TransactionSheet({
     if (busy) return
     if (!cents) {
       setShakes((count) => count + 1)
+      return
+    }
+    if (accountMissing) {
+      setAccountShakes((count) => count + 1)
       return
     }
     setBusy(true)
@@ -283,9 +290,15 @@ export function TransactionSheet({
         type="submit"
         form={formId}
         disabled={saveDisabled}
-        className="tabular flex min-h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-accent text-[16px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-50"
+        className={`tabular flex min-h-14 w-full items-center justify-center gap-2 rounded-[18px] text-[16px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-50 ${
+          accountAlert ? 'bg-expense' : 'bg-accent'
+        }`}
       >
-        {busy ? <Spinner className="h-5 w-5 text-white" /> : cents ? `Salva ${kindWord} · ${amountLabel}` : 'Inserisci un importo'}
+        {busy
+          ? <Spinner className="h-5 w-5 text-white" />
+          : !cents ? 'Inserisci un importo'
+          : accountAlert ? 'Scegli un conto'
+          : `Salva ${kindWord} · ${amountLabel}`}
       </button>
       {editing && (
         <button
@@ -342,26 +355,42 @@ export function TransactionSheet({
           ))}
         </div>
 
-        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+        {accounts.length > 0 && (
+          <div
+            key={accountShakes}
+            className={`-mx-2.5 mt-3 rounded-2xl border-[1.5px] px-2.5 pb-2.5 pt-2 transition-colors ${
+              accountAlert ? 'amount-shake border-expense bg-expense/5' : 'border-transparent'
+            }`}
+          >
+            <p aria-hidden="true" className={`mb-1.5 text-[13px] font-medium ${accountAlert ? 'text-expense' : 'text-muted'}`}>
+              {accountAlert ? 'Seleziona un conto per salvare' : accountMissing ? 'Seleziona conto' : 'Conto'}
+            </p>
+            <div role="group" aria-label="Conto" aria-invalid={accountAlert || undefined} className="no-scrollbar flex gap-2 overflow-x-auto">
+              {accounts.map((a) => (
+                <Chip
+                  key={a.id}
+                  variant="choice"
+                  selected={accountId === a.id}
+                  onClick={() => chooseAccount(a.id)}
+                  icon={<AccountIcon kind={a.kind} className="h-[18px] w-[18px] shrink-0" />}
+                  className={accountAlert ? 'border-expense' : ''}
+                >
+                  {a.name}
+                </Chip>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3">
           <input
             aria-label="Descrizione (facoltativa)"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             maxLength={200}
-            className="h-11 min-w-0 rounded-xl border border-line bg-card-2 px-3.5 outline-none focus:border-accent"
+            className="h-11 w-full min-w-0 rounded-xl border border-line bg-card-2 px-3.5 outline-none focus:border-accent"
             placeholder="Descrizione (facoltativa)"
           />
-          {accounts.length > 0 && (
-            <button
-              type="button"
-              onClick={cycleAccount}
-              aria-label={`Conto: ${account?.name ?? 'nessun conto'}. Tocca per cambiare`}
-              className="flex h-11 max-w-[40vw] items-center gap-2 rounded-xl border border-line bg-card-2 px-3 text-sm font-medium lg:max-w-[160px]"
-            >
-              {account ? <AccountIcon kind={account.kind} className="h-[18px] w-[18px] shrink-0" /> : <Wallet className="h-[18px] w-[18px] shrink-0" />}
-              <span className="truncate">{account?.name ?? 'Nessun conto'}</span>
-            </button>
-          )}
         </div>
 
         <div className="mt-1.5 flex flex-wrap items-center gap-x-1 text-[13px] text-muted">

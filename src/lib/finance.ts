@@ -81,14 +81,14 @@ export function rememberLastAccount(accountId: string | null): void {
 }
 
 /**
- * Conto proposto per un nuovo movimento: l'ultimo usato se esiste ancora, altrimenti il primo conto.
- * Stringa vuota ("Nessun conto") solo se non ci sono conti.
+ * Conto proposto per un nuovo movimento: l'ultimo usato, se esiste ancora.
+ * Altrimenti stringa vuota: l'utente deve scegliere il conto prima di salvare.
  */
 export function defaultAccountId(accounts: Array<{ id: string }>): string {
   let last: string | null = null
   try { last = localStorage.getItem(LAST_ACCOUNT_KEY) } catch { /* storage non disponibile */ }
   if (last && accounts.some((a) => a.id === last)) return last
-  return accounts[0]?.id ?? ''
+  return ''
 }
 
 /** Nome del conto per il sottotitolo di un movimento; "Senza conto" se esistono conti ma il movimento non ne ha. */
