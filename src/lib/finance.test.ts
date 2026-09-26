@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { MAX_PAD_CENTS, budgetTone, dayGroupLabel, groupByDay, lastUpdateLabel, padAppend, padBackspace, sheetDateLabel } from './finance'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { MAX_PAD_CENTS, accountLabel, budgetTone, defaultAccountId, rememberLastAccount, dayGroupLabel, groupByDay, lastUpdateLabel, padAppend, padBackspace, sheetDateLabel } from './finance'
 import type { Transaction } from '../types'
 
 function tx(partial: Partial<Transaction>): Transaction {
@@ -71,5 +71,40 @@ describe('lastUpdateLabel', () => {
     expect(lastUpdateLabel(new Date(2026, 8, 24, 12, 40).getTime(), now)).toBe('oggi alle 12:40')
     expect(lastUpdateLabel(new Date(2026, 8, 23, 9, 5).getTime(), now)).toBe('ieri alle 09:05')
     expect(lastUpdateLabel(new Date(2026, 8, 22, 18, 0).getTime(), now)).toBe('22 set alle 18:00')
+  })
+})
+
+describe('conto proposto per un nuovo movimento', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const accounts = [{ id: 'a' }, { id: 'b' }]
+
+  function stubStorage() {
+    const store = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => { store.set(key, value) },
+    })
+  }
+
+  it('usa l’ultimo conto se esiste ancora, altrimenti il primo', () => {
+    stubStorage()
+    expect(defaultAccountId(accounts)).toBe('a')
+    rememberLastAccount('b')
+    expect(defaultAccountId(accounts)).toBe('b')
+    rememberLastAccount('eliminato')
+    expect(defaultAccountId(accounts)).toBe('a')
+    expect(defaultAccountId([])).toBe('')
+  })
+
+  it('funziona anche senza storage', () => {
+    vi.stubGlobal('localStorage', undefined)
+    expect(defaultAccountId(accounts)).toBe('a')
+    expect(() => rememberLastAccount('b')).not.toThrow()
+  })
+
+  it('segnala "Senza conto" solo se esistono conti', () => {
+    expect(accountLabel({ name: 'Widiba' }, true)).toBe('Widiba')
+    expect(accountLabel(undefined, true)).toBe('Senza conto')
+    expect(accountLabel(undefined, false)).toBeUndefined()
   })
 })

@@ -6,6 +6,7 @@ import { currentUserId, mutateOffline } from '../../lib/offline'
 import { sessionScope } from '../../lib/sessionScope'
 import { startVoiceRecording, voiceSupported, type VoiceRecorder } from '../../lib/voice'
 import { formatCents, todayISO } from '../../lib/format'
+import { defaultAccountId, rememberLastAccount } from '../../lib/finance'
 import type { Account, Category, Kind } from '../../types'
 
 interface DiaryEntry {
@@ -54,16 +55,23 @@ export function DiarySheet({
   const voiceAbortRef = useRef<AbortController | null>(null)
   const voiceStartingRef = useRef(false)
   const autoStopRef = useRef<number | null>(null)
+  const accountChosenRef = useRef(false)
 
   useEffect(() => {
     if (!open) return
     setText('')
     setRows(null)
     setAccountId('')
+    accountChosenRef.current = false
     setError('')
     setSavedCount(null)
     setAttempted(false)
   }, [open])
+
+  useEffect(() => {
+    if (!open || accountChosenRef.current || accountId || accounts.length === 0) return
+    setAccountId(defaultAccountId(accounts))
+  }, [open, accountId, accounts])
 
   useEffect(() => {
     if (!open) { setListening(false);setTranscribing(false) }
@@ -208,6 +216,7 @@ export function DiarySheet({
         })
       }
       sessionScope.assert(ticket)
+      rememberLastAccount(accountId || null)
       setSavedCount(chosen.length)
       onSaved()
 } catch (cause) {
@@ -332,7 +341,7 @@ export function DiarySheet({
                   <select
                     value={accountId}
                     disabled={attempted}
-                    onChange={(e) => setAccountId(e.target.value)}
+                    onChange={(e) => { accountChosenRef.current = true; setAccountId(e.target.value) }}
                     className={inputClass}
                   >
                     <option value="">Nessun conto</option>

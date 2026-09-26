@@ -2,7 +2,19 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **24 settembre 2026**.
+> Ultimo aggiornamento: **26 settembre 2026**.
+
+## Conto predefinito nei nuovi movimenti (26 settembre 2026)
+
+Alcuni movimenti erano stati salvati per sbaglio senza conto. Erano quindi esclusi dal
+patrimonio e dai saldi dei conti, mentre contavano nel saldo mensile di Finanze.
+- **Nuovo movimento e Diario del giorno** propongono l'ultimo conto usato, o il primo conto se
+  non ce n'è uno memorizzato. "Nessun conto" resta selezionabile a mano.
+- L'ultimo conto è ricordato solo sul dispositivo (`localStorage`, chiave `aje:last-account`),
+  e viene ignorato se quel conto non esiste più.
+- Nelle liste di Home e Finanze, un movimento senza conto mostra **"Senza conto"** nel
+  sottotitolo, quando esiste almeno un conto.
+- Helper e test: `defaultAccountId`, `rememberLastAccount`, `accountLabel` in `src/lib/finance.ts`.
 
 ## Redesign "Flusso" — completato e pubblicato
 

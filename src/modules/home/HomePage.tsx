@@ -35,6 +35,7 @@ import {
 import { invokeFunction } from '../../lib/integrations'
 import { mutateOffline } from '../../lib/offline'
 import { CategoryIcon } from '../../lib/icons'
+import { accountLabel } from '../../lib/finance'
 import { formatCurrencyCents } from '../../lib/currency'
 import type { Task } from '../../types'
 
@@ -381,7 +382,7 @@ export function HomePage() {
                   const category = t.category_id ? categoryById.get(t.category_id) : undefined
                   const account = t.account_id ? accountById.get(t.account_id) : undefined
                   const transfer = Boolean(t.transfer_group)
-                  const subtitle = [transfer ? 'Trasferimento' : (category?.name ?? 'Senza categoria'), account?.name]
+                  const subtitle = [transfer ? 'Trasferimento' : (category?.name ?? 'Senza categoria'), accountLabel(account, accounts.length > 0)]
                     .filter(Boolean)
                     .join(' · ')
                   return (

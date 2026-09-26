@@ -71,3 +71,28 @@ export function lastUpdateLabel(timestamp: number, now: number = Date.now()): st
   const short = date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }).replace('.', '')
   return `${short} alle ${time}`
 }
+
+const LAST_ACCOUNT_KEY = 'aje:last-account'
+
+/** Ricorda (solo su questo dispositivo) l'ultimo conto usato per un nuovo movimento. */
+export function rememberLastAccount(accountId: string | null): void {
+  if (!accountId) return
+  try { localStorage.setItem(LAST_ACCOUNT_KEY, accountId) } catch { /* storage non disponibile */ }
+}
+
+/**
+ * Conto proposto per un nuovo movimento: l'ultimo usato se esiste ancora, altrimenti il primo conto.
+ * Stringa vuota ("Nessun conto") solo se non ci sono conti.
+ */
+export function defaultAccountId(accounts: Array<{ id: string }>): string {
+  let last: string | null = null
+  try { last = localStorage.getItem(LAST_ACCOUNT_KEY) } catch { /* storage non disponibile */ }
+  if (last && accounts.some((a) => a.id === last)) return last
+  return accounts[0]?.id ?? ''
+}
+
+/** Nome del conto per il sottotitolo di un movimento; "Senza conto" se esistono conti ma il movimento non ne ha. */
+export function accountLabel(account: { name: string } | undefined, hasAccounts: boolean): string | undefined {
+  if (account) return account.name
+  return hasAccounts ? 'Senza conto' : undefined
+}

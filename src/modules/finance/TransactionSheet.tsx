@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Delete, Trash2, Wallet } from 'lucide-react'
 import { currentUserId, mutateOffline } from '../../lib/offline'
 import { todayISO } from '../../lib/format'
-import { padAppend, padBackspace, sheetDateLabel } from '../../lib/finance'
+import { defaultAccountId, padAppend, padBackspace, rememberLastAccount, sheetDateLabel } from '../../lib/finance'
 import { notifyDataChanged } from '../../lib/data'
 import {
   SUPPORTED_CURRENCIES,
@@ -77,6 +77,8 @@ export function TransactionSheet({
   const [error, setError] = useState('')
   const [shakes, setShakes] = useState(0)
   const formRef = useRef<HTMLFormElement>(null)
+  /** true quando il conto è stato scelto dall'utente o viene da un movimento esistente. */
+  const accountChosenRef = useRef(false)
   const formId = useId()
 
   useEffect(() => {
@@ -88,6 +90,7 @@ export function TransactionSheet({
       setCents(editing.original_amount_cents ?? editing.amount_cents)
       setCategoryId(editing.category_id ?? '')
       setAccountId(editing.account_id ?? '')
+      accountChosenRef.current = true
       setDate(editing.date)
       setDescription(editing.description)
       setRecurrence(editing.recurrence ?? '')
@@ -105,6 +108,7 @@ export function TransactionSheet({
       setCents(draft.amount_cents ?? 0)
       setCategoryId(draft.category_id ?? '')
       setAccountId('')
+      accountChosenRef.current = false
       setDate(draft.date ?? todayISO())
       setDescription(draft.description ?? '')
       setRecurrence('')
@@ -115,6 +119,7 @@ export function TransactionSheet({
       setCents(0)
       setCategoryId('')
       setAccountId('')
+      accountChosenRef.current = false
       setDate(todayISO())
       setDescription('')
       setRecurrence('')
@@ -124,6 +129,12 @@ export function TransactionSheet({
     setError('')
     setShakes(0)
   }, [open, editing, draft])
+
+  // Nuovo movimento: propone l'ultimo conto usato (anche se i conti arrivano dopo l'apertura del foglio)
+  useEffect(() => {
+    if (!open || accountChosenRef.current || accountId || accounts.length === 0) return
+    setAccountId(defaultAccountId(accounts))
+  }, [open, accountId, accounts])
 
   useEffect(() => {
     if (!open) return
@@ -174,6 +185,7 @@ export function TransactionSheet({
   const account = accounts.find((a) => a.id === accountId)
 
   function cycleAccount() {
+    accountChosenRef.current = true
     const order = ['', ...accounts.map((a) => a.id)]
     setAccountId(order[(order.indexOf(accountId) + 1) % order.length])
   }
@@ -232,6 +244,7 @@ export function TransactionSheet({
         editing ? values : insertPayload,
         localRecord,
       )
+      if (!editing) rememberLastAccount(accountId || null)
       onClose()
       onSaved?.()
       notifyDataChanged()

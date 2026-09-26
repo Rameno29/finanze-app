@@ -20,7 +20,7 @@ import { AccountsView } from './AccountsView'
 import { useAccounts, useBudgets, useCategories, useGoals, useTransactions, sumByKind } from '../../lib/data'
 import { exportTransactionsCsv } from '../../lib/exportCsv'
 import { formatCents, formatSignedCents, monthLabel, todayISO } from '../../lib/format'
-import { dayGroupLabel, groupByDay, lastUpdateLabel } from '../../lib/finance'
+import { accountLabel, dayGroupLabel, groupByDay, lastUpdateLabel } from '../../lib/finance'
 import { CategoryIcon } from '../../lib/icons'
 import { formatCurrencyCents } from '../../lib/currency'
 import type { Transaction } from '../../types'
@@ -427,7 +427,7 @@ export function FinancePage() {
                     const isTransfer = Boolean(t.transfer_group)
                     const subtitle = [
                       isTransfer ? 'Trasferimento' : (cat?.name ?? 'Senza categoria'),
-                      account?.name,
+                      accountLabel(account, accounts.length > 0),
                       t.recurrence,
                     ].filter(Boolean).join(' · ')
                     return (
