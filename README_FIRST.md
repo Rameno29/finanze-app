@@ -2,7 +2,15 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **26 settembre 2026**.
+> Ultimo aggiornamento: **12 ottobre 2026**.
+
+## Skill REA per l'agente (12 ottobre 2026)
+
+Installata la skill `reverse-engineer-anything` (repository `morluto/rea`) in
+`.claude/skills/reverse-engineer-anything/`, per uso da parte dell'agente di sviluppo.
+Non fa parte dell'app né della build. La cartella `.claude` è ignorata da Git, quindi la skill
+vale solo per la copia locale del progetto. La skill fornisce solo istruzioni: il server MCP di REA
+si registra a parte con `npx rea-agents setup`.
 
 ## Conto obbligatorio nei nuovi movimenti (26 settembre 2026)
 
