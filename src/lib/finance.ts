@@ -1,4 +1,4 @@
-import type { Transaction } from '../types'
+import type { Category, Kind, Transaction } from '../types'
 
 /** Importo massimo del tastierino: 999.999,99. */
 export const MAX_PAD_CENTS = 99_999_999
@@ -95,4 +95,20 @@ export function defaultAccountId(accounts: Array<{ id: string }>): string {
 export function accountLabel(account: { name: string } | undefined, hasAccounts: boolean): string | undefined {
   if (account) return account.name
   return hasAccounts ? 'Senza conto' : undefined
+}
+
+/**
+ * Movimento di rettifica che porta il saldo calcolato da AJE (`appCents`) al saldo reale della banca.
+ * Saldo reale più basso → uscita (addebiti non registrati); più alto → entrata. `null` se già allineato.
+ */
+export function reconcileAdjustment(appCents: number, realCents: number): { kind: Kind; amount_cents: number } | null {
+  const diff = realCents - appCents
+  if (diff === 0) return null
+  return { kind: diff < 0 ? 'expense' : 'income', amount_cents: Math.abs(diff) }
+}
+
+/** Categoria proposta per la rettifica: "Altro" per le uscite, "Altre entrate" per le entrate, se esistono. */
+export function adjustmentCategoryId(categories: Category[], kind: Kind): string {
+  const name = kind === 'expense' ? 'altro' : 'altre entrate'
+  return categories.find((c) => c.kind === kind && c.name.trim().toLowerCase() === name)?.id ?? ''
 }

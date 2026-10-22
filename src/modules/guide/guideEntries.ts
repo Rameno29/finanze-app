@@ -60,6 +60,7 @@ export const GUIDE_ENTRIES: GuideEntry[] = [
       'In Finanze → Conti crei conti per contanti, banca e carte, ognuno con il suo saldo iniziale.',
       '**Trasferisci tra conti** sposta soldi senza contare come entrata o uscita (per eliminarlo tocca uno dei due movimenti collegati).',
       '**Importa CSV**: l’icona accanto a un conto legge l’estratto conto della banca, propone le categorie e segnala i possibili duplicati. Il file non lascia il dispositivo.',
+      '**Allinea al saldo reale** (icona della bilancia accanto al conto): scrivi il saldo che vedi in banca e AJE registra la differenza come un’uscita (addebiti mancanti) o un’entrata, con categoria a scelta. La rettifica conta nei totali del mese, nei budget e in “Puoi spendere”, e si elimina come un normale movimento. Gli obiettivi di risparmio non cambiano da soli: se i conti non bastano più a coprirli, AJE te lo segnala.',
     ],
   },
   {

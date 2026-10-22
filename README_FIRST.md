@@ -2,7 +2,37 @@
 
 > **Leggi questo file per primo.** Contiene tutto: cos'è l'app, com'è fatta, cosa è stato
 > realizzato, i problemi incontrati e come sono stati risolti, lo stato attuale e i piani futuri.
-> Ultimo aggiornamento: **26 settembre 2026**.
+> Ultimo aggiornamento: **22 ottobre 2026**.
+
+## Allineare un conto al saldo reale (22 ottobre 2026)
+
+Molti addebiti automatici non vengono registrati, quindi il saldo di AJE si allontana da quello
+della banca. In Finanze → Conti ogni conto ha un pulsante con la bilancia ("Allinea il saldo di …
+al saldo reale"), raggiungibile anche dal link nel foglio "Modifica conto".
+- Si scrive il saldo reale; il foglio mostra il saldo in AJE e la differenza.
+- Alla conferma la differenza diventa un **movimento normale** sul conto, in EUR, senza ricorrenza:
+  uscita se il saldo reale è più basso, entrata se è più alto. Categoria proposta "Altro" (uscite)
+  o "Altre entrate" (entrate), modificabile o assente; descrizione "Rettifica saldo"; data di oggi
+  modificabile. Passa da `mutateOffline`, quindi funziona anche offline.
+- Conseguenze: la rettifica entra in saldi, patrimonio, totali del mese, budget, "Puoi spendere"
+  e medie del What-if. Toast con "Annulla"; dopo si modifica o elimina dalla lista dei movimenti.
+- **Obiettivi**: `saved_cents` resta manuale e non viene toccato. Se il patrimonio dopo la
+  rettifica è inferiore al totale risparmiato negli obiettivi non raggiunti, il foglio lo segnala.
+- Il **saldo iniziale** resta modificabile: il foglio "Modifica conto" spiega che cambiarlo
+  riscrive tutta la storia del conto e non conta come spesa.
+- Codice: `src/modules/finance/ReconcileSheet.tsx`, helper `reconcileAdjustment` e
+  `adjustmentCategoryId` in `src/lib/finance.ts` (con test), voce "Conti" della Guida aggiornata.
+  Nessuna migration né Edge Function.
+- Verifiche: lint (solo i 3 avvisi Fast Refresh già presenti), `tsc`, 158 test Vitest, build e
+  42 test browser desktop/mobile, compreso il nuovo test della rettifica.
+
+## Skill REA per l'agente (12 ottobre 2026)
+
+Installata la skill `reverse-engineer-anything` (repository `morluto/rea`) in
+`.claude/skills/reverse-engineer-anything/`, per uso da parte dell'agente di sviluppo.
+Non fa parte dell'app né della build. La cartella `.claude` è ignorata da Git, quindi la skill
+vale solo per la copia locale del progetto. La skill fornisce solo istruzioni: il server MCP di REA
+si registra a parte con `npx rea-agents setup`.
 
 ## Conto obbligatorio nei nuovi movimenti (26 settembre 2026)
 
