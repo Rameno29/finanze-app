@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { MAX_PAD_CENTS, accountLabel, budgetTone, defaultAccountId, rememberLastAccount, dayGroupLabel, groupByDay, lastUpdateLabel, padAppend, padBackspace, sheetDateLabel } from './finance'
-import type { Transaction } from '../types'
+import { MAX_PAD_CENTS, accountLabel, adjustmentCategoryId, reconcileAdjustment, budgetTone, defaultAccountId, rememberLastAccount, dayGroupLabel, groupByDay, lastUpdateLabel, padAppend, padBackspace, sheetDateLabel } from './finance'
+import type { Category, Transaction } from '../types'
 
 function tx(partial: Partial<Transaction>): Transaction {
   return { id: crypto.randomUUID(), amount_cents: 0, kind: 'expense', transfer_group: null, date: '2026-09-24', ...partial } as Transaction
@@ -106,5 +106,28 @@ describe('conto proposto per un nuovo movimento', () => {
     expect(accountLabel({ name: 'Widiba' }, true)).toBe('Widiba')
     expect(accountLabel(undefined, true)).toBe('Senza conto')
     expect(accountLabel(undefined, false)).toBeUndefined()
+  })
+})
+
+describe('allineamento del saldo', () => {
+  it('saldo reale più basso: uscita per la differenza', () => {
+    expect(reconcileAdjustment(120_000, 98_755)).toEqual({ kind: 'expense', amount_cents: 21_245 })
+  })
+
+  it('saldo reale più alto, anche partendo da un saldo negativo: entrata', () => {
+    expect(reconcileAdjustment(-5_000, 2_500)).toEqual({ kind: 'income', amount_cents: 7_500 })
+  })
+
+  it('già allineato: nessun movimento', () => {
+    expect(reconcileAdjustment(4_200, 4_200)).toBeNull()
+  })
+
+  it('propone "Altro" per le uscite e "Altre entrate" per le entrate', () => {
+    const cat = (id: string, name: string, kind: Category['kind']): Category =>
+      ({ id, user_id: 'u', name, kind, color: '#000', icon: 'tag' })
+    const categories = [cat('a', 'Spesa', 'expense'), cat('b', 'Altro', 'expense'), cat('c', 'Altre entrate', 'income')]
+    expect(adjustmentCategoryId(categories, 'expense')).toBe('b')
+    expect(adjustmentCategoryId(categories, 'income')).toBe('c')
+    expect(adjustmentCategoryId([categories[0]], 'expense')).toBe('')
   })
 })

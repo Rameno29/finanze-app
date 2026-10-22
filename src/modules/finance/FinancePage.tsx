@@ -498,6 +498,7 @@ export function FinancePage() {
               accounts={accounts}
               loading={accountsLoading}
               categories={categories}
+              goals={goals}
               onChanged={reloadAccounts}
               onTransactionsChanged={reload}
               openNewAccount={openNewAccount}

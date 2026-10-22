@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { ArrowLeftRight, Landmark, Plus, Trash2, Upload } from 'lucide-react'
+import { ArrowLeftRight, Landmark, Plus, Scale, Trash2, Upload } from 'lucide-react'
 import { EmptyState, Field, PrimaryButton, Sheet, Spinner, inputClass } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { fetchAccountBalances } from '../../lib/data'
@@ -7,8 +7,9 @@ import { currentUserId, mutateOffline } from '../../lib/offline'
 import { parseSignedAmountCents } from '../../lib/csvImport'
 import { formatCents, parseAmountToCents, todayISO } from '../../lib/format'
 import { ImportSheet } from './ImportSheet'
+import { ReconcileSheet } from './ReconcileSheet'
 import { AccountIcon } from './AccountIcon'
-import type { Account, AccountKind, Category } from '../../types'
+import type { Account, AccountKind, Category, Goal } from '../../types'
 
 const ACCOUNT_KINDS: Array<[AccountKind, string]> = [
   ['contanti', 'Contanti'],
@@ -20,6 +21,7 @@ export function AccountsView({
   accounts,
   loading,
   categories,
+  goals = [],
   onChanged,
   onTransactionsChanged,
   openNewAccount = false,
@@ -27,6 +29,8 @@ export function AccountsView({
   accounts: Account[]
   loading: boolean
   categories: Category[]
+  /** Per avvisare se, dopo una rettifica, i conti non coprono il risparmio degli obiettivi. */
+  goals?: Goal[]
   onChanged: () => void
   onTransactionsChanged: () => void
   /** Apre subito "Nuovo conto" (arrivando dalla Home vuota). */
@@ -37,6 +41,7 @@ export function AccountsView({
   const [editing, setEditing] = useState<Account | null>(null)
   const [transferSheet, setTransferSheet] = useState(false)
   const [importAccount, setImportAccount] = useState<Account | null>(null)
+  const [reconcileAccount, setReconcileAccount] = useState<Account | null>(null)
 
   const reloadBalances = useCallback(async () => {
     try {
@@ -50,7 +55,11 @@ export function AccountsView({
     void reloadBalances()
   }, [reloadBalances])
 
-  const total = accounts.reduce((sum, a) => sum + (balances.get(a.id) ?? a.initial_balance_cents), 0)
+  const balanceOf = (account: Account) => balances.get(account.id) ?? account.initial_balance_cents
+  const total = accounts.reduce((sum, a) => sum + balanceOf(a), 0)
+  const goalsSaved = goals
+    .filter((g) => g.saved_cents < g.target_cents)
+    .reduce((sum, g) => sum + g.saved_cents, 0)
 
   function afterTransactionsChange() {
     onTransactionsChanged()
@@ -79,7 +88,7 @@ export function AccountsView({
           </p>
           <div className="mt-2">
             {accounts.map((account) => {
-              const balance = balances.get(account.id) ?? account.initial_balance_cents
+              const balance = balanceOf(account)
               return (
                 <div key={account.id} className="flex min-h-[72px] items-center gap-3 border-b border-line">
                   <button
@@ -99,6 +108,14 @@ export function AccountsView({
                     <span className={`tabular shrink-0 text-base font-semibold ${balance >= 0 ? 'text-ink' : 'text-expense'}`}>
                       {formatCents(balance)}
                     </span>
+                  </button>
+                  <button
+                    onClick={() => setReconcileAccount(account)}
+                    aria-label={`Allinea il saldo di ${account.name} al saldo reale`}
+                    title="Allinea al saldo reale"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-card-2"
+                  >
+                    <Scale className="h-[18px] w-[18px]" strokeWidth={1.9} />
                   </button>
                   <button
                     onClick={() => setImportAccount(account)}
@@ -135,7 +152,9 @@ export function AccountsView({
         </button>
       </div>
       <p className="mt-3 text-[13px] text-muted">
-        I trasferimenti tra conti spostano il saldo ma non contano come entrate o uscite.
+        I trasferimenti tra conti spostano il saldo ma non contano come entrate o uscite. Se AJE non
+        coincide con la banca, tocca <Scale className="inline h-4 w-4 align-[-3px]" aria-hidden /> per
+        allineare il conto al saldo reale.
       </p>
 
       <AccountSheet
@@ -146,6 +165,21 @@ export function AccountsView({
           onChanged()
           void reloadBalances()
         }}
+        onReconcile={(account) => {
+          setAccountSheet(false)
+          setReconcileAccount(account)
+        }}
+      />
+
+      <ReconcileSheet
+        open={reconcileAccount !== null}
+        onClose={() => setReconcileAccount(null)}
+        account={reconcileAccount}
+        appBalanceCents={reconcileAccount ? balanceOf(reconcileAccount) : 0}
+        otherAccountsCents={reconcileAccount ? total - balanceOf(reconcileAccount) : 0}
+        goalsSavedCents={goalsSaved}
+        categories={categories}
+        onSaved={afterTransactionsChange}
       />
 
       <TransferSheet
@@ -171,11 +205,13 @@ function AccountSheet({
   onClose,
   editing,
   onSaved,
+  onReconcile,
 }: {
   open: boolean
   onClose: () => void
   editing: Account | null
   onSaved: () => void
+  onReconcile: (account: Account) => void
 }) {
   const [name, setName] = useState('')
   const [kind, setKind] = useState<AccountKind>('banca')
@@ -293,6 +329,16 @@ function AccountSheet({
             placeholder="0,00"
           />
         </Field>
+        {editing && (
+          <div className="-mt-2 mb-4 text-[13px] text-muted">
+            Cambiare il saldo iniziale riscrive tutta la storia del conto e non conta come spesa. Se mancano
+            addebiti recenti,{' '}
+            <button type="button" onClick={() => onReconcile(editing)} className="font-medium text-accent underline">
+              allinea al saldo reale
+            </button>
+            .
+          </div>
+        )}
 
         {error && <p className="mb-4 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense">{error}</p>}
 

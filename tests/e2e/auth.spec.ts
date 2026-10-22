@@ -7,7 +7,7 @@ function session(id: string) {
   const token = [Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),Buffer.from(JSON.stringify({sub:id,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url'),'synthetic-test-signature'].join('.')
   return {access_token:token,refresh_token:`refresh-${id}`,token_type:'bearer',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,user:{id,aud:'authenticated',role:'authenticated',email:id===owner?'owner@example.test':'guest@example.test',app_metadata:{provider:'email'},user_metadata:{},identities:[],created_at:new Date().toISOString()}}
 }
-async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean; csvFailure?: boolean; csvHistory?: boolean; csvReadFailure?: boolean; uploadLostResponse?: boolean; diaryFailure?: boolean; pdfGeneration?: boolean; pdfHold?: boolean; invitePages?: boolean } = {}) {
+async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean; csvFailure?: boolean; csvHistory?: boolean; csvReadFailure?: boolean; uploadLostResponse?: boolean; diaryFailure?: boolean; reconcile?: boolean; pdfGeneration?: boolean; pdfHold?: boolean; invitePages?: boolean } = {}) {
   let releasePdf=()=>{}
   const pdfGate=new Promise<void>(resolve=>{ releasePdf=resolve })
   let diaryPosts=0
@@ -18,7 +18,8 @@ async function mockBackend(page: Page, options: { rejectFirstPassword?: boolean;
   const bank='44444444-4444-4444-8444-444444444444'
   const transactions = new Map<string, Record<string,unknown>>()
   if(options.csvHistory) for(let i=0;i<1001;i++) transactions.set(`existing-${i}`,{id:`existing-${i}`,user_id:owner,account_id:bank,date:'2026-09-01',kind:'expense',amount_cents:i+1})
-  const csvMode = options.csvFailure || options.csvHistory || options.csvReadFailure || options.diaryFailure
+  if(options.reconcile) transactions.set('existing-reconcile',{id:'existing-reconcile',user_id:owner,account_id:bank,date:'2026-09-01',kind:'expense',amount_cents:2000})
+  const csvMode = options.csvFailure || options.csvHistory || options.csvReadFailure || options.diaryFailure || options.reconcile
   const calls: Array<{id:string;name:string;body:Record<string,unknown>}> = []
   await page.route('**/*', async route => {
     const req=route.request(), url=new URL(req.url())
@@ -445,4 +446,19 @@ test('CSV import is not enabled when duplicate verification fails',async({page})
   // Supabase retries transient GET failures before surfacing the final error.
   await expect(page.getByText(/Lettura del file non riuscita|Verifica dei movimenti non riuscita/)).toBeVisible({timeout:20000})
   await expect(page.getByRole('button',{name:'Importa 1',exact:true})).toHaveCount(0)
+})
+
+test('allineare un conto al saldo reale registra la differenza come uscita',async({page})=>{
+  const {transactions}=await mockBackend(page,{reconcile:true})
+  await page.goto('impostazioni');await login(page);await page.goto('finanze')
+  if (test.info().project.name === 'mobile') await page.getByRole('button',{name:'Conti',exact:true}).click()
+  await page.getByRole('button',{name:'Allinea il saldo di Banca prova al saldo reale'}).click()
+  const sheet=page.getByRole('dialog',{name:'Allinea al saldo reale'})
+  await expect(sheet.getByText(/−\s?20,00|-20,00/).first()).toBeVisible()
+  await sheet.getByLabel('Saldo reale in banca oggi (EUR)').fill('-50,00')
+  await expect(sheet.getByText(/di addebiti non registrati/)).toBeVisible()
+  await sheet.getByRole('button',{name:'Registra rettifica',exact:true}).click()
+  await expect(page.getByText(/Banca prova allineato a/)).toBeVisible()
+  const saved=[...transactions.values()].find(row=>row.description==='Rettifica saldo')
+  expect(saved).toMatchObject({kind:'expense',amount_cents:3000,account_id:'44444444-4444-4444-8444-444444444444'})
 })
